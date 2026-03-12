@@ -3,17 +3,19 @@ import os
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'chave-secreta-padrao-dev-2024'
 
-    db_url = os.environ.get('DATABASE_URL')
-
+    db_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/cotacoes')
     if db_url and db_url.startswith('postgres://'):
         db_url = db_url.replace('postgres://', 'postgresql://', 1)
 
-    SQLALCHEMY_DATABASE_URI = db_url or 'sqlite:///cotacoes.db'
+    SQLALCHEMY_DATABASE_URI = db_url
 
-    # Se quiser manter tudo no mesmo banco em produção, remova o bind separado
+    users_db_url = os.environ.get('USERS_DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/users')
+    if users_db_url and users_db_url.startswith('postgres://'):
+        users_db_url = users_db_url.replace('postgres://', 'postgresql://', 1)
+
     SQLALCHEMY_BINDS = {
-    'users': db_url or 'sqlite:///users.db'
-    }   
+        'users': users_db_url
+    }
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

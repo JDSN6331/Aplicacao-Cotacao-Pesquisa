@@ -1,10 +1,33 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
 # Limite máximo de anexos por cotação/pesquisa
 MAX_ANEXOS = 5
+
+
+class User(UserMixin, db.Model):
+    """Modelo de usuário para autenticação"""
+    __tablename__ = 'users'
+    __bind_key__ = 'users'  # Usa banco de dados separado (users.db)
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)  # Email agora é obrigatório
+    password_hash = db.Column(db.String(256), nullable=False)
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+        
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 
 class Anexo(db.Model):
@@ -56,12 +79,16 @@ class Cotacao(db.Model):
     # Relacionamentos
     produtos = db.relationship('ProdutoCotacao', backref='cotacao', lazy=True, cascade='all, delete-orphan')
     anexos = db.relationship('Anexo', backref='cotacao', lazy=True, cascade='all, delete-orphan')
+    historico_status = db.relationship('HistoricoStatus', backref='cotacao', lazy=True, 
+                                        cascade='all, delete-orphan', 
+                                        order_by='HistoricoStatus.data_mudanca.desc()',
+                                        foreign_keys='HistoricoStatus.cotacao_id')
     
     def __repr__(self):
         return f'<Cotacao {self.id}>'
     
     def to_dict(self):
-        dias_no_status = (datetime.now() - self.data_entrada_status).days
+        dias_no_status = (datetime.now().date() - self.data).days
         valor_total = sum([produto.valor_total_com_frete or 0 for produto in self.produtos]) if self.produtos else 0
         fornecedor = self.produtos[0].fornecedor if self.produtos and self.produtos[0].fornecedor else '-'
         return {
@@ -97,12 +124,13 @@ class ProdutoCotacao(db.Model):
     sku_produto = db.Column(db.String(20), nullable=True)
     nome_produto = db.Column(db.String(100), nullable=False)
     volume = db.Column(db.Float, nullable=False)
-    unidade_medida = db.Column(db.String(10), nullable=False)  # 'Kg/l' ou 'TN'
+    unidade_medida = db.Column(db.String(10), nullable=False)  # 'TN'
     preco_unitario = db.Column(db.Float, nullable=True)
     valor_total = db.Column(db.Float, nullable=True)
     fornecedor = db.Column(db.String(100), nullable=True)
     preco_custo = db.Column(db.Float, nullable=True)
-    valor_frete = db.Column(db.Float, nullable=True)
+    custo_alvo = db.Column(db.Float, nullable=True)  # Novo campo: Custo Alvo
+    valor_frete = db.Column(db.Float, nullable=True)  # Frete por TN
     prazo_entrega_fornecedor = db.Column(db.Date, nullable=True)
     valor_total_com_frete = db.Column(db.Float, nullable=True)
     
@@ -117,6 +145,7 @@ class ProdutoCotacao(db.Model):
             'valor_total': self.valor_total,
             'fornecedor': self.fornecedor,
             'preco_custo': self.preco_custo,
+            'custo_alvo': self.custo_alvo,
             'valor_frete': self.valor_frete,
             'prazo_entrega_fornecedor': self.prazo_entrega_fornecedor.strftime('%Y-%m-%d') if self.prazo_entrega_fornecedor else None,
             'valor_total_com_frete': self.valor_total_com_frete
@@ -148,12 +177,22 @@ class PesquisaMercado(db.Model):
     cultura = db.Column(db.String(50), nullable=True)
     nome_vendedor = db.Column(db.String(100), nullable=True)
     comprador = db.Column(db.String(100), nullable=True)
+    motivo_venda_perdida = db.Column(db.Text, nullable=True)
     prazo_entrega = db.Column(db.Date, nullable=True)
-    
+    fornecedor = db.Column(db.String(100), nullable=True)
+    # Controle: indica se já foi gerada uma cotação a partir desta pesquisa
+    cotacao_gerada = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
     # Relacionamento com anexos
     anexos = db.relationship('Anexo', backref='pesquisa', lazy=True, cascade='all, delete-orphan')
     
+    # Relacionamento com histórico de status
+    historico_status = db.relationship('HistoricoStatus', backref='pesquisa', lazy=True, 
+                                        cascade='all, delete-orphan', 
+                                        order_by='HistoricoStatus.data_mudanca.desc()',
+                                        foreign_keys='HistoricoStatus.pesquisa_id')
+    
     def to_dict(self):
+        dias_no_status = (datetime.now().date() - self.data).days
         return {
             'id': self.id,
             'data': self.data.strftime('%d/%m/%Y'),
@@ -171,6 +210,7 @@ class PesquisaMercado(db.Model):
             'analista_comercial': self.analista_comercial,
             'observacoes': self.observacoes,
             'status': self.status,
+            'dias_no_status': dias_no_status,
             'data_entrada_status': self.data_entrada_status.strftime('%Y-%m-%d %H:%M:%S'),
             'data_ultima_modificacao': self.data_ultima_modificacao.strftime('%d/%m/%Y'),
             'anexos': [anexo.to_dict() for anexo in self.anexos],
@@ -178,5 +218,36 @@ class PesquisaMercado(db.Model):
             'cultura': self.cultura,
             'nome_vendedor': self.nome_vendedor,
             'comprador': self.comprador,
-            'prazo_entrega': self.prazo_entrega.strftime('%Y-%m-%d') if self.prazo_entrega else None
+            'motivo_venda_perdida': self.motivo_venda_perdida,
+            'prazo_entrega': self.prazo_entrega.strftime('%Y-%m-%d') if self.prazo_entrega else None,
+            'fornecedor': self.fornecedor
+        }
+
+
+class HistoricoStatus(db.Model):
+    """Modelo para armazenar histórico de mudanças de status das cotações e pesquisas"""
+    __tablename__ = 'historico_status'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cotacao_id = db.Column(db.Integer, db.ForeignKey('cotacoes.id'), nullable=True)  # Nullable para permitir pesquisas
+    pesquisa_id = db.Column(db.Integer, db.ForeignKey('pesquisas_mercado.id'), nullable=True)  # Novo campo para pesquisas
+    status_anterior = db.Column(db.String(50), nullable=True)  # Null se for criação
+    status_novo = db.Column(db.String(50), nullable=False)
+    data_mudanca = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    usuario = db.Column(db.String(100), nullable=True)  # Para futuro sistema de login
+    observacao = db.Column(db.Text, nullable=True)
+    
+    def __repr__(self):
+        return f'<HistoricoStatus {self.id}: {self.status_anterior} -> {self.status_novo}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'cotacao_id': self.cotacao_id,
+            'pesquisa_id': self.pesquisa_id,
+            'status_anterior': self.status_anterior,
+            'status_novo': self.status_novo,
+            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M'),
+            'usuario': self.usuario,
+            'observacao': self.observacao
         }

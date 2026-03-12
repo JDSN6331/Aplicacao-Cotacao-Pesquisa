@@ -3,8 +3,86 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalSteps = 3;
     let produtos = [];
 
-    // Função para controlar bloqueio de campos por fase (Melhoria 11)
+    // Carregar histórico de status se estiver editando uma cotação
+    function carregarHistorico() {
+        const cotacaoIdInput = document.querySelector('input[name="id"]');
+        const historicoContainer = document.getElementById('historicoTimeline');
+
+        if (!cotacaoIdInput || !cotacaoIdInput.value || !historicoContainer) return;
+
+        const cotacaoId = cotacaoIdInput.value;
+
+        fetch(`/api/historico/cotacao/${cotacaoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.historicos.length > 0) {
+                    let html = '<div class="timeline">';
+                    data.historicos.forEach((item, index) => {
+                        const statusAnterior = item.status_anterior || 'Nova Cotação';
+                        const icon = index === 0 ? 'fa-check-circle text-success' : 'fa-arrow-right text-primary';
+                        html += `
+                            <div class="timeline-item mb-3 d-flex align-items-start">
+                                <div class="timeline-icon me-3">
+                                    <i class="fas ${icon}"></i>
+                                </div>
+                                <div class="timeline-content flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>${statusAnterior} → ${item.status_novo}</strong>
+                                        <small class="text-muted">${item.data_mudanca}</small>
+                                    </div>
+                                    ${item.observacao ? `<small class="text-muted">${item.observacao}</small>` : ''}
+                                    <div class="text-end mt-1">
+                                        <small class="text-muted" style="font-size: 0.75rem;">${item.usuario || 'Sistema'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    historicoContainer.innerHTML = html;
+                } else {
+                    historicoContainer.innerHTML = '<p class="text-muted mb-0">Nenhum histórico encontrado.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao carregar histórico:', error);
+                historicoContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar histórico.</p>';
+            });
+    }
+
+    // Carregar histórico quando o collapse for aberto
+    const historicoCollapse = document.getElementById('historicoCollapse');
+    if (historicoCollapse) {
+        historicoCollapse.addEventListener('show.bs.collapse', function () {
+            carregarHistorico();
+        });
+    }
+
+    // Função para controlar bloqueio de campos por fase (DESATIVADA TEMPORARIAMENTE)
+    // Todos os campos devem ficar visíveis independente do status
     function controlarCamposPorFase() {
+        const statusEl = document.getElementById('statusAtual');
+        const statusAtual = statusEl ? statusEl.value : '';
+        if (statusAtual === 'Cotação Finalizada' || statusAtual === 'Cotação Perdida') {
+            console.log('Cotação Finalizada/Perdida: Bloqueando todos os campos e desabilitando edição.');
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.disabled = true;
+            });
+            document.querySelectorAll('.btn-add-produto, .btn-remove-produto, .btn-remove-anexo').forEach(el => {
+                el.style.display = 'none';
+            });
+            const nextBtn = document.getElementById('nextButton');
+            const saveBtn = document.getElementById('btnSalvarPesquisa'); // just in case
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (saveBtn) saveBtn.style.display = 'none';
+            return;
+        }
+
+        // DESATIVADO: Mantendo todos os campos visíveis para revalidação
+        console.log('Controle de campos por fase DESATIVADO - todos os campos visíveis');
+        return; // Sair imediatamente sem bloquear nenhum campo
+
+        /* CÓDIGO ORIGINAL COMENTADO PARA REFERÊNCIA FUTURA
         const statusAtual = document.getElementById('statusAtual').value;
         console.log('Status atual da cotação:', statusAtual);
 
@@ -47,6 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 liberarCamposProduto(index);
             });
         }
+        */
     }
 
     // Função para bloquear campos de um produto específico
@@ -110,6 +189,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // Inicializar controle de campos por fase
     controlarCamposPorFase();
 
+    // Configurar campos bloqueados explicitamente
+    // Campo Analista Comercial deve estar bloqueado (preenchido automaticamente)
+    const analistaInput = document.getElementById('analista_comercial');
+    if (analistaInput) {
+        analistaInput.readOnly = true;
+        analistaInput.classList.add('campo-bloqueado');
+    }
+
+    // Campo Comprador deve estar editável
+    const compradorInput = document.getElementById('comprador');
+    if (compradorInput) {
+        compradorInput.readOnly = false;
+        compradorInput.disabled = false;
+        compradorInput.classList.remove('campo-bloqueado');
+    }
+
     // Listener para mudanças no status da cotação
     document.getElementById('status').addEventListener('change', function () {
         // Atualizar o campo hidden com o novo status
@@ -139,15 +234,36 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateNavigationButtons() {
         const prevButton = document.getElementById('prevButton');
         const nextButton = document.getElementById('nextButton');
+        const proximoStatusContainer = document.getElementById('proximoStatusContainer');
 
         prevButton.style.display = currentStep === 1 ? 'none' : 'inline-block';
-        nextButton.textContent = currentStep === totalSteps ? 'Finalizar' : 'Avançar';
 
-        // Atualizar ícones dos botões
-        if (currentStep === totalSteps) {
-            nextButton.innerHTML = 'Finalizar<i class="fas fa-check ms-2"></i>';
-        } else {
-            nextButton.innerHTML = 'Avançar<i class="fas fa-arrow-right ms-2"></i>';
+        // Mostrar/ocultar campo Próximo Status apenas no último passo
+        if (proximoStatusContainer) {
+            if (currentStep === totalSteps) {
+                proximoStatusContainer.style.display = 'flex';
+            } else {
+                proximoStatusContainer.style.display = 'none';
+            }
+        }
+
+        const statusEl = document.getElementById('statusAtual');
+        if (statusEl && (statusEl.value === 'Cotação Finalizada' || statusEl.value === 'Cotação Perdida')) {
+            if (nextButton) nextButton.style.display = 'none';
+        } else if (nextButton) {
+            nextButton.style.display = 'inline-block';
+            // Atualizar ícones e cores dos botões
+            if (currentStep === totalSteps) {
+                nextButton.innerHTML = '<i class="fas fa-save me-2"></i>Salvar';
+                // Botão Salvar em verde
+                nextButton.classList.remove('btn-primary');
+                nextButton.classList.add('btn-success');
+            } else {
+                nextButton.innerHTML = 'Avançar<i class="fas fa-arrow-right ms-2"></i>';
+                // Botão Avançar em azul
+                nextButton.classList.remove('btn-success');
+                nextButton.classList.add('btn-primary');
+            }
         }
     }
 
@@ -193,11 +309,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="row mt-3">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="unidade_medida_${produtoIndex}" class="form-label">Unidade de Medida <span class="text-danger">*</span></label>
-                            <select class="form-select" id="unidade_medida_${produtoIndex}" name="produtos[${produtoIndex}][unidade_medida]" required>
-                                <option value="Kg/l">Kg/l</option>
-                                <option value="TN">TN</option>
-                            </select>
+                            <label for="unidade_medida_${produtoIndex}" class="form-label">Unidade de Medida</label>
+                            <input type="text" class="form-control campo-bloqueado" id="unidade_medida_${produtoIndex}" name="produtos[${produtoIndex}][unidade_medida]" value="TN" readonly>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -228,12 +341,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="valor_frete_${produtoIndex}" class="form-label">Valor do Frete (R$)</label>
-                            <input type="text" class="form-control money-input" id="valor_frete_${produtoIndex}" name="produtos[${produtoIndex}][valor_frete]" value="R$ 0,00">
+                            <label for="custo_alvo_${produtoIndex}" class="form-label">Custo Alvo (R$)</label>
+                            <input type="text" class="form-control money-input" id="custo_alvo_${produtoIndex}" name="produtos[${produtoIndex}][custo_alvo]" value="R$ 0,00">
                         </div>
                     </div>
                 </div>
                 <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="valor_frete_${produtoIndex}" class="form-label">Valor do Frete (R$/TN)</label>
+                            <input type="text" class="form-control money-input" id="valor_frete_${produtoIndex}" name="produtos[${produtoIndex}][valor_frete]" value="R$ 0,00">
+                        </div>
+                    </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="prazo_entrega_fornecedor_${produtoIndex}" class="form-label">Prazo de Entrega Fornecedor</label>
@@ -249,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 ${produtoIndex > 0 ? `
                     <div class="mt-3">
-                        <button type="button" class="btn btn-remove-produto" onclick="removeProduto(${produtoIndex})">
+                        <button type="button" class="btn btn-danger btn-remove-produto" onclick="removeProduto(${produtoIndex})">
                             <i class="fas fa-trash me-2"></i>Remover Produto
                         </button>
                     </div>
@@ -283,11 +402,13 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById(`sku_produto_${produtoIndex}`).value = safeValue(produtoData.sku_produto);
             document.getElementById(`nome_produto_${produtoIndex}`).value = safeValue(produtoData.nome_produto);
             document.getElementById(`volume_${produtoIndex}`).value = safeValue(produtoData.volume);
-            document.getElementById(`unidade_medida_${produtoIndex}`).value = safeValue(produtoData.unidade_medida);
+            // Sempre usar TN independente do valor no banco
+            document.getElementById(`unidade_medida_${produtoIndex}`).value = 'TN';
             document.getElementById(`preco_unitario_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.preco_unitario);
             document.getElementById(`valor_total_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.valor_total);
             document.getElementById(`fornecedor_${produtoIndex}`).value = safeValue(produtoData.fornecedor);
             document.getElementById(`preco_custo_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.preco_custo);
+            document.getElementById(`custo_alvo_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.custo_alvo);
             document.getElementById(`valor_frete_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.valor_frete);
 
             // DEBUG: Campo importante
@@ -305,11 +426,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // Adicionar event listeners para cálculos automáticos
         setupCalculations(produtoIndex);
 
-        // Aplicar bloqueio de campos por fase (Melhoria 11)
-        const statusAtual = document.getElementById('statusAtual').value;
-        if (statusAtual === 'Criação' || statusAtual === 'Análise Comercial') {
-            bloquearCamposProduto(produtoIndex);
-        }
+        // DESATIVADO: Bloqueio de campos por fase removido - todos os campos devem ser editáveis
+        // const statusAtual = document.getElementById('statusAtual').value;
+        // if (statusAtual === 'Criação' || statusAtual === 'Análise Comercial') {
+        //     bloquearCamposProduto(produtoIndex);
+        // }
     }
 
     // Função para remover produto
@@ -343,7 +464,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const valorFrete = parseFloat(valorFreteStr) || 0;
 
             const valorTotal = volume * precoUnitario;
-            const valorTotalComFrete = valorTotal + valorFrete;
+            // CORREÇÃO: Frete é informado por TN, então multiplicar pelo volume
+            const valorTotalComFrete = (valorFrete * volume) + valorTotal;
 
             valorTotalInput.value = formatMoney(valorTotal);
             valorTotalComFreteInput.value = formatMoney(valorTotalComFrete);
@@ -360,6 +482,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const precoCustoInput = document.getElementById(`preco_custo_${index}`);
         setupMoneyInput(precoCustoInput);
 
+        // Adicionar formatação monetária ao campo de custo alvo
+        const custoAlvoInput = document.getElementById(`custo_alvo_${index}`);
+        setupMoneyInput(custoAlvoInput);
+
         // Adicionar autocompletar para produtos (Melhoria 14)
         setupProductAutocomplete(index);
     }
@@ -368,6 +494,47 @@ document.addEventListener('DOMContentLoaded', function () {
     function setupProductAutocomplete(index) {
         const skuInput = document.getElementById(`sku_produto_${index}`);
         const nomeInput = document.getElementById(`nome_produto_${index}`);
+
+        // Função para mostrar mensagem de erro
+        function mostrarErro(input, mensagem) {
+            input.classList.add('is-invalid');
+            input.classList.remove('is-valid');
+            input.title = mensagem;
+        }
+
+        // Funções para controle do campo Fornecedor
+        function transformarParaDropdown() {
+            let fornecedorEl = document.getElementById(`fornecedor_${index}`);
+            if (fornecedorEl && fornecedorEl.tagName.toLowerCase() !== 'select') {
+                const selectHTML = `<select class="form-select" id="fornecedor_${index}" name="produtos[${index}][fornecedor]" required>
+                    <option value="">Selecione o Fornecedor...</option>
+                    <option value="Convencional">Convencional</option>
+                    <option value="Especialidade">Especialidade</option>
+                    <option value="Organomineral">Organomineral</option>
+                </select>`;
+                fornecedorEl.outerHTML = selectHTML;
+            } else if (fornecedorEl) {
+                // Se já for select, apenas garante que não está bloqueado
+                fornecedorEl.removeAttribute('readonly');
+                fornecedorEl.classList.remove('campo-bloqueado');
+                fornecedorEl.title = '';
+            }
+        }
+
+        function transformarParaTexto(valor) {
+            let fornecedorEl = document.getElementById(`fornecedor_${index}`);
+            if (fornecedorEl && fornecedorEl.tagName.toLowerCase() !== 'input') {
+                const inputHTML = `<input type="text" class="form-control" id="fornecedor_${index}" name="produtos[${index}][fornecedor]" value="">`;
+                fornecedorEl.outerHTML = inputHTML;
+                fornecedorEl = document.getElementById(`fornecedor_${index}`); // Pega a nova referência
+            }
+            if (fornecedorEl) {
+                fornecedorEl.value = valor || '';
+                fornecedorEl.setAttribute('readonly', true);
+                fornecedorEl.classList.add('campo-bloqueado');
+                fornecedorEl.title = 'Campo bloqueado - preenchido automaticamente';
+            }
+        }
 
         // Função para bloquear campo
         function bloquearCampo(input, mensagem = '') {
@@ -402,6 +569,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!codigo || codigo.trim().length < 2) {
                 // Desbloquear campo nome se código foi apagado
                 desbloquearCampo(nomeInput);
+                nomeInput.value = '';
+                nomeInput.classList.remove('is-valid', 'is-invalid');
+                transformarParaTexto(''); // Limpa e bloqueia o fornecedor
                 return;
             }
 
@@ -423,6 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }, 2000);
 
                         console.log(`Produto encontrado por código: ${data.codigo} → ${data.nome}`);
+                        transformarParaTexto(data.fornecedor);
                     } else {
                         // Produto não encontrado
                         nomeInput.value = 'Produto não encontrado';
@@ -441,6 +612,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }, { once: true });
 
                         console.log(`Produto não encontrado para código: ${codigo}`);
+                        transformarParaDropdown();
                     }
                 })
                 .catch(error => {
@@ -457,6 +629,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             this.removeEventListener('input', limparMensagemErro);
                         }
                     }, { once: true });
+                    transformarParaDropdown();
                 });
         }
 
@@ -465,6 +638,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!nome || nome.trim().length < 3) {
                 // Desbloquear campo código se nome foi apagado
                 desbloquearCampo(skuInput);
+                skuInput.value = '';
+                skuInput.classList.remove('is-valid', 'is-invalid');
+                transformarParaTexto(''); // Limpa e bloqueia o fornecedor
                 return;
             }
 
@@ -486,6 +662,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }, 2000);
 
                         console.log(`Produto encontrado por nome: ${data.nome} → ${data.codigo}`);
+                        transformarParaTexto(data.fornecedor);
                     } else {
                         // Produto não encontrado
                         skuInput.value = 'Código não encontrado';
@@ -504,6 +681,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }, { once: true });
 
                         console.log(`Produto não encontrado para nome: ${nome}`);
+                        transformarParaDropdown();
                     }
                 })
                 .catch(error => {
@@ -520,6 +698,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             this.removeEventListener('input', limparMensagemErro);
                         }
                     }, { once: true });
+                    transformarParaDropdown();
                 });
         }
 
@@ -698,7 +877,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const mesoregiaoInput = document.getElementById('mesoregiao');
         const nomeFilialSelect = document.getElementById('nome_filial');
         const filialRequired = document.getElementById('filial_required');
-        const filialHelp = document.getElementById('filial_help');
 
         if (culturaSelect && mesoregiaoInput) {
             culturaSelect.addEventListener('change', function () {
@@ -716,7 +894,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     // Mostrar mensagem de ajuda e remover obrigatoriedade
                     if (filialRequired) filialRequired.style.display = 'none';
-                    if (filialHelp) filialHelp.style.display = 'block';
 
                     // Preencher analista Joaquim para Regional 7
                     preencherAnalistaPorMesorregiao('REGIONAL 7 - Joaquim');
@@ -742,7 +919,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     // Esconder mensagem de ajuda e restaurar obrigatoriedade
                     if (filialRequired) filialRequired.style.display = 'inline';
-                    if (filialHelp) filialHelp.style.display = 'none';
                 }
             });
         }
@@ -805,247 +981,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Função para validar os campos do passo atual
+    // Função de validação desabilitada - nenhum campo é obrigatório
     function validarPassoAtual() {
-        const stepElement = document.getElementById(`step${currentStep}`);
-        const requiredFields = stepElement.querySelectorAll('[required]');
-        let isValid = true;
-        let firstInvalidField = null;
-
-        // Validação especial para o passo 1 (filial não obrigatória para Regional 7)
-        if (currentStep === 1) {
-            const culturaSelect = document.getElementById('cultura');
-            const nomeFilialSelect = document.getElementById('nome_filial');
-
-            // Se a cultura for Soja ou Milho, a filial não é obrigatória
-            if (culturaSelect && (culturaSelect.value === 'Soja' || culturaSelect.value === 'Milho')) {
-                // Remover temporariamente o required da filial para validação
-                if (nomeFilialSelect) {
-                    nomeFilialSelect.removeAttribute('required');
-                }
-            }
-        }
-
-        // Validação especial para o passo 2 (produtos)
-        if (currentStep === 2) {
-            const produtos = document.querySelectorAll('.produto-item');
-            if (produtos.length === 0) {
-                alert('É necessário adicionar pelo menos um produto.');
-                return false;
-            }
-
-            for (let produto of produtos) {
-                const camposObrigatorios = produto.querySelectorAll('[required]');
-                for (let campo of camposObrigatorios) {
-                    if (!campo.value.trim()) {
-                        isValid = false;
-                        campo.classList.add('is-invalid');
-                        if (!firstInvalidField) {
-                            firstInvalidField = campo;
-                        }
-                    } else {
-                        campo.classList.remove('is-invalid');
-                    }
-                }
-            }
-        } else {
-            // Validação padrão para outros passos
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    isValid = false;
-                    field.classList.add('is-invalid');
-                    if (!firstInvalidField) {
-                        firstInvalidField = field;
-                    }
-                } else {
-                    field.classList.remove('is-invalid');
-                }
-            });
-        }
-
-        // Restaurar required da filial se necessário
-        if (currentStep === 1) {
-            const culturaSelect = document.getElementById('cultura');
-            const nomeFilialSelect = document.getElementById('nome_filial');
-
-            if (culturaSelect && nomeFilialSelect &&
-                culturaSelect.value !== 'Soja' && culturaSelect.value !== 'Milho') {
-                nomeFilialSelect.setAttribute('required', 'required');
-            }
-        }
-
-        if (!isValid) {
-            alert('Por favor, preencha todos os campos obrigatórios antes de avançar.');
-            if (firstInvalidField) {
-                firstInvalidField.focus();
-            }
-        }
-
-        return isValid;
+        return true;
     }
 
-    // Função para validar todos os campos obrigatórios antes do envio
+    // Função de validação desabilitada - nenhum campo é obrigatório
     function validarTodosCamposObrigatorios() {
-        let isValid = true;
-        let firstInvalidField = null;
-
-        // Validar campos do passo 1 (com validação especial para Regional 7)
-        const step1Fields = document.getElementById('step1').querySelectorAll('[required]');
-        const culturaSelect = document.getElementById('cultura');
-        const nomeFilialSelect = document.getElementById('nome_filial');
-
-        // Se a cultura for Soja ou Milho, a filial não é obrigatória
-        if (culturaSelect && (culturaSelect.value === 'Soja' || culturaSelect.value === 'Milho')) {
-            // Remover temporariamente o required da filial para validação
-            if (nomeFilialSelect) {
-                nomeFilialSelect.removeAttribute('required');
-            }
-        }
-
-        // Validação específica para campos do passo 1
-        step1Fields.forEach(field => {
-            // Pular validação se o campo for filial e a cultura for Soja/Milho
-            if (field.id === 'nome_filial' && culturaSelect &&
-                (culturaSelect.value === 'Soja' || culturaSelect.value === 'Milho')) {
-                return;
-            }
-
-            // Validação especial para nome_cooperado - verificar se realmente tem valor
-            if (field.id === 'nome_cooperado') {
-                const valor = field.value.trim();
-                console.log('🔍 Validando nome_cooperado:', valor, 'Tipo:', typeof valor, 'Length:', valor.length);
-
-                // Lista de valores inválidos que indicam erro na busca
-                const valoresInvalidos = [
-                    'Cooperado não encontrado',
-                    'Erro na busca',
-                    'undefined',
-                    'null',
-                    ''
-                ];
-
-                if (!valor || valoresInvalidos.includes(valor)) {
-                    isValid = false;
-                    field.classList.add('is-invalid');
-                    if (!firstInvalidField) {
-                        firstInvalidField = field;
-                    }
-                    console.log('❌ nome_cooperado inválido:', valor);
-
-                    // Mostrar mensagem de erro específica
-                    const errorMsg = document.getElementById('nome_cooperado_error');
-                    if (errorMsg) {
-                        errorMsg.style.display = 'block';
-                    }
-                } else {
-                    field.classList.remove('is-invalid');
-                    // Ocultar mensagem de erro
-                    const errorMsg = document.getElementById('nome_cooperado_error');
-                    if (errorMsg) {
-                        errorMsg.style.display = 'none';
-                    }
-                    console.log('✅ nome_cooperado válido:', valor);
-                }
-            } else if (field.id === 'matricula_cooperado') {
-                // Validação especial para matricula_cooperado
-                const valor = field.value.trim();
-                const valoresInvalidos = [
-                    'Matrícula não encontrada',
-                    'Erro na busca',
-                    'undefined',
-                    'null',
-                    ''
-                ];
-
-                if (!valor || valoresInvalidos.includes(valor)) {
-                    isValid = false;
-                    field.classList.add('is-invalid');
-                    if (!firstInvalidField) {
-                        firstInvalidField = field;
-                    }
-                    // Mostrar mensagem de erro
-                    const errorMsg = document.getElementById('matricula_cooperado_error');
-                    if (errorMsg) {
-                        errorMsg.style.display = 'block';
-                    }
-                } else {
-                    field.classList.remove('is-invalid');
-                    // Ocultar mensagem de erro
-                    const errorMsg = document.getElementById('matricula_cooperado_error');
-                    if (errorMsg) {
-                        errorMsg.style.display = 'none';
-                    }
-                }
-            } else {
-                // Validação padrão para outros campos
-                if (!field.value.trim()) {
-                    isValid = false;
-                    field.classList.add('is-invalid');
-                    if (!firstInvalidField) {
-                        firstInvalidField = field;
-                    }
-                } else {
-                    field.classList.remove('is-invalid');
-                }
-            }
-        });
-
-        // Validar produtos (passo 2)
-        const produtos = document.querySelectorAll('.produto-item');
-        if (produtos.length === 0) {
-            alert('É necessário adicionar pelo menos um produto.');
-            return false;
-        }
-
-        for (let produto of produtos) {
-            const camposObrigatorios = produto.querySelectorAll('[required]');
-            for (let campo of camposObrigatorios) {
-                if (!campo.value.trim()) {
-                    isValid = false;
-                    campo.classList.add('is-invalid');
-                    if (!firstInvalidField) {
-                        firstInvalidField = campo;
-                    }
-                } else {
-                    campo.classList.remove('is-invalid');
-                }
-            }
-        }
-
-        // Validar campos do passo 3
-        const step3Fields = document.getElementById('step3').querySelectorAll('[required]');
-        step3Fields.forEach(field => {
-            if (!field.value.trim()) {
-                isValid = false;
-                field.classList.add('is-invalid');
-                if (!firstInvalidField) {
-                    firstInvalidField = field;
-                }
-            } else {
-                field.classList.remove('is-invalid');
-            }
-        });
-
-        // Restaurar required da filial se necessário
-        if (culturaSelect && nomeFilialSelect &&
-            culturaSelect.value !== 'Soja' && culturaSelect.value !== 'Milho') {
-            nomeFilialSelect.setAttribute('required', 'required');
-        }
-
-        if (!isValid) {
-            alert('Por favor, preencha todos os campos obrigatórios antes de enviar o formulário.');
-            if (firstInvalidField) {
-                firstInvalidField.focus();
-                // Mostrar o passo correto
-                if (firstInvalidField.closest('#step1')) {
-                    showStep(1);
-                } else if (firstInvalidField.closest('#step2')) {
-                    showStep(3);
-                }
-            }
-        }
-
-        return isValid;
+        return true;
     }
 
     // Event Listener para adicionar produto
@@ -1282,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // VALIDAÇÃO EXTRA: Verificar motivo da cotação perdida
         if (document.getElementById('status').value === 'Cotação Perdida' &&
             !document.getElementById('motivo_venda_perdida').value.trim()) {
-            alert('Por favor, informe o motivo da cotação perdida.');
+            alert('Por favor, preencha os campos obrigatórios: Motivo da Cotação Perdida');
             document.getElementById('motivo_venda_perdida').focus();
             return false;
         }
@@ -1342,6 +1285,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 valor_total: produtoDiv.querySelector(`[id^=valor_total_]`).value,
                 fornecedor: produtoDiv.querySelector(`[id^=fornecedor_]`).value,
                 preco_custo: produtoDiv.querySelector(`[id^=preco_custo_]`).value,
+                custo_alvo: produtoDiv.querySelector(`[id^=custo_alvo_]`).value,
                 valor_frete: produtoDiv.querySelector(`[id^=valor_frete_]`).value,
                 prazo_entrega_fornecedor: produtoDiv.querySelector(`[id^=prazo_entrega_fornecedor_]`).value,
                 valor_total_com_frete: produtoDiv.querySelector(`[id^=valor_total_com_frete_]`).value
@@ -1399,17 +1343,25 @@ document.addEventListener('DOMContentLoaded', function () {
             method: method,
             body: formData
         })
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 413) {
+                    alert('O arquivo anexado é muito grande. O tamanho máximo permitido é de 16 MB. Por favor, reduza o tamanho do arquivo e tente novamente.');
+                    throw new Error('413');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     alert('Cotação salva com sucesso!');
                     window.location.href = '/';
                 } else {
-                    alert('Erro ao salvar cotação: ' + (data.error || 'Erro desconhecido.'));
+                    alert(data.error || 'Ocorreu um erro ao salvar a cotação. Tente novamente.');
                 }
             })
             .catch(err => {
-                alert('Erro ao enviar cotação: ' + err);
+                if (err.message !== '413') {
+                    alert('Ocorreu um erro ao enviar a cotação. Tente novamente.');
+                }
             });
     });
 

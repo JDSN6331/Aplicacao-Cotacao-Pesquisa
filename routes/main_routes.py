@@ -1,27 +1,38 @@
 from flask import Blueprint, render_template, request, jsonify, send_file, abort
+from flask_login import login_required
 from services.utils import carregar_filiais_mesoregioes, carregar_contas_cache, carregar_produtos_cache
 from urllib.parse import unquote
 import os
 import pandas as pd
-from models import db, Cotacao, PesquisaMercado
+from models import db, Cotacao, PesquisaMercado, HistoricoStatus
 
 # Blueprint com nome 'routes' para manter compatibilidade com templates
 main_routes = Blueprint('routes', __name__)
 
 @main_routes.route('/', endpoint='index')
+@login_required
 def index():
     return render_template('index.html')
 
 @main_routes.route('/api/dashboard/stats')
+@login_required
 def dashboard_stats():
     """Retorna contadores para os cards do dashboard"""
     try:
         stats = {
-            'andamento': Cotacao.query.filter(Cotacao.status.in_(['Análise Comercial', 'Análise Suprimentos'])).count(),
-            'pesquisas': PesquisaMercado.query.filter_by(status='Análise Comercial').count(),
-            'finalizadas': Cotacao.query.filter_by(status='Liberado para Venda').count(),
-            'pesquisas_finalizadas': PesquisaMercado.query.filter_by(status='Liberado para Venda').count(),
-            'perdidas': Cotacao.query.filter_by(status='Cotação Perdida').count()
+            'andamento': Cotacao.query.filter(Cotacao.status.in_([
+                'Análise Comercial', 
+                'Análise Suprimentos',
+                'Avaliação Comercial',
+                'Aguardando Cooperado',
+                'Revisão Comercial',
+                'Revisão Suprimentos'
+            ])).count(),
+            'pesquisas': PesquisaMercado.query.filter(PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])).count(),
+            'finalizadas': Cotacao.query.filter_by(status='Cotação Finalizada').count(),
+            'pesquisas_finalizadas': PesquisaMercado.query.filter_by(status='Pesquisa Finalizada').count(),
+            'perdidas': Cotacao.query.filter_by(status='Cotação Perdida').count(),
+            'pesquisas_perdidas': PesquisaMercado.query.filter_by(status='Pesquisa Perdida').count()
         }
         return jsonify(stats)
     except Exception as e:
@@ -35,6 +46,7 @@ def dashboard_stats():
         })
 
 @main_routes.route('/download/<path:filename>')
+@login_required
 def download_file(filename):
     filename = unquote(filename)
     filename = filename.replace('\\', '/').replace('..', '')
@@ -48,11 +60,13 @@ def download_file(filename):
         abort(404, description='Arquivo não encontrado.')
 
 @main_routes.route('/api/filiais', methods=['GET'])
+@login_required
 def get_filiais():
     opcoes = carregar_filiais_mesoregioes()
     return jsonify(opcoes)
 
 @main_routes.route('/api/produtos/buscar')
+@login_required
 def buscar_produto():
     codigo = request.args.get('codigo')
     nome = request.args.get('nome')
@@ -72,7 +86,8 @@ def buscar_produto():
                     'success': True,
                     'tipo_busca': 'codigo',
                     'nome': prod['Nome do produto'],
-                    'codigo': prod['Código do produto']
+                    'codigo': prod['Código do produto'],
+                    'fornecedor': prod.get('Nome do fornecedor', '')
                 })
             else:
                 return jsonify({'success': False, 'error': 'Produto não encontrado'})
@@ -89,7 +104,8 @@ def buscar_produto():
                 for _, row in resultados.head(10).iterrows():
                     lista_resultados.append({
                         'nome': row['Nome do produto'],
-                        'codigo': row['Código do produto']
+                        'codigo': row['Código do produto'],
+                        'fornecedor': row.get('Nome do fornecedor', '')
                     })
                     
                 return jsonify({
@@ -98,7 +114,8 @@ def buscar_produto():
                     'resultados': lista_resultados,
                     # Retornam o primeiro para compatibilidade se o front esperar um único
                     'nome': lista_resultados[0]['nome'],
-                    'codigo': lista_resultados[0]['codigo']
+                    'codigo': lista_resultados[0]['codigo'],
+                    'fornecedor': lista_resultados[0]['fornecedor']
                 })
             else:
                 return jsonify({'success': False, 'error': 'Produto não encontrado'})
@@ -110,6 +127,7 @@ def buscar_produto():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @main_routes.route('/api/cooperados/buscar')
+@login_required
 def buscar_cooperado():
     matricula = request.args.get('matricula')
     nome = request.args.get('nome')
@@ -161,4 +179,22 @@ def buscar_cooperado():
             
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
- 
+
+@main_routes.route('/api/historico/<tipo>/<int:id>')
+@login_required
+def get_historico(tipo, id):
+    """Retorna o histórico de status de uma cotação ou pesquisa"""
+    try:
+        if tipo == 'cotacao':
+            historicos = HistoricoStatus.query.filter_by(cotacao_id=id).order_by(HistoricoStatus.data_mudanca.desc()).all()
+        elif tipo == 'pesquisa':
+            historicos = HistoricoStatus.query.filter_by(pesquisa_id=id).order_by(HistoricoStatus.data_mudanca.desc()).all()
+        else:
+            return jsonify({'success': False, 'error': 'Tipo inválido'}), 400
+        
+        return jsonify({
+            'success': True,
+            'historicos': [h.to_dict() for h in historicos]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

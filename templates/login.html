@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Cotações Cooxupé{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-lg border-0 rounded-4 glass-effect">
+            <div class="card-header bg-transparent border-0 text-center pt-5 pb-2">
+                <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle mb-3"
+                    style="background: rgba(46, 125, 50, 0.1); color: var(--primary);">
+                    <i class="fas fa-right-to-bracket fa-2x"></i>
+                </div>
+                <h4 class="mb-0 fw-bold" style="color: var(--text-primary);">Bem-vindo de volta</h4>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.95rem;">Faça login na sua conta para continuar</p>
+            </div>
+            <div class="card-body p-4 p-md-5 pt-md-4">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="username" name="username" placeholder="E-mail"
+                            required autofocus>
+                        <label for="username"><i class="fas fa-envelope me-2"></i>E-mail</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Senha"
+                            required>
+                        <label for="password"><i class="fas fa-lock me-2"></i>Senha</label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="remember" id="remember">
+                        <label class="form-check-label text-muted" for="remember">
+                            Manter conectado
+                        </label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn text-white btn-lg fw-bold shadow-sm hover-elevate"
+                            style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none;">
+                            <i class="fas fa-sign-in-alt me-2"></i>Entrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center py-3 rounded-bottom-3 border-0" style="background: rgba(0,0,0,0.02);">
+                <small class="text-muted">Ainda não tem conta? <a href="{{ url_for('auth.register') }}"
+                        class="fw-bold text-decoration-none" style="color: var(--primary);">Cadastre-se</a></small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    [data-theme="dark"] .glass-effect {
+        background: rgba(20, 20, 20, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+    }
+
+    .hover-elevate {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .hover-elevate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+    }
+
+    /* Remove o fundo sombreado dos labels form-floating */
+    .form-floating>label,
+    .form-floating>.form-control:focus~label,
+    .form-floating>.form-control:not(:placeholder-shown)~label,
+    .card-body .form-floating>label,
+    .card-body .form-floating>.form-control:focus~label,
+    .card-body .form-floating>.form-control:not(:placeholder-shown)~label {
+        background: transparent !important;
+        background-color: transparent !important;
+        --bs-body-bg: transparent !important;
+    }
+
+    .form-floating>label::before,
+    .form-floating>label::after {
+        display: none !important;
+    }
+
+    /* Aumentar espaçamento entre label e texto do input */
+    .form-floating>.form-control {
+        padding-top: 1.8rem;
+        padding-bottom: 0.5rem;
+        height: calc(3.5rem + 4px);
+    }
+
+    .form-floating>.form-control:focus~label,
+    .form-floating>.form-control:not(:placeholder-shown)~label {
+        transform: scale(0.85) translateY(-0.6rem) translateX(0.15rem);
+    }
+</style>
+{% endblock %}

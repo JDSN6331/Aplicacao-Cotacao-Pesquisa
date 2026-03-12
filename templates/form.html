@@ -117,6 +117,14 @@
                     <span class="badge status-analise-comercial">{{ status }}</span>
                     {% elif status == 'Análise Suprimentos' %}
                     <span class="badge status-analise-suprimentos">{{ status }}</span>
+                    {% elif status == 'Avaliação Comercial' %}
+                    <span class="badge status-avaliacao-comercial">{{ status }}</span>
+                    {% elif status == 'Aguardando Cooperado' %}
+                    <span class="badge status-aguardando-cooperado">{{ status }}</span>
+                    {% elif status == 'Revisão Comercial' %}
+                    <span class="badge status-revisao-comercial">{{ status }}</span>
+                    {% elif status == 'Revisão Suprimentos' %}
+                    <span class="badge status-revisao-suprimentos">{{ status }}</span>
                     {% elif status == 'Liberado para Venda' %}
                     <span class="badge status-liberado">{{ status }}</span>
                     {% elif status == 'Cotação Perdida' %}
@@ -133,34 +141,54 @@
                 </p>
             </div>
 
+            <!-- Histórico de Status (somente para cotações existentes) -->
+            {% if cotacao %}
+            <div class="mb-4">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse"
+                    data-bs-target="#historicoCollapse" aria-expanded="false">
+                    <i class="fas fa-history"></i> Ver Histórico de Status
+                </button>
+                <div class="collapse mt-3" id="historicoCollapse">
+                    <div class="card card-body" style="background-color: var(--bg-tertiary);">
+                        <h6 class="mb-3"><i class="fas fa-clock"></i> Histórico de Alterações</h6>
+                        <div id="historicoTimeline" class="timeline-container">
+                            <p class="text-muted">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <form id="cotacaoForm" method="POST"
                 action="{{ url_for('cotacao_routes.criar_cotacao') if not cotacao else url_for('cotacao_routes.atualizar_cotacao', id=cotacao.id) }}"
                 enctype="multipart/form-data">
                 <input type="hidden" name="id" value="{{ cotacao.id if cotacao }}">
                 <input type="hidden" id="statusAtual" value="{{ cotacao.status if cotacao else 'Criação' }}">
-                <!-- Passo 1: Criação - Informações da Filial e Cooperado -->
+                <input type="hidden" name="pesquisa_origem_id" id="pesquisa_origem_id"
+                    value="{{ pesquisa_origem_id if pesquisa_origem_id }}">
+                <!-- Passo 1: Informações da Filial e Cooperado -->
                 <div class="step" id="step1">
-                    <h3 class="mb-4">Criação - Informações da Filial e Cooperado</h3>
+                    <h3 class="mb-4">Informações da Filial e Cooperado</h3>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label for="nome_filial" class="form-label">Filial <span class="text-danger"
-                                        id="filial_required">*</span></label>
-                                <select class="form-select" id="nome_filial" name="nome_filial" required
-                                    data-initial-value="{{ cotacao.nome_filial if cotacao }}">
+                                        id="filial_">*</span></label>
+                                <select class="form-select" id="nome_filial" name="nome_filial"
+                                    data-initial-value="{{ cotacao.nome_filial if cotacao else (prefilled.nome_filial if prefilled else '') }}">
                                     <option value="">Selecione</option>
                                 </select>
-                                <small class="form-text text-muted" id="filial_help" style="display: none;">Não é
-                                    necessário selecionar filial para culturas de cereais</small>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label for="mesoregiao" class="form-label">Mesoregião Geográfica <span
                                         class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="mesoregiao" name="mesoregiao"
-                                    value="{{ cotacao.numero_mesorregiao if cotacao }}" readonly required
-                                    data-initial-value="{{ cotacao.numero_mesorregiao if cotacao }}">
+                                <input type="text" class="form-control campo-bloqueado" id="mesoregiao"
+                                    name="mesoregiao"
+                                    value="{{ cotacao.numero_mesorregiao if cotacao else (prefilled.numero_mesorregiao if prefilled else '') }}"
+                                    readonly
+                                    data-initial-value="{{ cotacao.numero_mesorregiao if cotacao else (prefilled.numero_mesorregiao if prefilled else '') }}">
                             </div>
                         </div>
                     </div>
@@ -170,8 +198,8 @@
                                 <label for="matricula_cooperado" class="form-label">Matrícula do Cooperado <span
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="matricula_cooperado"
-                                    name="matricula_cooperado" value="{{ cotacao.matricula_cooperado if cotacao }}"
-                                    required>
+                                    name="matricula_cooperado"
+                                    value="{{ cotacao.matricula_cooperado if cotacao else (prefilled.matricula_cooperado if prefilled else '') }}">
                                 <div id="loading_matricula" class="mt-2" style="display: none;">
                                     <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> Buscando
                                         cooperado...</small>
@@ -187,7 +215,7 @@
                                 <label for="nome_cooperado" class="form-label">Nome do Cooperado <span
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="nome_cooperado" name="nome_cooperado"
-                                    value="{{ cotacao.nome_cooperado if cotacao }}" required>
+                                    value="{{ cotacao.nome_cooperado if cotacao else (prefilled.nome_cooperado if prefilled else '') }}">
                                 <div id="loading_nome" class="mt-2" style="display: none;">
                                     <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> Buscando
                                         cooperado...</small>
@@ -209,18 +237,17 @@
                             <div class="form-group mb-3">
                                 <label for="cultura" class="form-label">Cultura <span
                                         class="text-danger">*</span></label>
-                                <select class="form-select" id="cultura" name="cultura" required>
+                                <select class="form-select" id="cultura" name="cultura">
                                     <option value="">Selecione...</option>
-                                    <option value="Café" {{ 'selected' if cotacao and cotacao.cultura=='Café' }}>Café
+                                    {% set cultura_val = cotacao.cultura if cotacao else (prefilled.cultura if prefilled
+                                    else '') %}
+                                    <option value="Café" {{ 'selected' if cultura_val=='Café' }}>Café</option>
+                                    <option value="Soja" {{ 'selected' if cultura_val=='Soja' }}>Soja</option>
+                                    <option value="Milho" {{ 'selected' if cultura_val=='Milho' }}>Milho</option>
+                                    <option value="Hortifruti" {{ 'selected' if cultura_val=='Hortifruti' }}>Hortifruti
                                     </option>
-                                    <option value="Soja" {{ 'selected' if cotacao and cotacao.cultura=='Soja' }}>Soja
+                                    <option value="Pastagem" {{ 'selected' if cultura_val=='Pastagem' }}>Pastagem
                                     </option>
-                                    <option value="Milho" {{ 'selected' if cotacao and cotacao.cultura=='Milho' }}>Milho
-                                    </option>
-                                    <option value="Hortifruti" {{ 'selected' if cotacao and
-                                        cotacao.cultura=='Hortifruti' }}>Hortifruti</option>
-                                    <option value="Pastagem" {{ 'selected' if cotacao and cotacao.cultura=='Pastagem'
-                                        }}>Pastagem</option>
                                 </select>
                             </div>
                         </div>
@@ -229,7 +256,7 @@
                                 <label for="nome_vendedor" class="form-label">Vendedor <span
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="nome_vendedor" name="nome_vendedor"
-                                    value="{{ cotacao.nome_vendedor if cotacao }}" required>
+                                    value="{{ cotacao.nome_vendedor if cotacao else (prefilled.nome_vendedor if prefilled else '') }}">
                             </div>
                         </div>
                     </div>
@@ -238,24 +265,25 @@
                             <div class="form-group mb-3">
                                 <label for="analista_comercial" class="form-label">Analista Comercial <span
                                         class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="analista_comercial"
-                                    name="analista_comercial" value="{{ cotacao.analista_comercial if cotacao }}"
-                                    required>
+                                <input type="text" class="form-control campo-bloqueado" id="analista_comercial"
+                                    name="analista_comercial"
+                                    value="{{ cotacao.analista_comercial if cotacao else (prefilled.analista_comercial if prefilled else '') }}"
+                                    readonly>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label for="comprador" class="form-label">Comprador</label>
-                                <input type="text" class="form-control campo-bloqueado" id="comprador" name="comprador"
-                                    value="{{ cotacao.comprador if cotacao }}" disabled>
+                                <input type="text" class="form-control" id="comprador" name="comprador"
+                                    value="{{ cotacao.comprador if cotacao else (prefilled.comprador if prefilled else '') }}">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Passo 2: Criação - Informações dos Produtos -->
+                <!-- Passo 2: Informações dos Produtos -->
                 <div class="step" id="step2">
-                    <h3 class="mb-4">Criação - Informações dos Produtos</h3>
+                    <h3 class="mb-4">Informações dos Produtos</h3>
                     <div id="produtosContainer"></div>
                     <div class="mt-4">
                         <button type="button" class="btn btn-primary btn-add-produto" id="addProdutoButton">
@@ -264,16 +292,16 @@
                     </div>
                 </div>
 
-                <!-- Passo 3: Criação - Informações de Pagamento e Entrega (Cooperado) -->
+                <!-- Passo 3: Informações de Pagamento e Entrega -->
                 <div class="step" id="step3">
-                    <h3 class="mb-4">Criação - Informações de Pagamento e Entrega (Cooperado)</h3>
+                    <h3 class="mb-4">Informações de Pagamento e Entrega</h3>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-3">
                                 <label for="forma_pagamento" class="form-label">Forma de Pagamento <span
                                         class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="forma_pagamento" name="forma_pagamento"
-                                    value="{{ cotacao.forma_pagamento if cotacao }}" required
+                                    value="{{ cotacao.forma_pagamento if cotacao else (prefilled.forma_pagamento if prefilled else '') }}"
                                     placeholder="Ex: À Vista, 30 dias, etc.">
                             </div>
                         </div>
@@ -282,8 +310,7 @@
                                 <label for="prazo_entrega" class="form-label">Prazo de Entrega <span
                                         class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="prazo_entrega" name="prazo_entrega"
-                                    value="{{ cotacao.prazo_entrega.strftime('%Y-%m-%d') if cotacao and cotacao.prazo_entrega else '' }}"
-                                    required>
+                                    value="{{ cotacao.prazo_entrega.strftime('%Y-%m-%d') if cotacao and cotacao.prazo_entrega else (prefilled.prazo_entrega if prefilled else '') }}">
                             </div>
                         </div>
                     </div>
@@ -292,7 +319,7 @@
                             <div class="form-group mb-3">
                                 <label for="observacoes" class="form-label">Observações</label>
                                 <textarea class="form-control" id="observacoes" name="observacoes"
-                                    rows="3">{{ cotacao.observacoes if cotacao }}</textarea>
+                                    rows="3">{{ cotacao.observacoes if cotacao else (prefilled.observacoes if prefilled else '') }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -323,6 +350,23 @@
                                                 data-id="{{ anexo.id }}" onclick="removerAnexo({{ anexo.id }})">
                                                 <i class="fas fa-trash"></i>
                                             </button>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% elif anexos_herdados %}
+                                <div class="mt-2">
+                                    <label class="form-label text-muted small">Arquivos importados da Pesquisa de Origem
+                                        (serão anexados ao salvar):</label>
+                                    <ul class="list-group list-group-flush">
+                                        {% for anexo in anexos_herdados %}
+                                        <li
+                                            class="list-group-item d-flex justify-content-between align-items-center p-2 mb-1 bg-light border rounded">
+                                            <a href="{{ url_for('routes.download_file', filename=anexo.filename) }}"
+                                                target="_blank" class="text-decoration-none text-secondary">
+                                                <i class="fas fa-paperclip me-2"></i>{{ anexo.filename }}
+                                            </a>
+                                            <span class="badge bg-info text-dark">Vindo da Pesquisa</span>
                                         </li>
                                         {% endfor %}
                                     </ul>
@@ -372,7 +416,18 @@
                                         }
 
                                         let valid = true;
+                                        const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
                                         for (let i = 0; i < files.length; i++) {
+                                            // Validar tamanho do arquivo
+                                            if (files[i].size > MAX_FILE_SIZE) {
+                                                const tamanhoMB = (files[i].size / (1024 * 1024)).toFixed(1);
+                                                errorDiv.textContent = `O arquivo "${files[i].name}" tem ${tamanhoMB} MB e excede o limite de 16 MB. Por favor, reduza o tamanho do arquivo.`;
+                                                this.classList.add('is-invalid');
+                                                errorDiv.style.display = 'block';
+                                                alert(`O arquivo "${files[i].name}" é muito grande (${tamanhoMB} MB). O tamanho máximo permitido é de 16 MB por arquivo.`);
+                                                this.value = '';
+                                                return;
+                                            }
                                             const ext = files[i].name.split('.').pop().toLowerCase();
                                             if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'].indexOf(ext) === -1) {
                                                 valid = false;
@@ -413,7 +468,7 @@
                                 <label for="motivo_venda_perdida" class="form-label">Motivo da Cotação Perdida <span
                                         class="text-danger">*</span></label>
                                 <textarea class="form-control" id="motivo_venda_perdida" name="motivo_venda_perdida"
-                                    rows="2">{{ cotacao.motivo_venda_perdida if cotacao }}</textarea>
+                                    rows="2">{{ cotacao.motivo_venda_perdida if cotacao else (prefilled.motivo_venda_perdida if prefilled else '') }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -421,10 +476,11 @@
 
                 {# Campo Próximo Status e Botões de Navegação #}
                 <div class="card-footer d-flex justify-content-end align-items-center flex-wrap flex-md-nowrap gap-2">
-                    <div class="order-2 order-md-1 d-flex align-items-center" style="min-width:250px;max-width:350px;">
+                    <div class="order-2 order-md-1 align-items-center" id="proximoStatusContainer"
+                        style="min-width:250px;max-width:350px; display: none;">
                         <label for="status" class="form-label mb-0 fw-bold text-success me-2"
-                            style="white-space:nowrap;">Próximo Status <span class="text-danger">*</span></label>
-                        <select class="form-select border-success shadow-sm fw-bold" id="status" name="status" required
+                            style="white-space:nowrap;">Próximo Status </label>
+                        <select class="form-select border-success shadow-sm fw-bold" id="status" name="status"
                             style="border-width:2px;">
                             {% for status in status_options %}
                             <option value="{{ status }}" {% if cotacao and cotacao.status==status %}selected{% endif %}>
@@ -433,14 +489,14 @@
                         </select>
                     </div>
                     <div class="d-flex justify-content-end gap-2 mt-4 mt-md-0 order-1 order-md-2">
-                        <button type="button" class="btn btn-secondary" id="prevButton">
+                        <button type="button" class="btn btn-outline-primary" id="prevButton">
                             <i class="fas fa-arrow-left me-2"></i>Voltar
                         </button>
-                        {# Botão Cancelar #}
-                        <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">
+                        {# Botão Cancelar - Vermelho #}
+                        <a href="{{ url_for('routes.index') }}" class="btn btn-danger">
                             <i class="fas fa-times"></i> Cancelar
                         </a>
-                        <button type="button" class="btn btn-secondary" id="nextButton">
+                        <button type="button" class="btn btn-primary" id="nextButton">
                             <i class="fas fa-save"></i> Avançar
                         </button>
                     </div>
@@ -469,5 +525,5 @@
 
 
 
-<script src="{{ url_for('static', filename='js/cotacao.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='js/cotacao.js') }}?v=18"></script>
 {% endblock %}

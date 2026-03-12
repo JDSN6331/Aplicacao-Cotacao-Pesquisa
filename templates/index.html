@@ -14,7 +14,7 @@
         <div class="overview-cards">
             <div class="overview-card active" data-type="andamento">
                 <div class="card-icon">
-                    <i class="fas fa-file-invoice-dollar"></i>
+                    <i class="fas fa-file"></i>
                 </div>
                 <div class="card-content">
                     <div class="card-number" id="count-andamento">0</div>
@@ -23,7 +23,7 @@
             </div>
             <div class="overview-card" data-type="pesquisas">
                 <div class="card-icon">
-                    <i class="fas fa-clipboard-list"></i>
+                    <i class="fas fa-magnifying-glass"></i>
                 </div>
                 <div class="card-content">
                     <div class="card-number" id="count-pesquisas">0</div>
@@ -41,7 +41,12 @@
             </div>
             <div class="overview-card" data-type="pesquisas-finalizadas">
                 <div class="card-icon">
-                    <i class="fas fa-clipboard-check"></i>
+                    <div
+                        style="position: relative; display: inline-flex; width: 1em; height: 1em; align-items: center; justify-content: center;">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <i class="fas fa-circle-check pesquisa-overlay-icon"
+                            style="position: absolute; font-size: 0.55em; top: -0.1em; right: -0.3em; border-radius: 50%; line-height: 1;"></i>
+                    </div>
                 </div>
                 <div class="card-content">
                     <div class="card-number" id="count-pesquisas-finalizadas">0</div>
@@ -57,6 +62,20 @@
                     <div class="card-label">Cotações Perdidas</div>
                 </div>
             </div>
+            <div class="overview-card" data-type="pesquisas-perdidas">
+                <div class="card-icon">
+                    <div
+                        style="position: relative; display: inline-flex; width: 1em; height: 1em; align-items: center; justify-content: center;">
+                        <i class="fas fa-magnifying-glass"></i>
+                        <i class="fas fa-circle-xmark pesquisa-overlay-icon"
+                            style="position: absolute; font-size: 0.55em; top: -0.1em; right: -0.3em; border-radius: 50%; line-height: 1;"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="card-number" id="count-pesquisas-perdidas">0</div>
+                    <div class="card-label">Pesquisas Perdidas</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -67,7 +86,7 @@
             <div class="content-header">
                 <div class="content-header-top">
                     <div class="content-title">
-                        <i class="fas fa-file-invoice-dollar"></i>
+                        <i class="fas fa-file"></i>
                         <h3>Cotações em Andamento</h3>
                     </div>
                     <div class="content-status">
@@ -145,7 +164,7 @@
             <div class="content-header">
                 <div class="content-header-top">
                     <div class="content-title">
-                        <i class="fas fa-clipboard-list"></i>
+                        <i class="fas fa-magnifying-glass"></i>
                         <h3>Pesquisas em Andamento</h3>
                     </div>
                     <div class="content-status">
@@ -301,7 +320,12 @@
             <div class="content-header">
                 <div class="content-header-top">
                     <div class="content-title">
-                        <i class="fas fa-clipboard-check"></i>
+                        <div
+                            style="position: relative; display: inline-flex; width: 1em; height: 1em; align-items: center; justify-content: center; font-size: inherit; margin-right: 0.5rem;">
+                            <i class="fas fa-magnifying-glass"></i>
+                            <i class="fas fa-circle-check pesquisa-overlay-icon"
+                                style="position: absolute; font-size: 0.55em; top: -0.1em; right: -0.3em; border-radius: 50%; line-height: 1;"></i>
+                        </div>
                         <h3>Pesquisas Finalizadas</h3>
                     </div>
                     <div class="content-status">
@@ -452,6 +476,90 @@
                 </div>
             </div>
         </div>
+
+        <!-- Pesquisas Perdidas -->
+        <div class="content-card" id="content-pesquisas-perdidas">
+            <div class="content-header">
+                <div class="content-header-top">
+                    <div class="content-title">
+                        <div
+                            style="position: relative; display: inline-flex; width: 1em; height: 1em; align-items: center; justify-content: center; font-size: inherit; margin-right: 0.5rem;">
+                            <i class="fas fa-magnifying-glass"></i>
+                            <i class="fas fa-circle-xmark pesquisa-overlay-icon"
+                                style="position: absolute; font-size: 0.55em; top: -0.1em; right: -0.3em; border-radius: 50%; line-height: 1;"></i>
+                        </div>
+                        <h3>Pesquisas Perdidas</h3>
+                    </div>
+                    <div class="content-status">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Atualizado há 5 minutos</span>
+                        <button type="button" class="btn btn-success btn-sm ms-3" id="exportAllPesquisasPerdidas"
+                            onclick="exportarTodos('pesquisas-perdidas')" disabled>
+                            <i class="fas fa-file-excel text-white"></i> Exportar Todos
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-filters">
+                    <div class="panel-search">
+                        <select class="panel-filter-select" id="searchTypePesquisasPerdidas"
+                            onchange="atualizarPlaceholder('pesquisas-perdidas')">
+                            <option value="todos">Todos</option>
+                            <option value="id">ID</option>
+                            <option value="matricula">Matrícula</option>
+                            <option value="nome">Nome</option>
+                        </select>
+                        <input type="text" placeholder="Pesquisar..." class="panel-search-input"
+                            id="searchPesquisasPerdidas">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas-perdidas')">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="content-table">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="tabelaPesquisasPerdidas">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllPesquisasPerdidas" class="form-check-input"
+                                        onchange="toggleSelectAll('pesquisas-perdidas')">
+                                </th>
+                                <th>ID</th>
+                                <th>Data</th>
+                                <th>Filial</th>
+                                <th>Matrícula</th>
+                                <th>Cooperado</th>
+                                <th>Valor Total</th>
+                                <th>Status</th>
+                                <th>Tempo</th>
+                                <th>Últ. Modif.</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-pagination">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination" id="pagination-list-pesquisas-perdidas">
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">&lt; Anterior</a>
+                            </li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item"><a class="page-link" href="#">2</a></li>
+                            <li class="page-item"><a class="page-link" href="#">3</a></li>
+                            <li class="page-item">
+                                <a class="page-link" href="#">Próximo &gt;</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div class="pagination-info" id="pagination-info-pesquisas-perdidas">Página 1 de 1</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -470,6 +578,26 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Histórico de Status -->
+<div class="modal fade" id="historicoModal" tabindex="-1" aria-labelledby="historicoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="historicoModalLabel"><i class="fas fa-history"></i> Histórico de Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="historicoTimelineModal" class="timeline-container">
+                    <p class="text-center text-muted">Carregando...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
     </div>
@@ -546,26 +674,64 @@
             atualizarStatusAtualizacao();
         }, 60000); // 1 minuto
 
-        // Corrigir sobreposição dos dropdowns: elevar a linha ativa
-        $(document).on('show.bs.dropdown', '.table .dropdown', function () {
-            try {
-                $('.table tbody tr').css('z-index', 1);
-                $(this).closest('tr').css('position', 'relative').css('z-index', 30000);
-            } catch (e) { }
-        });
-        $(document).on('hide.bs.dropdown', '.table .dropdown', function () {
-            try {
-                $(this).closest('tr').css('z-index', 1);
-            } catch (e) { }
+        // Corrigir dropdowns cortados: mover para o body para escapar do overflow criado pelo backdrop-filter e table-responsive
+        $(document).on('show.bs.dropdown', '.table .dropdown', function (e) {
+            var $dropdown = $(this);
+            var $menu = $dropdown.find('.dropdown-menu');
+            var $btn = $dropdown.find('[data-bs-toggle="dropdown"]');
+
+            // Adicionar um identificador único para devolver depois
+            var dropId = 'drop-' + Math.random().toString(36).substr(2, 9);
+            $dropdown.attr('data-drop-id', dropId);
+            $menu.attr('data-drop-id', dropId);
+
+            // Mover para o body
+            $('body').append($menu);
+            var btnRect = $btn[0].getBoundingClientRect();
+
+            // Posicionar o menu em relação à janela
+            $menu.css({
+                'position': 'fixed',
+                'top': (btnRect.bottom + 2) + 'px',
+                'left': 'auto',
+                'right': (window.innerWidth - btnRect.right) + 'px',
+                'z-index': '99999',
+                'display': 'block',
+                'margin': '0'
+            });
         });
 
-        // Mapeamento de IDs para tipos (usado pelos event listeners)
+        $(document).on('hide.bs.dropdown', '.table .dropdown', function (e) {
+            var $dropdown = $(this);
+            var dropId = $dropdown.attr('data-drop-id');
+            // Encontrar o menu correspondente no body e devolvê-lo
+            var $menu = $('body > .dropdown-menu[data-drop-id="' + dropId + '"]');
+
+            if ($menu.length) {
+                // Resetar estilos
+                $menu.css({
+                    'position': '',
+                    'top': '',
+                    'left': '',
+                    'right': '',
+                    'transform': '',
+                    'z-index': '',
+                    'display': '',
+                    'margin': ''
+                });
+                $menu.removeAttr('data-drop-id');
+                $dropdown.append($menu);
+                $dropdown.removeAttr('data-drop-id');
+            }
+        });
+
         const tipoMap = {
             'andamento': 'andamento',
             'pesquisas': 'pesquisas',
             'finalizadas': 'finalizadas',
             'pesquisasfinalizadas': 'pesquisas-finalizadas',
-            'perdidas': 'perdidas'
+            'perdidas': 'perdidas',
+            'pesquisasperdidas': 'pesquisas-perdidas'
         };
 
         // Event listener para filtrar em tempo real enquanto digita
@@ -595,6 +761,7 @@
                 $('#count-finalizadas').text(data.finalizadas || 0);
                 $('#count-pesquisas-finalizadas').text(data.pesquisas_finalizadas || 0);
                 $('#count-perdidas').text(data.perdidas || 0);
+                $('#count-pesquisas-perdidas').text(data.pesquisas_perdidas || 0);
             },
             error: function (error) {
                 console.error('Erro ao carregar contadores:', error);
@@ -624,6 +791,9 @@
             case 'perdidas':
                 carregarCotacoes('perdidas', '#tabelaPerdidas tbody');
                 break;
+            case 'pesquisas-perdidas':
+                carregarPesquisas('perdidas', '#tabelaPesquisasPerdidas tbody');
+                break;
         }
     }
 
@@ -634,7 +804,8 @@
             'pesquisas': 'Pesquisas em andamento para análise de preços e concorrência.',
             'finalizadas': 'Cotações que foram concluídas e liberadas para venda.',
             'pesquisas-finalizadas': 'Pesquisas de mercado que foram concluídas e analisadas.',
-            'perdidas': 'Cotações que não foram fechadas e foram perdidas para a concorrência.'
+            'perdidas': 'Cotações que não foram fechadas e foram perdidas para a concorrência.',
+            'pesquisas-perdidas': 'Pesquisas de mercado que não foram fechadas e foram perdidas.'
         };
 
         const descricaoElement = $('.content-card.active .content-description');
@@ -670,9 +841,8 @@
         });
     }
 
-    // Função para carregar pesquisas
     function carregarPesquisas(status, targetSelector) {
-        const tipoStorage = status === 'finalizadas' ? 'pesquisas-finalizadas' : 'pesquisas';
+        const tipoStorage = status === 'finalizadas' ? 'pesquisas-finalizadas' : (status === 'perdidas' ? 'pesquisas-perdidas' : 'pesquisas');
         $.ajax({
             url: '/api/pesquisas/' + status,
             method: 'GET',
@@ -696,7 +866,8 @@
             'pesquisas': 'searchTypePesquisas',
             'finalizadas': 'searchTypeFinalizadas',
             'pesquisas-finalizadas': 'searchTypePesquisasFinalizadas',
-            'perdidas': 'searchTypePerdidas'
+            'perdidas': 'searchTypePerdidas',
+            'pesquisas-perdidas': 'searchTypePesquisasPerdidas'
         };
 
         const searchInputId = {
@@ -704,7 +875,8 @@
             'pesquisas': 'searchPesquisas',
             'finalizadas': 'searchFinalizadas',
             'pesquisas-finalizadas': 'searchPesquisasFinalizadas',
-            'perdidas': 'searchPerdidas'
+            'perdidas': 'searchPerdidas',
+            'pesquisas-perdidas': 'searchPesquisasPerdidas'
         };
 
         const searchType = document.getElementById(searchTypeId[tipo]);
@@ -739,7 +911,8 @@
             'pesquisas': 'searchTypePesquisas',
             'finalizadas': 'searchTypeFinalizadas',
             'pesquisas-finalizadas': 'searchTypePesquisasFinalizadas',
-            'perdidas': 'searchTypePerdidas'
+            'perdidas': 'searchTypePerdidas',
+            'pesquisas-perdidas': 'searchTypePesquisasPerdidas'
         };
 
         const statusFilterId = {
@@ -752,7 +925,8 @@
             'pesquisas': '#tabelaPesquisas tbody',
             'finalizadas': '#tabelaFinalizadas tbody',
             'pesquisas-finalizadas': '#tabelaPesquisasFinalizadas tbody',
-            'perdidas': '#tabelaPerdidas tbody'
+            'perdidas': '#tabelaPerdidas tbody',
+            'pesquisas-perdidas': '#tabelaPesquisasPerdidas tbody'
         };
 
         // Obter valores dos filtros
@@ -799,9 +973,9 @@
         }
 
         // Renderizar dados filtrados
-        const isPesquisa = tipo === 'pesquisas' || tipo === 'pesquisas-finalizadas';
+        const isPesquisa = tipo.includes('pesquisa');
         if (isPesquisa) {
-            const status = tipo === 'pesquisas-finalizadas' ? 'finalizadas' : 'pesquisa';
+            const status = tipo === 'pesquisas-finalizadas' ? 'finalizadas' : (tipo === 'pesquisas-perdidas' ? 'perdidas' : 'pesquisa');
             renderizarTabelaPesquisas(dados, targetSelector[tipo], status);
         } else {
             renderizarTabelaCotacoes(dados, targetSelector[tipo], tipo);
@@ -844,10 +1018,7 @@
             word.charAt(0).toUpperCase() + word.slice(1)
         ).join(' ');
 
-        // Correção específica para "Liberado Para Venda" -> "Liberado para Venda"
-        if (statusFormatado === 'Liberado Para Venda') {
-            return 'Liberado para Venda';
-        }
+        // Correções específicas se houver (removido Liberado para Venda)
 
         return statusFormatado;
     }
@@ -865,8 +1036,7 @@
         const ultimaMod = cotacao.data_ultima_modificacao;
 
         let acoes = '';
-        // Verificar se o status permite edição
-        const statusBloqueados = ['Liberado para Venda', 'Cotação Perdida'];
+        const statusBloqueados = ['Cotação Finalizada', 'Cotação Perdida'];
         const podeEditar = !statusBloqueados.includes(cotacao.status);
 
         if (tipo === 'finalizadas') {
@@ -875,7 +1045,8 @@
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'cotacao')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="https://vendascooxupe.lightning.force.com/lightning/n/Criar_Pedido" target="_blank"><i class="fas fa-shopping-cart"></i> Ir para Vendas</a></li>
@@ -887,7 +1058,8 @@
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'cotacao')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                         </ul>
                     </div>`;
@@ -897,7 +1069,8 @@
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'cotacao')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="/cotacao/${id}"><i class="fas fa-edit"></i> Editar</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                             <li><hr class="dropdown-divider"></li>
@@ -933,7 +1106,7 @@
             tbody.html('<tr><td colspan="' + colSpan + '" class="text-center py-3">Nenhuma pesquisa encontrada</td></tr>');
             return;
         }
-        const tipo = status === 'finalizadas' ? 'pesquisas-finalizadas' : 'pesquisas';
+        const tipo = status === 'finalizadas' ? 'pesquisas-finalizadas' : (status === 'perdidas' ? 'pesquisas-perdidas' : 'pesquisas');
         const estado = window.paginacao[tipo] || { paginaAtual: 1, tamanhoPagina: 10 };
         const inicio = (estado.paginaAtual - 1) * estado.tamanhoPagina;
         const fim = inicio + estado.tamanhoPagina;
@@ -955,24 +1128,36 @@
         // Calcular valor total da pesquisa (usar valor_cooxupe ou valor_concorrente como referência)
         const valorTotal = pesquisa.valor_cooxupe !== null && pesquisa.valor_cooxupe !== undefined ? formatarMoeda(pesquisa.valor_cooxupe) : (pesquisa.valor_concorrente !== null && pesquisa.valor_concorrente !== undefined ? formatarMoeda(pesquisa.valor_concorrente) : '-');
         const statusText = formatarStatus(pesquisa.status);
-        const tempoStatus = calcularTempoNoStatus(pesquisa.data_entrada_status);
+        const tempoStatus = pesquisa.dias_no_status + 'd';
         const ultimaMod = pesquisa.data_ultima_modificacao;
 
         let acoes = '';
         // Verificar se o status permite edição
-        const statusBloqueados = ['Liberado para Venda', 'Cotação Perdida'];
+        const statusBloqueados = ['Pesquisa Finalizada', 'Pesquisa Perdida', 'Cotação Perdida'];
         const podeEditar = !statusBloqueados.includes(pesquisa.status);
 
-        if (status === 'finalizadas' || !podeEditar) {
-            // Pesquisas Finalizadas ou com status bloqueado: Exportar e Ir para Vendas
+        if (status === 'finalizadas') {
+            // Pesquisas Finalizadas: Exportar e Ir para Vendas
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'pesquisa')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarPesquisa(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="https://vendascooxupe.lightning.force.com/lightning/n/Criar_Pedido" target="_blank"><i class="fas fa-shopping-cart"></i> Ir para Vendas</a></li>
+                        </ul>
+                    </div>`;
+        } else if (status === 'perdidas' || !podeEditar) {
+            // Pesquisas Perdidas ou com status bloqueado: Exportar e Histórico
+            acoes = `<div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'pesquisa')"><i class="fas fa-history"></i> Histórico de Status</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportarPesquisa(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                         </ul>
                     </div>`;
         } else {
@@ -981,7 +1166,8 @@
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'pesquisa')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="/pesquisa/${id}"><i class="fas fa-edit"></i> Editar</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarPesquisa(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                             <li><hr class="dropdown-divider"></li>
@@ -990,10 +1176,11 @@
                     </div>`;
         }
 
+        const checkboxTipo = status === 'finalizadas' ? 'pesquisas-finalizadas' : (status === 'perdidas' ? 'pesquisas-perdidas' : 'pesquisas');
         const statusClass = getStatusClass(pesquisa.status);
         return `<tr>
                     <td>
-                        <input type="checkbox" class="form-check-input row-checkbox" data-id="${id}" data-tipo="pesquisa" onchange="updateExportButton('${status === 'finalizadas' ? 'pesquisas-finalizadas' : 'pesquisas'}')">
+                        <input type="checkbox" class="form-check-input row-checkbox" data-id="${id}" data-tipo="pesquisa" onchange="updateExportButton('${checkboxTipo}')">
                     </td>
                     <td>${id}</td>
                     <td>${data}</td>
@@ -1109,9 +1296,19 @@
                 return 'status-analise-comercial';
             case 'Análise Suprimentos':
                 return 'status-analise-suprimentos';
-            case 'Liberado para Venda':
+            case 'Avaliação Comercial':
+                return 'status-avaliacao-comercial';
+            case 'Aguardando Cooperado':
+                return 'status-aguardando-cooperado';
+            case 'Revisão Comercial':
+                return 'status-revisao-comercial';
+            case 'Revisão Suprimentos':
+                return 'status-revisao-suprimentos';
+            case 'Cotação Finalizada':
+            case 'Pesquisa Finalizada':
                 return 'status-liberado';
             case 'Cotação Perdida':
+            case 'Pesquisa Perdida':
                 return 'status-perdida';
             case 'Criação':
                 return 'status-criacao';
@@ -1396,6 +1593,61 @@
             error: function (error) {
                 console.error('Erro ao exportar pesquisas:', error);
                 alert('Erro ao exportar pesquisas. Por favor, tente novamente.');
+            }
+        });
+    }
+
+    // Função para ver histórico de status
+    function verHistorico(id, tipo) {
+        // Inicializar o modal
+        const modalElement = document.getElementById('historicoModal');
+        const modal = new bootstrap.Modal(modalElement);
+        const timeline = document.getElementById('historicoTimelineModal');
+
+        // Mostrar o modal e carregando
+        timeline.innerHTML = '<p class="text-center text-muted">Carregando...</p>';
+        modal.show();
+
+        // Buscar dados da API
+        $.ajax({
+            url: '/api/historico/' + tipo + '/' + id,
+            method: 'GET',
+            success: function (response) {
+                if (response.success && response.historicos && response.historicos.length > 0) {
+                    let html = '<div class="timeline">';
+                    response.historicos.forEach((item, index) => {
+                        const statusAnterior = item.status_anterior || 'Início';
+                        const icon = index === 0 ? 'fa-clock text-primary' : 'fa-check text-success';
+
+                        html += `
+                            <div class="timeline-item mb-3 d-flex align-items-start">
+                                <div class="timeline-icon me-3 mt-1">
+                                    <i class="fas ${icon}"></i>
+                                </div>
+                                <div class="timeline-content flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>${statusAnterior} <i class="fas fa-arrow-right mx-1 text-muted small"></i> ${item.status_novo}</strong>
+                                        <small class="text-muted ms-2">${item.data_mudanca}</small>
+                                    </div>
+                                    ${item.observacao ? `<small class="text-muted d-block mt-1">${item.observacao}</small>` : ''}
+                                    <div class="text-end mt-1">
+                                        <small class="text-muted" style="font-size: 0.75rem;">${item.usuario || 'Sistema'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            ${index < response.historicos.length - 1 ? '<hr class="my-2 text-muted" style="opacity: 0.1;">' : ''}
+                        `;
+                    });
+                    html += '</div>';
+
+                    timeline.innerHTML = html;
+                } else {
+                    timeline.innerHTML = '<p class="text-center text-muted">Nenhum histórico encontrado para este item.</p>';
+                }
+            },
+            error: function (error) {
+                console.error('Erro ao carregar histórico:', error);
+                timeline.innerHTML = '<div class="alert alert-danger">Erro ao carregar histórico. Tente novamente mais tarde.</div>';
             }
         });
     }

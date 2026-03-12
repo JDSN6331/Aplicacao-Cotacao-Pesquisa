@@ -259,6 +259,12 @@ def carregar_produtos_cache():
         df['Código do produto'] = df['Código do produto'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
         df['Nome do produto'] = df['Nome do produto'].astype(str).str.strip()
         
+        # Opcional: tentar pegar Nome do fornecedor se existir (fallback pra string vazia se não)
+        if 'Nome do fornecedor' in df.columns:
+            df['Nome do fornecedor'] = df['Nome do fornecedor'].astype(str).str.strip()
+        else:
+            df['Nome do fornecedor'] = ''
+        
         # Salvar no cache
         _cache['produtos'] = df
         

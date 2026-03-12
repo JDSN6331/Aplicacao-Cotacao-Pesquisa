@@ -241,10 +241,7 @@ class HeaderSearch {
                 word.charAt(0).toUpperCase() + word.slice(1)
             ).join(' ');
 
-            // Correção específica para "Liberado Para Venda" -> "Liberado para Venda"
-            if (statusFormatado === 'Liberado Para Venda') {
-                return 'Liberado para Venda';
-            }
+            // Correções específicas se houver (removido Liberado para Venda)
 
             return statusFormatado;
         }
@@ -253,8 +250,14 @@ class HeaderSearch {
         const statusMap = {
             'Análise Comercial': 'status-analise-comercial',
             'Análise Suprimentos': 'status-analise-suprimentos',
-            'Liberado para Venda': 'status-liberado',
+            'Avaliação Comercial': 'status-avaliacao-comercial',
+            'Aguardando Cooperado': 'status-aguardando-cooperado',
+            'Revisão Comercial': 'status-revisao-comercial',
+            'Revisão Suprimentos': 'status-revisao-suprimentos',
+            'Cotação Finalizada': 'status-liberado',
+            'Pesquisa Finalizada': 'status-liberado',
             'Cotação Perdida': 'status-perdida',
+            'Pesquisa Perdida': 'status-perdida',
             'Criação': 'status-criacao'
         };
 
@@ -266,7 +269,9 @@ class HeaderSearch {
         const buttons = [];
 
         // Verificar se o status permite edição
-        const statusBloqueados = ['Liberado para Venda', 'Cotação Perdida'];
+        const statusBloqueados = result.tipo === 'cotacao'
+            ? ['Cotação Finalizada', 'Cotação Perdida']
+            : ['Pesquisa Finalizada', 'Pesquisa Perdida', 'Cotação Perdida'];
         const podeEditar = !statusBloqueados.includes(result.status);
 
         if (podeEditar) {
@@ -404,7 +409,7 @@ function ativarAbaCorreta(tipo, status) {
     let cardType = '';
 
     if (tipo === 'cotacao') {
-        if (status === 'Liberado para Venda') {
+        if (status === 'Cotação Finalizada') {
             cardType = 'finalizadas';
         } else if (status === 'Cotação Perdida') {
             cardType = 'perdidas';
@@ -413,8 +418,10 @@ function ativarAbaCorreta(tipo, status) {
             cardType = 'andamento';
         }
     } else if (tipo === 'pesquisa') {
-        if (status === 'Liberado para Venda') {
+        if (status === 'Pesquisa Finalizada') {
             cardType = 'pesquisas-finalizadas';
+        } else if (status === 'Pesquisa Perdida') {
+            cardType = 'pesquisas-perdidas';
         } else {
             // Análise Comercial
             cardType = 'pesquisas';

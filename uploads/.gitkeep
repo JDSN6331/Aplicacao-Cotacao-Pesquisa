@@ -1,2 +1,2 @@
-# This file ensures the uploads directory is tracked by Git
-# User-uploaded files are ignored via .gitignore
+# This file ensures the exports directory is tracked by Git
+# Exported files are ignored via .gitignore

@@ -18,16 +18,18 @@ def obter_email_por_status(status):
     Returns:
         E-mail ou lista de e-mails do departamento responsável
     """
-    if status == 'Análise Suprimentos':
+    # Status que vão para Suprimentos
+    if status in ['Análise Suprimentos', 'Revisão Suprimentos']:
         return EMAIL_SUPRIMENTOS
-    elif status in ['Liberado para Venda', 'Cotação Perdida']:
-        # Para status finais, notificar ambos os departamentos
+    # Status finais - notificar ambos
+    elif status in ['Cotação Finalizada', 'Pesquisa Finalizada', 'Cotação Perdida', 'Pesquisa Perdida']:
         return [EMAIL_COMERCIAL, EMAIL_SUPRIMENTOS]
+    # Status que vão para Comercial (Análise Comercial, Avaliação Comercial, Aguardando Cooperado, Revisão Comercial)
     else:
-        # Para Análise Comercial e outros status
         return EMAIL_COMERCIAL
 
 def enviar_email(destinatarios, assunto, corpo_html):
+    """Envia e-mail usando SMTP com STARTTLS."""
     smtp_server = 'mail.cooxupe.com.br'
     smtp_port = 587  # Porta STARTTLS
     usuario = 'joseduque@cooxupe.com.br'
@@ -39,13 +41,26 @@ def enviar_email(destinatarios, assunto, corpo_html):
     msg['To'] = ', '.join(destinatarios) if isinstance(destinatarios, list) else destinatarios
 
     try:
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=5) as server:
+        print(f'[EMAIL] Tentando conectar ao servidor SMTP: {smtp_server}:{smtp_port}')
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
+            server.set_debuglevel(0)  # Definir para 1 para debug detalhado
             server.starttls()
             server.login(usuario, senha)
             server.sendmail(usuario, destinatarios if isinstance(destinatarios, list) else [destinatarios], msg.as_string())
-        print(f'E-mail enviado com sucesso para: {destinatarios}')
+        print(f'[EMAIL] E-mail enviado com sucesso para: {destinatarios}')
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f'[EMAIL] Erro de autenticação SMTP: {e}')
+        return False
+    except smtplib.SMTPConnectError as e:
+        print(f'[EMAIL] Erro de conexão SMTP: {e}')
+        return False
+    except smtplib.SMTPException as e:
+        print(f'[EMAIL] Erro SMTP: {e}')
+        return False
     except Exception as e:
-        print('Erro ao enviar e-mail:', e)
+        print(f'[EMAIL] Erro geral ao enviar e-mail: {e}')
+        return False
 
 def enviar_notificacao_mudanca_status(cotacao):
     """Envia e-mail de notificação quando há mudança de status na cotação"""

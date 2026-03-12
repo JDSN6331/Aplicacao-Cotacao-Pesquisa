@@ -16,6 +16,11 @@ class Config:
         # Fallback to SQLite for local development
         SQLALCHEMY_DATABASE_URI = 'sqlite:///cotacoes.db'
     
+    # Banco de dados separado para usuários (não é afetado quando resetar cotações)
+    SQLALCHEMY_BINDS = {
+        'users': 'sqlite:///users.db'
+    }
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Connection pool settings

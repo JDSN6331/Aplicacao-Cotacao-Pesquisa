@@ -65,3 +65,7 @@ Thumbs.db
 # Agent/Development files
 .gemini/
 .agent/
+
+# Atalhos locais
+*.bat
+*.url

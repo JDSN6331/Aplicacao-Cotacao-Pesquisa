@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
-from models import db, PesquisaMercado, Anexo, MAX_ANEXOS
+from flask_login import login_required, current_user
+from models import db, PesquisaMercado, Anexo, HistoricoStatus, MAX_ANEXOS
 from services.utils import exportar_para_excel
 from datetime import datetime
 import os
@@ -13,8 +14,9 @@ from services.email_service import enviar_email, obter_email_por_status
 pesquisa_routes = Blueprint('pesquisa_routes', __name__)
 
 PESQUISA_STATUS_OPTIONS = [
-    'Análise Comercial',
-    'Liberado para Venda'
+    'Avaliação Comercial',
+    'Pesquisa Finalizada',
+    'Pesquisa Perdida'
 ]
 
 TZ_SP = pytz.timezone('America/Sao_Paulo')
@@ -26,17 +28,24 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @pesquisa_routes.route('/nova-pesquisa')
+@login_required
 def nova_pesquisa():
     return render_template('pesquisa_form.html', status_options=PESQUISA_STATUS_OPTIONS)
 
 @pesquisa_routes.route('/api/pesquisas', methods=['POST'])
+@login_required
 def criar_pesquisa():
     try:
         def parse_float(val):
             try:
-                return float(str(val).replace('R$', '').replace('.', '').replace(',', '.')) if val not in (None, '', 'null') else None
+                if val is None:
+                    return 0.0
+                val_str = str(val).strip().lower()
+                if val_str in ('', 'null', 'nan', 'undefined', 'none'):
+                    return 0.0
+                return float(str(val).replace('R$', '').replace('.', '').replace(',', '.'))
             except Exception:
-                return None
+                return 0.0
         
         if request.content_type and request.content_type.startswith('multipart/form-data'):
             data = request.form
@@ -48,18 +57,29 @@ def criar_pesquisa():
         valor_concorrente_parsed = parse_float(data.get('valor_concorrente'))
         valor_cooxupe_parsed = parse_float(data.get('valor_cooxupe'))
         
-        if not data_pesquisa or \
-           not data.get('nome_filial') or \
-           not data.get('numero_mesorregiao') or \
-           not data.get('matricula_cooperado') or \
-           not data.get('nome_cooperado') or \
-           not data.get('nome_produto') or \
-           quantidade_cotada_parsed is None or \
-           not data.get('forma_pagamento') or \
-           not data.get('nome_concorrente') or \
-           valor_concorrente_parsed is None or \
-           not data.get('status'):
-             return jsonify({'error': 'Preencha todos os campos obrigatórios.'}), 400
+        # Nova verificação: Pelo menos um campo (além dos de controle) deve estar preenchido
+        campos_ignorados = ['status', 'id', '_method', 'csrf_token', 'data_pesquisa']
+        tem_campo_preenchido = False
+        
+        for key, value in data.items():
+            if key not in campos_ignorados:
+                # Se for nome_cooperado, desconsiderar as msgs de erro
+                if key == 'nome_cooperado' and value in ['Cooperado não encontrado', 'Erro na busca', 'Matrícula não encontrada']:
+                    continue
+                if value and str(value).strip() and str(value).strip() not in ['undefined', 'null']:
+                    tem_campo_preenchido = True
+                    break
+
+        # Verificar anexos
+        if not tem_campo_preenchido:
+            arquivos = request.files.getlist('anexos[]') or request.files.getlist('anexo')
+            for arquivo in arquivos:
+                if arquivo and arquivo.filename:
+                    tem_campo_preenchido = True
+                    break
+
+        if not tem_campo_preenchido:
+             return jsonify({'error': 'Valide as informações preenchidas: há campos sem preenchimento!'}), 400
         
         pesquisa_id = data.get('id')
         if pesquisa_id:
@@ -91,6 +111,12 @@ def criar_pesquisa():
             comprador_value = data.get('comprador', '')
             pesquisa.comprador = comprador_value if comprador_value and comprador_value.strip() and comprador_value != 'undefined' else None
             
+            fornecedor_value = data.get('fornecedor', '')
+            pesquisa.fornecedor = fornecedor_value if fornecedor_value and str(fornecedor_value).strip() and fornecedor_value != 'undefined' else None
+            
+            motivo_venda_perdida_value = data.get('motivo_venda_perdida', '')
+            pesquisa.motivo_venda_perdida = motivo_venda_perdida_value if motivo_venda_perdida_value and str(motivo_venda_perdida_value).strip() and motivo_venda_perdida_value != 'undefined' else None
+            
             # Tratar prazo de entrega
             prazo_entrega_str = data.get('prazo_entrega', '')
             if prazo_entrega_str and str(prazo_entrega_str).strip() and prazo_entrega_str != 'undefined':
@@ -113,6 +139,8 @@ def criar_pesquisa():
             cultura_value = data.get('cultura', '')
             nome_vendedor_value = data.get('nome_vendedor', '')
             comprador_value = data.get('comprador', '')
+            fornecedor_value = data.get('fornecedor', '')
+            motivo_venda_perdida_value = data.get('motivo_venda_perdida', '')
             
             pesquisa = PesquisaMercado(
                 data=data_pesquisa,
@@ -129,12 +157,14 @@ def criar_pesquisa():
                 valor_cooxupe=valor_cooxupe_parsed,
                 analista_comercial=data.get('analista_comercial', ''),
                 observacoes=data.get('observacoes', ''),
-                status=data.get('status', 'Análise Comercial'),
+                status=data.get('status', 'Avaliação Comercial'),
                 data_entrada_status=datetime.now(TZ_SP),
                 data_ultima_modificacao=datetime.now(TZ_SP),
                 cultura=cultura_value if cultura_value and cultura_value.strip() else None,
                 nome_vendedor=nome_vendedor_value if nome_vendedor_value and nome_vendedor_value.strip() else None,
                 comprador=comprador_value if comprador_value and comprador_value.strip() else None,
+                fornecedor=fornecedor_value if fornecedor_value and str(fornecedor_value).strip() else None,
+                motivo_venda_perdida=motivo_venda_perdida_value if motivo_venda_perdida_value and str(motivo_venda_perdida_value).strip() else None,
                 prazo_entrega=None
             )
             
@@ -149,6 +179,18 @@ def criar_pesquisa():
             db.session.add(pesquisa)
         
         db.session.flush()  # Obter ID da pesquisa antes de adicionar anexos
+        
+        # Registrar histórico de status
+        if not pesquisa_id:
+            # Nova pesquisa - registrar criação
+            historico = HistoricoStatus(
+                pesquisa_id=pesquisa.id,
+                status_anterior=None,
+                status_novo=pesquisa.status,
+                observacao='Pesquisa criada',
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+            )
+            db.session.add(historico)
         
         # Processar anexos (múltiplos arquivos)
         arquivos = request.files.getlist('anexos[]') or request.files.getlist('anexo')
@@ -206,13 +248,17 @@ def criar_pesquisa():
         traceback.print_exc()
         return jsonify({'error': f'Erro ao salvar pesquisa: {str(e)}'}), 400
 
-@pesquisa_routes.route('/api/pesquisas/<status>', methods=['GET'])
-def listar_pesquisas(status):
+@pesquisa_routes.route('/api/pesquisas/<tipo>', methods=['GET'])
+@login_required
+def listar_pesquisas(tipo):
     try:
-        if status == 'pesquisa':
-            pesquisas = PesquisaMercado.query.filter_by(status='Análise Comercial').all()
-        elif status == 'finalizadas':
-            pesquisas = PesquisaMercado.query.filter_by(status='Liberado para Venda').all()
+        if tipo in ['abertas', 'pesquisa']:
+            # Exibe pesquisas em andamento (criação e análise)
+            pesquisas = PesquisaMercado.query.filter(PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])).all()
+        elif tipo == 'finalizadas':
+            pesquisas = PesquisaMercado.query.filter_by(status='Pesquisa Finalizada').all()
+        elif tipo == 'perdidas':
+            pesquisas = PesquisaMercado.query.filter_by(status='Pesquisa Perdida').all()
         else:
             return jsonify([])
         for pesquisa in pesquisas:
@@ -224,13 +270,21 @@ def listar_pesquisas(status):
         return jsonify([])
 
 @pesquisa_routes.route('/api/pesquisas/<int:id>', methods=['PUT'])
+@login_required
 def atualizar_pesquisa(id):
     try:
         pesquisa = PesquisaMercado.query.get_or_404(id)
+        if pesquisa.status in ['Pesquisa Finalizada', 'Pesquisa Perdida']:
+            return jsonify({'error': 'Não é possível editar uma pesquisa finalizada ou perdida.'}), 400
         
         def parse_float(val):
             try:
-                return float(str(val).replace('R$', '').replace('.', '').replace(',', '.')) if val not in (None, '', 'null') else None
+                if val is None:
+                    return None
+                val_str = str(val).strip().lower()
+                if val_str in ('', 'null', 'nan', 'undefined', 'none'):
+                    return None
+                return float(str(val).replace('R$', '').replace('.', '').replace(',', '.'))
             except Exception:
                 return None
         
@@ -284,6 +338,14 @@ def atualizar_pesquisa(id):
         comprador_value = data.get('comprador')
         if comprador_value is not None:
             pesquisa.comprador = comprador_value if comprador_value and comprador_value.strip() else pesquisa.comprador
+            
+        fornecedor_value = data.get('fornecedor')
+        if fornecedor_value is not None:
+            pesquisa.fornecedor = fornecedor_value if fornecedor_value and str(fornecedor_value).strip() else pesquisa.fornecedor
+            
+        motivo_venda_perdida_value = data.get('motivo_venda_perdida')
+        if motivo_venda_perdida_value is not None:
+            pesquisa.motivo_venda_perdida = motivo_venda_perdida_value if motivo_venda_perdida_value and str(motivo_venda_perdida_value).strip() else pesquisa.motivo_venda_perdida
         
         # Tratar prazo de entrega
         prazo_entrega_str = data.get('prazo_entrega')
@@ -299,9 +361,20 @@ def atualizar_pesquisa(id):
         
         # Atualizar status
         novo_status = data.get('status')
+        status_anterior = pesquisa.status  # Guardar status atual antes de mudar
         if novo_status and novo_status != pesquisa.status:
             pesquisa.status = novo_status
             pesquisa.data_entrada_status = datetime.now(TZ_SP)
+            
+            # Registrar histórico de mudança de status
+            historico = HistoricoStatus(
+                pesquisa_id=pesquisa.id,
+                status_anterior=status_anterior,
+                status_novo=novo_status,
+                observacao='Status atualizado',
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+            )
+            db.session.add(historico)
         
         # Processar anexos (múltiplos arquivos)
         arquivos = request.files.getlist('anexos[]') or request.files.getlist('anexo')
@@ -333,25 +406,27 @@ def atualizar_pesquisa(id):
         db.session.commit()
         
         # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # Capturar valores antes de iniciar a thread para evitar erro de contexto
-        email_status = pesquisa.status
-        email_nome_cooperado = pesquisa.nome_cooperado
-        email_pesquisa_id = pesquisa.id
-        
-        def enviar_email_background(status, nome_cooperado, pid):
-            try:
-                destinatario = obter_email_por_status(status)
-                destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                enviar_email(
-                    destinatarios=destinatarios,
-                    assunto='Pesquisa Atualizada',
-                    corpo_html=f'<p>A pesquisa de ID {pid} do cooperado {nome_cooperado} foi atualizada. Status: {status}.</p>'
-                )
-            except Exception as e:
-                print('Erro ao enviar e-mail automático:', e)
-        
-        # Executar envio de e-mail em thread separada
-        threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_pesquisa_id), daemon=True).start()
+        # APENAS SE HOUVER MUDANÇA REAL DE STATUS
+        if status_anterior != novo_status:
+            # Capturar valores antes de iniciar a thread para evitar erro de contexto
+            email_status = pesquisa.status
+            email_nome_cooperado = pesquisa.nome_cooperado
+            email_pesquisa_id = pesquisa.id
+            
+            def enviar_email_background(status, nome_cooperado, pid):
+                try:
+                    destinatario = obter_email_por_status(status)
+                    destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
+                    enviar_email(
+                        destinatarios=destinatarios,
+                        assunto='Pesquisa Atualizada - Novo Status',
+                        corpo_html=f'<p>A pesquisa de ID {pid} do cooperado {nome_cooperado} teve seu status alterado para: {status}.</p>'
+                    )
+                except Exception as e:
+                    print('Erro ao enviar e-mail automático:', e)
+            
+            # Executar envio de e-mail em thread separada
+            threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_pesquisa_id), daemon=True).start()
         
         return jsonify(pesquisa.to_dict())
     except Exception as e:
@@ -359,19 +434,25 @@ def atualizar_pesquisa(id):
         traceback.print_exc()
         return jsonify({'error': f'Erro ao atualizar pesquisa: {str(e)}'}), 400
 
+from models import db, PesquisaMercado, Anexo, HistoricoStatus, MAX_ANEXOS, Cotacao, ProdutoCotacao
+
 @pesquisa_routes.route('/api/pesquisas/<int:id>', methods=['DELETE'])
+@login_required
 def excluir_pesquisa(id):
     pesquisa = PesquisaMercado.query.get_or_404(id)
     db.session.delete(pesquisa)
     db.session.commit()
     return '', 204
 
+
 @pesquisa_routes.route('/pesquisa/<int:id>')
+@login_required
 def editar_pesquisa(id):
     pesquisa = PesquisaMercado.query.get_or_404(id)
     return render_template('pesquisa_form.html', pesquisa=pesquisa, status_options=PESQUISA_STATUS_OPTIONS)
 
 @pesquisa_routes.route('/api/pesquisa/<int:id>/exportar')
+@login_required
 def exportar_pesquisa(id):
     try:
         pesquisa = PesquisaMercado.query.get_or_404(id)
@@ -383,6 +464,7 @@ def exportar_pesquisa(id):
         return jsonify({'success': False, 'error': str(e)}), 500 
 
 @pesquisa_routes.route('/api/pesquisas/exportar', methods=['POST'])
+@login_required
 def exportar_multiplas_pesquisas():
     try:
         ids = request.json.get('ids', [])
@@ -399,6 +481,7 @@ def exportar_multiplas_pesquisas():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @pesquisa_routes.route('/api/anexos/<int:id>', methods=['DELETE'])
+@login_required
 def excluir_anexo(id):
     """Excluir um anexo específico"""
     try:

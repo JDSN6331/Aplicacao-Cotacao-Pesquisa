@@ -79,9 +79,9 @@
                     <span class="badge status-analise-comercial">{{ status }}</span>
                     {% elif status == 'Análise Suprimentos' %}
                     <span class="badge status-analise-suprimentos">{{ status }}</span>
-                    {% elif status == 'Liberado para Venda' %}
+                    {% elif status == 'Pesquisa Finalizada' %}
                     <span class="badge status-liberado">{{ status }}</span>
-                    {% elif status == 'Cotação Perdida' %}
+                    {% elif status in ['Cotação Perdida', 'Pesquisa Perdida'] %}
                     <span class="badge status-perdida">{{ status }}</span>
                     {% else %}
                     {# Fallback para outros status, caso existam #}
@@ -96,6 +96,24 @@
                 </p>
             </div>
 
+            <!-- Histórico de Status (somente para pesquisas existentes) -->
+            {% if pesquisa %}
+            <div class="mb-4">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse"
+                    data-bs-target="#historicoCollapse" aria-expanded="false">
+                    <i class="fas fa-history"></i> Ver Histórico de Status
+                </button>
+                <div class="collapse mt-3" id="historicoCollapse">
+                    <div class="card card-body bg-light">
+                        <h6 class="mb-3"><i class="fas fa-clock"></i> Histórico de Alterações</h6>
+                        <div id="historicoTimeline" class="timeline-container">
+                            <p class="text-muted">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <form id="pesquisaForm">
                 {% if pesquisa %}
                 <input type="hidden" id="pesquisaId" value="{{ pesquisa.id }}">
@@ -103,8 +121,8 @@
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="filial" class="form-label">Filial <span class="text-danger">*</span></label>
-                        <select class="form-select" id="filial" name="nome_filial" required></select>
+                        <label for="filial" class="form-label">Filial </label>
+                        <select class="form-select" id="filial" name="nome_filial"></select>
                         <div id="filial_status" class="form-text" style="display: none;">
                             <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> <span
                                     id="filial_status_text">Carregando filiais...</span></small>
@@ -114,7 +132,7 @@
                         <label for="mesorregiao_geografica" class="form-label">Mesoregião Geográfica <span
                                 class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="mesorregiao_geografica" name="numero_mesorregiao"
-                            readonly required value="{{ pesquisa.numero_mesorregiao if pesquisa else '' }}">
+                            readonly value="{{ pesquisa.numero_mesorregiao if pesquisa else '' }}">
                     </div>
                 </div>
 
@@ -126,16 +144,16 @@
                         <label for="matricula_cooperado" class="form-label">Matrícula do Cooperado <span
                                 class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="matricula_cooperado" name="matricula_cooperado"
-                            required value="{{ pesquisa.matricula_cooperado if pesquisa else '' }}">
+                            value="{{ pesquisa.matricula_cooperado if pesquisa else '' }}">
                         <div id="loading_matricula" class="mt-2" style="display: none;">
                             <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> Buscando
                                 cooperado...</small>
                         </div>
                     </div>
-                    <div class="col-md-8">
+                    <div class="col-md-4">
                         <label for="nome_cooperado" class="form-label">Nome do Cooperado <span
                                 class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nome_cooperado" name="nome_cooperado" required
+                        <input type="text" class="form-control" id="nome_cooperado" name="nome_cooperado"
                             value="{{ pesquisa.nome_cooperado if pesquisa else '' }}">
                         <div id="loading_nome" class="mt-2" style="display: none;">
                             <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> Buscando
@@ -147,12 +165,9 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="cultura" class="form-label">Cultura <span class="text-danger">*</span></label>
-                        <select class="form-select" id="cultura" name="cultura" required>
+                        <label for="cultura" class="form-label">Cultura </label>
+                        <select class="form-select" id="cultura" name="cultura">
                             <option value="">Selecione...</option>
                             <option value="Café" {{ 'selected' if pesquisa and pesquisa.cultura and
                                 pesquisa.cultura=='Café' }}>Café</option>
@@ -166,10 +181,13 @@
                                 pesquisa.cultura=='Pastagem' }}>Pastagem</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="row mb-3">
                     <div class="col-md-4">
                         <label for="codigo_produto" class="form-label">Código do Produto <span
                                 class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="codigo_produto" name="codigo_produto" required
+                        <input type="text" class="form-control" id="codigo_produto" name="codigo_produto"
                             value="{{ pesquisa.codigo_produto if pesquisa else '' }}">
                         <div id="loading_codigo_produto" class="text-muted small" style="display: none;">
                             <i class="fas fa-spinner fa-spin"></i> Buscando produto...
@@ -178,7 +196,7 @@
                     <div class="col-md-4">
                         <label for="nome_produto" class="form-label">Nome do Produto <span
                                 class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nome_produto" name="nome_produto" required
+                        <input type="text" class="form-control" id="nome_produto" name="nome_produto"
                             value="{{ pesquisa.nome_produto if pesquisa else '' }}">
                         <div id="loading_nome_produto" class="text-muted small" style="display: none;">
                             <i class="fas fa-spinner fa-spin"></i> Buscando produto...
@@ -189,6 +207,11 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-4">
+                        <label for="fornecedor" class="form-label">Fornecedor</label>
+                        <input type="text" class="form-control" id="fornecedor" name="fornecedor"
+                            value="{{ pesquisa.fornecedor if pesquisa and pesquisa.fornecedor else '' }}">
+                    </div>
                 </div>
 
                 <div class="row mb-3">
@@ -196,13 +219,12 @@
                         <label for="quantidade_cotada" class="form-label">Qtd. Cotada <span
                                 class="text-danger">*</span></label>
                         <input type="number" step="0.01" class="form-control" id="quantidade_cotada"
-                            name="quantidade_cotada" required
-                            value="{{ pesquisa.quantidade_cotada if pesquisa else '' }}">
+                            name="quantidade_cotada" value="{{ pesquisa.quantidade_cotada if pesquisa else '' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="forma_pagamento" class="form-label">Forma de Pagamento <span
                                 class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="forma_pagamento" name="forma_pagamento" required
+                        <input type="text" class="form-control" id="forma_pagamento" name="forma_pagamento"
                             value="{{ pesquisa.forma_pagamento if pesquisa else '' }}">
                     </div>
                     <div class="col-md-4">
@@ -216,8 +238,9 @@
                     <div class="col-md-4">
                         <label for="analista_comercial" class="form-label">Analista Comercial <span
                                 class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="analista_comercial" name="analista_comercial"
-                            required value="{{ pesquisa.analista_comercial if pesquisa else '' }}">
+                        <input type="text" class="form-control campo-bloqueado" id="analista_comercial"
+                            name="analista_comercial" readonly
+                            value="{{ pesquisa.analista_comercial if pesquisa else '' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="comprador" class="form-label">Comprador</label>
@@ -240,21 +263,20 @@
                     <div class="col-md-4">
                         <label for="nome_concorrente" class="form-label">Nome do Concorrente <span
                                 class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nome_concorrente" name="nome_concorrente" required
+                        <input type="text" class="form-control" id="nome_concorrente" name="nome_concorrente"
                             value="{{ pesquisa.nome_concorrente if pesquisa else '' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="valor_concorrente" class="form-label">Valor no Concorrente (R$) <span
                                 class="text-danger">*</span></label>
                         <input type="text" class="form-control money-input" id="valor_concorrente"
-                            name="valor_concorrente" required
+                            name="valor_concorrente"
                             value="{% if pesquisa and pesquisa.valor_concorrente %}{{ 'R$ {:,.2f}'.format(pesquisa.valor_concorrente).replace(',', 'X').replace('.', ',').replace('X', '.') }}{% else %}R$ 0,00{% endif %}">
                     </div>
                     <div class="col-md-4">
                         <label for="valor_cooxupe" class="form-label">Valor na Cooxupé (R$) <span
                                 class="text-danger">*</span></label>
                         <input type="text" class="form-control money-input" id="valor_cooxupe" name="valor_cooxupe"
-                            required
                             value="{% if pesquisa and pesquisa.valor_cooxupe %}{{ 'R$ {:,.2f}'.format(pesquisa.valor_cooxupe).replace(',', 'X').replace('.', ',').replace('X', '.') }}{% else %}R$ 0,00{% endif %}">
                     </div>
                 </div>
@@ -317,13 +339,23 @@
                         pesquisa and pesquisa.data_ultima_modificacao else 'N/A' }}</p>
                 </div>
                 {% endif %}
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group mb-3" id="motivoVendaPerdidaGroup" style="display: none;">
+                            <label for="motivo_venda_perdida" class="form-label">Motivo da Pesquisa Perdida <span
+                                    class="text-danger">*</span></label>
+                            <textarea class="form-control" id="motivo_venda_perdida" name="motivo_venda_perdida"
+                                rows="2">{{ pesquisa.motivo_venda_perdida if pesquisa else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
             </form>
         </div>
         <div class="card-footer d-flex justify-content-end align-items-center flex-wrap flex-md-nowrap gap-2">
-            <div class="order-2 order-md-1 d-flex align-items-center" style="min-width:250px;max-width:350px;">
+            <div class="order-3 order-md-1 d-flex align-items-center" style="min-width:250px;max-width:350px;">
                 <label for="status" class="form-label mb-0 fw-bold text-success me-2"
-                    style="white-space:nowrap;">Próximo Status <span class="text-danger">*</span></label>
-                <select class="form-select border-success shadow-sm fw-bold" id="status" name="status" required
+                    style="white-space:nowrap;">Próximo Status </label>
+                <select class="form-select border-success shadow-sm fw-bold" id="status" name="status"
                     style="border-width:2px;">
                     {% for status in status_options %}
                     <option value="{{ status }}" {% if pesquisa and pesquisa.status==status %}selected{% endif %}>{{
@@ -331,10 +363,25 @@
                     {% endfor %}
                 </select>
             </div>
-            <a href="{{ url_for('routes.index') }}" class="btn btn-secondary order-1 order-md-2">
+
+            {% if pesquisa and pesquisa.cotacao_gerada %}
+            <span class="d-inline-block order-2 order-md-2" tabindex="0" data-bs-toggle="tooltip"
+                title="🚫 Uma cotação já foi gerada a partir desta pesquisa. O sistema não permite gerar múltiplas cotações do mesmo registro."
+                style="cursor: not-allowed;">
+                <button type="button" class="btn btn-secondary" disabled style="pointer-events: none;">
+                    <i class="fas fa-check-circle"></i> Cotação Gerada
+                </button>
+            </span>
+            {% elif pesquisa %}
+            <button type="button" class="btn btn-primary order-2 order-md-2" id="btnGerarCotacao">
+                <i class="fas fa-magic"></i> Gerar Cotação
+            </button>
+            {% endif %}
+
+            <a href="{{ url_for('routes.index') }}" class="btn btn-danger order-1 order-md-3">
                 <i class="fas fa-times"></i> Cancelar
             </a>
-            <button type="button" class="btn btn-secondary order-1 order-md-2" id="btnSalvarPesquisa">
+            <button type="button" class="btn btn-success order-1 order-md-4" id="btnSalvarPesquisa">
                 <i class="fas fa-save"></i> Salvar
             </button>
         </div>
@@ -345,6 +392,52 @@
 {% block extra_js %}
 <script>
     $(document).ready(function () {
+        // Função para carregar histórico de status
+        function carregarHistorico() {
+            const pesquisaId = $('#pesquisaId').val();
+            const historicoContainer = $('#historicoTimeline');
+
+            if (!pesquisaId || !historicoContainer.length) return;
+
+            $.get(`/api/historico/pesquisa/${pesquisaId}`)
+                .done(function (data) {
+                    if (data.success && data.historicos.length > 0) {
+                        let html = '<div class="timeline">';
+                        data.historicos.forEach(function (item, index) {
+                            const statusAnterior = item.status_anterior || 'Nova Pesquisa';
+                            const icon = index === 0 ? 'fa-check-circle text-success' : 'fa-arrow-right text-primary';
+                            html += `
+                                <div class="timeline-item mb-3 d-flex align-items-start">
+                                    <div class="timeline-icon me-3">
+                                        <i class="fas ${icon}"></i>
+                                    </div>
+                                    <div class="timeline-content flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong>${statusAnterior} → ${item.status_novo}</strong>
+                                            <small class="text-muted">${item.data_mudanca}</small>
+                                        </div>
+                                        ${item.observacao ? `<small class="text-muted">${item.observacao}</small>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        historicoContainer.html(html);
+                    } else {
+                        historicoContainer.html('<p class="text-muted mb-0">Nenhum histórico encontrado.</p>');
+                    }
+                })
+                .fail(function (error) {
+                    console.error('Erro ao carregar histórico:', error);
+                    historicoContainer.html('<p class="text-danger mb-0">Erro ao carregar histórico.</p>');
+                });
+        }
+
+        // Carregar histórico quando o collapse for aberto
+        $('#historicoCollapse').on('show.bs.collapse', function () {
+            carregarHistorico();
+        });
+
         // Definir a data atual se não for uma edição
         if (!$('#pesquisaId').val()) {
             const hoje = new Date();
@@ -359,12 +452,23 @@
         // Variáveis para edição
         var filialInicial = "{{ pesquisa.nome_filial if pesquisa else '' }}";
         var mesorregiaoInicial = "{{ pesquisa.numero_mesorregiao if pesquisa else '' }}";
+        var statusAtual = "{{ pesquisa.status if pesquisa else '' }}"; // Adicionado para controle de status
+
+        if (statusAtual === 'Pesquisa Finalizada' || statusAtual === 'Pesquisa Perdida' || statusAtual === 'Cotação Finalizada' || statusAtual === 'Cotação Perdida') {
+            console.log('Pesquisa/Cotação Finalizada/Perdida: Bloqueando campos.');
+            $('input, select, textarea').prop('disabled', true);
+            $('.btn-remove-anexo').hide();
+            $('#btnSalvarPesquisa').hide();
+            $('#status').prop('disabled', true);
+            // btnGerarCotacao can remain visible as a link, but we might want to ensure it doesn't trigger a form save if not needed.
+        }
 
         console.log('🔍 Verificando elementos do formulário...');
         console.log('📍 Campo filial:', $('#filial').length ? 'Encontrado' : 'NÃO ENCONTRADO');
         console.log('📍 Campo mesorregiao:', $('#mesorregiao_geografica').length ? 'Encontrado' : 'NÃO ENCONTRADO');
         console.log('📝 Filial inicial:', filialInicial);
         console.log('📝 Mesorregião inicial:', mesorregiaoInicial);
+        console.log('📝 Status atual:', statusAtual);
 
         // Verificar se jQuery está funcionando
         console.log('🔧 jQuery version:', $.fn.jquery);
@@ -493,6 +597,9 @@
         console.log('🚀 Iniciando carregamento de filiais...');
         carregarFiliais();
 
+        // Bloquear campo Analista Comercial (preenchido automaticamente)
+        $('#analista_comercial').prop('readonly', true).addClass('campo-bloqueado');
+
         // Timeout de segurança: se não carregar em 3 segundos, usar fallback
         setTimeout(function () {
             if ($('#filial option').length <= 1) {
@@ -530,7 +637,33 @@
             }
 
             analistaInput.val(analista);
+            // Garantir que o campo permaneça bloqueado
+            analistaInput.prop('readonly', true);
+            analistaInput.addClass('campo-bloqueado');
         }
+
+        // Função para atualizar a visibilidade dos campos com base no status
+        function atualizarVisibilidadeCampos() {
+            const statusSelect = $('#status');
+            const selectedStatus = statusSelect.val();
+            const motivoPerdidaGroup = $('#motivoVendaPerdidaGroup');
+            const motivoPerdidaInput = $('#motivo_venda_perdida');
+
+            if (selectedStatus === 'Pesquisa Perdida') {
+                motivoPerdidaGroup.show();
+                motivoPerdidaInput.prop('required', true);
+            } else {
+                motivoPerdidaGroup.hide();
+                motivoPerdidaInput.prop('required', false);
+                motivoPerdidaInput.val(''); // Limpa o campo se não for "Pesquisa Perdida"
+                motivoPerdidaInput.removeClass('is-invalid'); // Remove validação se não for necessário
+            }
+        }
+
+        // Chamar a função ao carregar a página e ao mudar o status
+        atualizarVisibilidadeCampos();
+        $('#status').on('change', atualizarVisibilidadeCampos);
+
 
         $('#filial').on('change', function () {
             const selected = $(this).val();
@@ -633,7 +766,18 @@
             }
 
             let valid = true;
+            const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
             for (let i = 0; i < files.length; i++) {
+                // Validar tamanho do arquivo
+                if (files[i].size > MAX_FILE_SIZE) {
+                    const tamanhoMB = (files[i].size / (1024 * 1024)).toFixed(1);
+                    errorDiv.text(`O arquivo "${files[i].name}" tem ${tamanhoMB} MB e excede o limite de 16 MB. Por favor, reduza o tamanho do arquivo.`);
+                    $(this).addClass('is-invalid');
+                    errorDiv.show();
+                    alert(`O arquivo "${files[i].name}" é muito grande (${tamanhoMB} MB). O tamanho máximo permitido é de 16 MB por arquivo.`);
+                    this.value = '';
+                    return;
+                }
                 const ext = files[i].name.split('.').pop().toLowerCase();
                 // Permitir PDF, Doc, Docx, Xls, Xlsx, Csv, Txt, Jpg, Jpeg, Png
                 if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'].indexOf(ext) === -1) {
@@ -653,72 +797,39 @@
             }
         });
 
-        // Função para validar campos obrigatórios
+        // Função de validação desabilitada - nenhum campo é obrigatório
         function validarFormulario() {
-            // Lista dos 13 campos obrigatórios conforme Melhoria 12 (incluindo Cultura)
-            const camposObrigatorios = [
-                'filial',
-                'mesorregiao_geografica',
-                'matricula_cooperado',
-                'nome_cooperado',
-                'cultura',
-                'codigo_produto',
-                'nome_produto',
-                'quantidade_cotada',
-                'forma_pagamento',
-                'analista_comercial',
-                'nome_concorrente',
-                'valor_concorrente',
-                'valor_cooxupe'
-            ];
+            let valido = true;
+            let camposFaltando = [];
 
-            let isValid = true;
-            let firstInvalidField = null;
+            const statusSelect = $('#status');
 
-            // Validação especial para filial (não obrigatória para Regional 7)
-            const culturaSelecionada = $('#cultura').val();
-            const filialSelect = $('#filial');
-
-            // Se a cultura for Soja ou Milho, a filial não é obrigatória
-            if (culturaSelecionada === 'Soja' || culturaSelecionada === 'Milho') {
-                filialSelect.removeAttr('required');
-                // Remover da lista de obrigatórios temporariamente
-                const index = camposObrigatorios.indexOf('filial');
-                if (index > -1) {
-                    camposObrigatorios.splice(index, 1);
-                }
+            // Validar Motivo caso seja Pesquisa Perdida
+            if (statusSelect.val() === 'Pesquisa Perdida' && !$('#motivo_venda_perdida').val().trim()) {
+                valido = false;
+                camposFaltando.push('Motivo da Pesquisa Perdida');
+                $('#motivo_venda_perdida').addClass('is-invalid');
             } else {
-                filialSelect.attr('required', 'required');
+                $('#motivo_venda_perdida').removeClass('is-invalid');
             }
 
-            // Validar apenas os campos obrigatórios
-            camposObrigatorios.forEach(function (campoId) {
-                const campo = $(`#${campoId}`);
-                if (campo.length) {
-                    if (!campo.val() || !campo.val().toString().trim()) {
-                        isValid = false;
-                        campo.addClass('is-invalid');
-                        if (!firstInvalidField) {
-                            firstInvalidField = campo[0];
-                        }
-                    } else {
-                        campo.removeClass('is-invalid');
-                    }
-                }
-            });
+            // Adicione outras validações aqui se necessário
+            // Exemplo:
+            // if (!$('#matricula_cooperado').val().trim()) {
+            //     valido = false;
+            //     camposFaltando.push('Matrícula do Cooperado');
+            //     $('#matricula_cooperado').addClass('is-invalid');
+            // } else {
+            //     $('#matricula_cooperado').removeClass('is-invalid');
+            // }
 
-            if (!isValid) {
-                alert('Por favor, preencha todos os campos obrigatórios antes de salvar.');
-                if (firstInvalidField) {
-                    $(firstInvalidField).focus();
-                }
+            if (!valido) {
+                alert('Por favor, preencha os campos obrigatórios: ' + camposFaltando.join(', '));
             }
-
-            return isValid;
+            return valido;
         }
 
-        // Enviar formulário
-        $('#btnSalvarPesquisa').on('click', function () {
+        function salvarPesquisa(isGerarCotacao = false) {
             // Validar campos obrigatórios
             if (!validarFormulario()) {
                 return;
@@ -734,7 +845,7 @@
                 cultura: $('#cultura').val(),
                 codigo_produto: $('#codigo_produto').val(),
                 nome_produto: $('#nome_produto').val(),
-                quantidade_cotada: parseFloat($('#quantidade_cotada').val()),
+                quantidade_cotada: $('#quantidade_cotada').val() ? parseFloat($('#quantidade_cotada').val()) : null,
                 forma_pagamento: $('#forma_pagamento').val(),
                 prazo_entrega: $('#prazo_entrega').val(),
                 nome_vendedor: $('#nome_vendedor').val(),
@@ -744,12 +855,10 @@
                 analista_comercial: $('#analista_comercial').val(),
                 comprador: $('#comprador').val(),
                 observacoes: $('#observacoes').val(),
-                status: $('#status').val()
+                status: $('#status').val(),
+                fornecedor: $('#fornecedor').val(),
+                motivo_venda_perdida: $('#motivo_venda_perdida').val() // Adicionado
             };
-
-
-
-
 
             // Adicionar ID se estiver editando
             const pesquisaId = $('#pesquisaId').val();
@@ -771,6 +880,32 @@
                 method = 'POST';
             }
 
+            const handleSuccess = function (response) {
+                if (response.id) {
+                    if (isGerarCotacao) {
+                        window.location.href = `/nova-cotacao?origem_pesquisa_id=${response.id}`;
+                    } else {
+                        alert('Pesquisa salva com sucesso!');
+                        window.location.href = '/';
+                    }
+                } else {
+                    alert(response.error || 'Ocorreu um erro ao salvar a pesquisa. Tente novamente.');
+                }
+            };
+
+            const handleError = function (xhr) {
+                if (xhr.status === 413) {
+                    alert('O arquivo anexado é muito grande. O tamanho máximo permitido é de 16 MB. Por favor, reduza o tamanho do arquivo e tente novamente.');
+                } else {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        alert(response.error || 'Ocorreu um erro ao salvar a pesquisa. Tente novamente.');
+                    } catch (e) {
+                        alert('Ocorreu um erro ao salvar a pesquisa. Tente novamente.');
+                    }
+                }
+            };
+
             if (files.length > 0) {
                 const uploadData = new FormData();
                 // Adicionar TODOS os arquivos
@@ -786,17 +921,8 @@
                     data: uploadData,
                     processData: false,
                     contentType: false,
-                    success: function (response) {
-                        if (response.id) {
-                            alert('Pesquisa salva com sucesso!');
-                            window.location.href = '/';
-                        } else {
-                            alert('Erro ao salvar pesquisa: ' + (response.error || 'Erro desconhecido'));
-                        }
-                    },
-                    error: function (xhr) {
-                        alert('Erro ao salvar pesquisa: ' + xhr.responseText);
-                    }
+                    success: handleSuccess,
+                    error: handleError
                 });
             } else {
                 // Se for edição, enviar como JSON via PUT
@@ -805,26 +931,29 @@
                     method: method,
                     contentType: 'application/json',
                     data: JSON.stringify(formData),
-                    success: function (response) {
-                        if (response.id) {
-                            alert('Pesquisa salva com sucesso!');
-                            window.location.href = '/';
-                        } else {
-                            alert('Erro ao salvar pesquisa: ' + (response.error || 'Erro desconhecido'));
-                        }
-                    },
-                    error: function (xhr) {
-                        alert('Erro ao salvar pesquisa: ' + xhr.responseText);
-                    }
+                    success: handleSuccess,
+                    error: handleError
                 });
             }
+        }
+
+        // Event listener para gerar cotação a partir de pesquisa
+        $('#btnGerarCotacao').on('click', function () {
+            if (confirm('Deseja salvar a Pesquisa e gerar uma Cotação a partir dela? Você será redirecionado para preencher os dados da nova Cotação.')) {
+                salvarPesquisa(true);
+            }
+        });
+
+        // Enviar formulário
+        $('#btnSalvarPesquisa').on('click', function () {
+            salvarPesquisa(false);
         });
 
         // Listener para o campo cultura (Melhorias 4 e 6)
         $('#cultura').on('change', function () {
             const culturaSelecionada = $(this).val();
             const filialSelect = $('#filial');
-            const filialRequired = $('<span class="text-danger">*</span>');
+            const filialRequired = $('');
 
             // Se a cultura for Soja ou Milho, alterar mesorregião para Regional 7 - Joaquim
             if (culturaSelecionada === 'Soja' || culturaSelecionada === 'Milho') {
@@ -864,112 +993,54 @@
             }
         });
 
-        // Função para buscar produto por código
-        function buscarProdutoPorCodigo(codigo) {
-            if (!codigo || codigo.trim().length < 2) return;
-
-            $.ajax({
-                url: '/api/produtos/buscar',
-                method: 'GET',
-                data: { codigo: codigo },
-                success: function (response) {
-                    if (response.success) {
-                        // Produto encontrado
-                        $('#nome_produto').val(response.nome);
-                        $('#nome_produto').addClass('is-valid').removeClass('is-invalid');
-                        setTimeout(() => {
-                            $('#nome_produto').removeClass('is-valid');
-                        }, 2000);
-                        console.log(`Produto encontrado por código: ${response.codigo} → ${response.nome}`);
-                    } else {
-                        // Produto não encontrado
-                        $('#nome_produto').val('');
-                        $('#nome_produto').removeClass('is-valid').addClass('is-invalid');
-                        $('#nome_produto').attr('title', response.error || 'Produto não Encontrado');
-                        setTimeout(() => {
-                            $('#nome_produto').removeClass('is-invalid');
-                        }, 3000);
-                        console.log(`Produto não encontrado para código: ${codigo}`);
-                    }
-                },
-                error: function (xhr) {
-                    console.error('Erro na busca por código:', xhr);
-                    $('#nome_produto').val('');
-                    $('#nome_produto').removeClass('is-valid').addClass('is-invalid');
-                    $('#nome_produto').attr('title', 'Erro na busca');
-                    setTimeout(() => {
-                        $('#nome_produto').removeClass('is-invalid');
-                    }, 3000);
-                }
-            });
+        // Funções para controle do campo Fornecedor
+        function transformarParaDropdown() {
+            let fornecedorEl = $('#fornecedor');
+            if (fornecedorEl.length && fornecedorEl.prop('tagName').toLowerCase() !== 'select') {
+                const selectHTML = `<select class="form-select" id="fornecedor" name="fornecedor" required>
+                    <option value="">Selecione o Fornecedor...</option>
+                    <option value="Convencional">Convencional</option>
+                    <option value="Especialidade">Especialidade</option>
+                    <option value="Organomineral">Organomineral</option>
+                </select>`;
+                fornecedorEl.replaceWith(selectHTML);
+            } else if (fornecedorEl.length) {
+                fornecedorEl.prop('readonly', false);
+                fornecedorEl.removeClass('campo-bloqueado');
+                fornecedorEl.attr('title', '');
+            }
         }
 
-        // Função para buscar produto por nome
-        function buscarProdutoPorNome(nome) {
-            if (!nome || nome.trim().length < 3) return;
-
-            $.ajax({
-                url: '/api/produtos/buscar',
-                method: 'GET',
-                data: { nome: nome },
-                success: function (response) {
-                    if (response.success) {
-                        // Produto encontrado
-                        $('#codigo_produto').val(response.codigo);
-                        $('#codigo_produto').addClass('is-valid').removeClass('is-invalid');
-                        setTimeout(() => {
-                            $('#codigo_produto').removeClass('is-valid');
-                        }, 2000);
-                        console.log(`Produto encontrado por nome: ${response.nome} → ${response.codigo}`);
-                    } else {
-                        // Produto não encontrado
-                        $('#codigo_produto').val('');
-                        $('#codigo_produto').removeClass('is-valid').addClass('is-invalid');
-                        $('#codigo_produto').attr('title', response.error || 'Código não Encontrado');
-                        setTimeout(() => {
-                            $('#codigo_produto').removeClass('is-invalid');
-                        }, 3000);
-                        console.log(`Produto não encontrado para nome: ${nome}`);
-                    }
-                },
-                error: function (xhr) {
-                    console.error('Erro na busca por nome:', xhr);
-                    $('#codigo_produto').val('');
-                    $('#codigo_produto').removeClass('is-valid').addClass('is-invalid');
-                    $('#codigo_produto').attr('title', 'Erro na busca');
-                    setTimeout(() => {
-                        $('#codigo_produto').removeClass('is-invalid');
-                    }, 3000);
-                }
-            });
+        function transformarParaTexto(valor) {
+            let fornecedorEl = $('#fornecedor');
+            if (fornecedorEl.length && fornecedorEl.prop('tagName').toLowerCase() !== 'input') {
+                const inputHTML = `<input type="text" class="form-control" id="fornecedor" name="fornecedor" value="">`;
+                fornecedorEl.replaceWith(inputHTML);
+                fornecedorEl = $('#fornecedor');
+            }
+            if (fornecedorEl.length) {
+                fornecedorEl.val(valor || '');
+                fornecedorEl.prop('readonly', true);
+                fornecedorEl.addClass('campo-bloqueado');
+                fornecedorEl.attr('title', 'Campo bloqueado - preenchido automaticamente');
+            }
         }
 
-        // Event listeners para autocompletar produtos
-        let timeoutCodigoProdutoAutocomplete, timeoutNomeProdutoAutocomplete;
+        // Função para bloquear campo
+        function bloquearCampo(input, mensagem = '') {
+            input.prop('readonly', true);
+            input.addClass('campo-bloqueado');
+            if (mensagem) {
+                input.attr('title', mensagem);
+            }
+        }
 
-        $('#codigo_produto').on('input', function () {
-            const codigo = $(this).val();
-
-            // Limpar timeout anterior
-            clearTimeout(timeoutCodigoProdutoAutocomplete);
-
-            // Aguardar 500ms após o usuário parar de digitar
-            timeoutCodigoProdutoAutocomplete = setTimeout(() => {
-                buscarProdutoPorCodigo(codigo);
-            }, 500);
-        });
-
-        $('#nome_produto').on('input', function () {
-            const nome = $(this).val();
-
-            // Limpar timeout anterior
-            clearTimeout(timeoutNomeProdutoAutocomplete);
-
-            // Aguardar 500ms após o usuário parar de digitar
-            timeoutNomeProdutoAutocomplete = setTimeout(() => {
-                buscarProdutoPorNome(nome);
-            }, 500);
-        });
+        // Função para desbloquear campo
+        function desbloquearCampo(input) {
+            input.prop('readonly', false);
+            input.removeClass('campo-bloqueado');
+            input.attr('title', '');
+        }
 
         // Adicionar feedback visual para campos obrigatórios
         $('input, select, textarea').on('input change', function () {
@@ -1197,15 +1268,17 @@
         async function buscarProdutoPorCodigo(codigo) {
             console.log('🔍 Buscando produto por código:', codigo);
 
-            if (!codigo.trim()) {
+            if (!codigo.trim() || codigo.trim().length < 2) {
+                desbloquearCampo($('#nome_produto'));
                 $('#nome_produto').val('');
-                $('#nome_produto').prop('disabled', false);
+                $('#nome_produto').removeClass('is-valid is-invalid');
+                transformarParaTexto('');
                 return;
             }
 
             try {
                 $('#loading_codigo_produto').show();
-                $('#nome_produto').prop('disabled', true);
+                bloquearCampo($('#nome_produto'), 'Buscando...');
 
                 const response = await fetch(`/api/produtos/buscar?codigo=${encodeURIComponent(codigo)}`);
                 const data = await response.json();
@@ -1215,16 +1288,32 @@
                 if (data.success) {
                     $('#nome_produto').val(data.nome);
                     $('#nome_produto').addClass('is-valid').removeClass('is-invalid');
+                    bloquearCampo($('#nome_produto'), 'Campo bloqueado - preenchido automaticamente');
+                    setTimeout(() => {
+                        $('#nome_produto').removeClass('is-valid');
+                    }, 2000);
                     console.log('✅ Produto encontrado:', data.nome);
+                    transformarParaTexto(data.fornecedor);
                 } else {
                     $('#nome_produto').val('Produto não encontrado');
                     $('#nome_produto').addClass('is-invalid').removeClass('is-valid');
+                    $('#nome_produto').attr('title', data.error || 'Produto não Encontrado');
+                    desbloquearCampo($('#nome_produto'));
+                    setTimeout(() => {
+                        $('#nome_produto').removeClass('is-invalid');
+                    }, 3000);
                     console.log('❌ Produto não encontrado');
+                    transformarParaDropdown();
                 }
             } catch (error) {
                 console.error('🚨 Erro ao buscar produto por código:', error);
                 $('#nome_produto').val('Erro na busca');
                 $('#nome_produto').addClass('is-invalid').removeClass('is-valid');
+                $('#nome_produto').attr('title', 'Erro na busca');
+                setTimeout(() => {
+                    $('#nome_produto').removeClass('is-invalid');
+                }, 3000);
+                transformarParaDropdown();
             } finally {
                 $('#loading_codigo_produto').hide();
             }
@@ -1234,16 +1323,18 @@
         async function buscarProdutoPorNome(nome) {
             console.log('🔍 Buscando produto por nome:', nome);
 
-            if (!nome.trim()) {
+            if (!nome.trim() || nome.trim().length < 3) {
+                desbloquearCampo($('#codigo_produto'));
                 $('#codigo_produto').val('');
-                $('#codigo_produto').prop('disabled', false);
+                $('#codigo_produto').removeClass('is-valid is-invalid');
                 $('#sugestoes_produto').hide();
+                transformarParaTexto('');
                 return;
             }
 
             try {
                 $('#loading_nome_produto').show();
-                $('#codigo_produto').prop('disabled', true);
+                bloquearCampo($('#codigo_produto'), 'Buscando...');
 
                 const response = await fetch(`/api/produtos/buscar?nome=${encodeURIComponent(nome)}`);
                 const data = await response.json();
@@ -1259,20 +1350,36 @@
                         // Nome exato encontrado
                         $('#codigo_produto').val(data.codigo);
                         $('#codigo_produto').addClass('is-valid').removeClass('is-invalid');
+                        bloquearCampo($('#codigo_produto'), 'Campo bloqueado - preenchido automaticamente');
+                        setTimeout(() => {
+                            $('#codigo_produto').removeClass('is-valid');
+                        }, 2000);
                         $('#sugestoes_produto').hide();
                         console.log('✅ Nome exato encontrado:', data.nome);
+                        transformarParaTexto(data.fornecedor);
                     }
                 } else {
                     $('#codigo_produto').val('Código não encontrado');
                     $('#codigo_produto').addClass('is-invalid').removeClass('is-valid');
+                    $('#codigo_produto').attr('title', data.error || 'Código não Encontrado');
+                    desbloquearCampo($('#codigo_produto'));
+                    setTimeout(() => {
+                        $('#codigo_produto').removeClass('is-invalid');
+                    }, 3000);
                     $('#sugestoes_produto').hide();
                     console.log('❌ Código não encontrado');
+                    transformarParaDropdown();
                 }
             } catch (error) {
                 console.error('🚨 Erro ao buscar produto por nome:', error);
                 $('#codigo_produto').val('Erro na busca');
                 $('#codigo_produto').addClass('is-invalid').removeClass('is-valid');
+                $('#codigo_produto').attr('title', 'Erro na busca');
+                setTimeout(() => {
+                    $('#codigo_produto').removeClass('is-invalid');
+                }, 3000);
                 $('#sugestoes_produto').hide();
+                transformarParaDropdown();
             } finally {
                 $('#loading_nome_produto').hide();
             }
@@ -1298,8 +1405,15 @@
                         $('#codigo_produto').addClass('is-valid');
                         $('#nome_produto').removeClass('is-invalid');
                         $('#codigo_produto').removeClass('is-invalid');
+
+                        // Bloquear o campo de código já que foi auto-preenchido
+                        bloquearCampo($('#codigo_produto'), 'Campo bloqueado - preenchido automaticamente');
+                        setTimeout(() => {
+                            $('#codigo_produto').removeClass('is-valid');
+                        }, 2000);
+
                         $('#sugestoes_produto').hide();
-                        $('#codigo_produto').prop('disabled', false);
+                        transformarParaTexto(resultado.fornecedor);
                         console.log('✅ Selecionado:', resultado.nome, resultado.codigo);
                     });
                 sugestoesContainer.append(item);
@@ -1315,6 +1429,9 @@
         $('#codigo_produto').on('input', function () {
             const codigo = $(this).val();
             console.log('🎯 Input código produto:', codigo);
+
+            // Desbloquear campo nome ao começar a digitar/apagar
+            desbloquearCampo($('#nome_produto'));
 
             // Limpar timeout anterior
             clearTimeout(timeoutCodigoProduto);
@@ -1334,6 +1451,9 @@
             const nome = $(this).val();
             console.log('🎯 Input nome produto:', nome);
 
+            // Desbloquear campo código ao começar a digitar/apagar
+            desbloquearCampo($('#codigo_produto'));
+
             // Limpar timeout anterior
             clearTimeout(timeoutNomeProduto);
 
@@ -1344,7 +1464,7 @@
             // Ocultar sugestões se o campo estiver vazio
             if (!nome.trim()) {
                 $('#sugestoes_produto').hide();
-                $('#codigo_produto').prop('disabled', false);
+                desbloquearCampo($('#codigo_produto'));
             }
 
             // Definir novo timeout para busca
@@ -1359,6 +1479,24 @@
                 $('#sugestoes_produto').hide();
             }
         });
+
+        // Aplicar estado inicial se os campos de produto já estiverem preenchidos (modo edição)
+        const codigoAtual = $('#codigo_produto').val();
+        const nomeAtual = $('#nome_produto').val();
+        const fornecedorAtual = $('#fornecedor').val() || '{{ pesquisa.fornecedor if pesquisa else "" }}';
+
+        if (codigoAtual && nomeAtual) {
+            console.log('✅ Restaurando estado inicial do produto (modo edição):', codigoAtual, nomeAtual);
+            $('#codigo_produto').addClass('is-valid');
+            $('#nome_produto').addClass('is-valid');
+            bloquearCampo($('#codigo_produto'), 'Campo bloqueado - preenchido automaticamente');
+            bloquearCampo($('#nome_produto'), 'Campo bloqueado - preenchido automaticamente');
+
+            // Transformar Fornecedor para texto bloqueado usando o valor inicial
+            if (fornecedorAtual) {
+                transformarParaTexto(fornecedorAtual);
+            }
+        }
 
         console.log('✅ Busca dinâmica de produtos inicializada com sucesso!');
         console.log('Elementos encontrados:');

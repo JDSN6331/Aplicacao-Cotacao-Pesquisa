@@ -19,6 +19,7 @@ Uso: python manage_db.py [comando]
 
 Comandos disponíveis:
     init        - Inicializa o banco de dados (cria tabelas)
+    reset       - Recria o banco de dados do zero (APAGA TUDO)
     migrate     - Cria uma nova migração
     upgrade     - Aplica migrações pendentes
     downgrade   - Reverte a última migração
@@ -83,6 +84,21 @@ def restore_db():
     except (ValueError, KeyboardInterrupt):
         print("Operação cancelada.")
 
+def reset_db():
+    """Limpa e recria todas as tabelas do banco de dados (cotações e usuários)."""
+    print("AVISO: Esta ação irá APAGAR TODOS OS DADOS de todas as tabelas!")
+    confirm = input("Tem certeza que deseja continuar? (digite 'SIM' para confirmar): ")
+    
+    if confirm == 'SIM':
+        with app.app_context():
+            print("Apagando todas as tabelas...")
+            db.drop_all()
+            print("Recriando todas as tabelas...")
+            db.create_all()
+            print("Banco de dados resetado com sucesso! Os usuários e as cotações foram apagados.")
+    else:
+        print("Operação cancelada.")
+
 def main():
     """Função principal."""
     if len(sys.argv) < 2:
@@ -99,6 +115,8 @@ def main():
         backup_db()
     elif command == 'restore':
         restore_db()
+    elif command == 'reset':
+        reset_db()
     elif command in ['migrate', 'upgrade', 'downgrade', 'status', 'history']:
         with app.app_context():
             if command == 'migrate':

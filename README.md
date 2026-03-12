@@ -17,6 +17,9 @@ Sistema de gerenciamento de cotações de insumos agrícolas e pesquisas de merc
 ├── models.py               # Modelos de dados
 ├── requirements.txt        # Dependências Python
 ├── data/                   # Arquivos de dados (xlsx)
+├── docs/                   # Documentação adicional
+│   ├── DEPLOY_PYTHONANYWHERE.md
+│   └── INSTRUCOES_BANCO_DADOS.md
 ├── exports/                # Arquivos exportados
 ├── instance/               # Banco de dados SQLite
 ├── migrations/             # Migrações do banco
@@ -26,6 +29,7 @@ Sistema de gerenciamento de cotações de insumos agrícolas e pesquisas de merc
 ├── templates/              # Templates HTML
 └── uploads/                # Arquivos anexados
 ```
+
 
 ## ⚙️ Instalação
 

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro - Cotações Cooxupé{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-3 glass-effect">
+            <div class="card-header auth-header-gradient text-white text-center py-4 rounded-top-3">
+                <i class="fas fa-user-plus fa-3x mb-2"></i>
+                <h4 class="mb-0 fw-bold">Criar Conta</h4>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="POST" action="{{ url_for('auth.register') }}">
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Nome Completo"
+                            required autofocus>
+                        <label for="name"><i class="fas fa-id-card me-2"></i>Nome Completo</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="username" name="username"
+                            placeholder="E-mail (@cooxupe.com.br)" required>
+                        <label for="username"><i class="fas fa-envelope me-2"></i>E-mail Institucional
+                            (@cooxupe.com.br)</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Senha"
+                            required>
+                        <label for="password"><i class="fas fa-lock me-2"></i>Senha</label>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn text-white btn-lg fw-bold shadow-sm hover-elevate"
+                            style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none;">
+                            <i class="fas fa-check-circle me-2"></i>Cadastrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center py-3 rounded-bottom-3 border-0" style="background: rgba(0,0,0,0.02);">
+                <small class="text-muted">Já tem uma conta? <a href="{{ url_for('auth.login') }}"
+                        class="fw-bold text-decoration-none" style="color: var(--primary);">Fazer Login</a></small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    [data-theme="dark"] .glass-effect {
+        background: rgba(20, 20, 20, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+    }
+
+    .hover-elevate {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .hover-elevate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+    }
+
+    /* Remove o fundo sombreado dos labels form-floating */
+    .form-floating>label,
+    .form-floating>.form-control:focus~label,
+    .form-floating>.form-control:not(:placeholder-shown)~label,
+    .card-body .form-floating>label,
+    .card-body .form-floating>.form-control:focus~label,
+    .card-body .form-floating>.form-control:not(:placeholder-shown)~label {
+        background: transparent !important;
+        background-color: transparent !important;
+        --bs-body-bg: transparent !important;
+    }
+
+    .form-floating>label::before,
+    .form-floating>label::after {
+        display: none !important;
+    }
+
+    /* Aumentar espaçamento entre label e texto do input */
+    .form-floating>.form-control {
+        padding-top: 1.8rem;
+        padding-bottom: 0.5rem;
+        height: calc(3.5rem + 4px);
+    }
+
+    .form-floating>.form-control:focus~label,
+    .form-floating>.form-control:not(:placeholder-shown)~label {
+        transform: scale(0.85) translateY(-0.6rem) translateX(0.15rem);
+    }
+</style>
+{% endblock %}

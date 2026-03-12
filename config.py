@@ -11,7 +11,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = db_url or 'sqlite:///cotacoes.db'
 
     # Se quiser manter tudo no mesmo banco em produção, remova o bind separado
-    SQLALCHEMY_BINDS = {}
+    SQLALCHEMY_BINDS = {
+    'users': db_url or 'sqlite:///users.db'
+    }   
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

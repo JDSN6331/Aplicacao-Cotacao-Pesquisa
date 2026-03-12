@@ -3,18 +3,27 @@ import os
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'chave-secreta-padrao-dev-2024'
 
-    db_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/cotacoes')
-    if db_url and db_url.startswith('postgres://'):
-        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    db_url = os.environ.get('DATABASE_URL')
+    
+    if db_url:
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
+        SQLALCHEMY_DATABASE_URI = db_url
+    else:
+        # Fallback local para SQLite
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///cotacoes.db'
 
-    SQLALCHEMY_DATABASE_URI = db_url
-
-    users_db_url = os.environ.get('USERS_DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/users')
-    if users_db_url and users_db_url.startswith('postgres://'):
-        users_db_url = users_db_url.replace('postgres://', 'postgresql://', 1)
+    users_db_url = os.environ.get('USERS_DATABASE_URL')
+    if users_db_url:
+        if users_db_url.startswith('postgres://'):
+            users_db_url = users_db_url.replace('postgres://', 'postgresql://', 1)
+        users_bind = users_db_url
+    else:
+        # Fallback local para SQLite (banco de usuários)
+        users_bind = 'sqlite:///users.db'
 
     SQLALCHEMY_BINDS = {
-        'users': users_db_url
+        'users': users_bind
     }
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False

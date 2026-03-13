@@ -4,7 +4,7 @@ from models import db
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from models import User
-from routes import routes, cotacao_routes, pesquisa_routes
+from routes import routes, cotacao_routes, pesquisa_routes, admin_routes
 from routes.auth_routes import auth_routes
 
 # Criar a aplicação Flask
@@ -28,6 +28,7 @@ app.register_blueprint(routes, url_prefix='')
 app.register_blueprint(cotacao_routes)
 app.register_blueprint(pesquisa_routes)
 app.register_blueprint(auth_routes)
+app.register_blueprint(admin_routes)
 
 # Tratamento global de erros
 @app.errorhandler(413)

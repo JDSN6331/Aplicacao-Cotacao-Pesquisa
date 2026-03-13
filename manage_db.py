@@ -92,7 +92,32 @@ def reset_db():
     if confirm == 'SIM':
         with app.app_context():
             print("Apagando todas as tabelas...")
-            db.drop_all()
+            
+            # Deleta fisicamente o arquivo sqlite se esiver usando SQLite
+            db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+            if db_uri.startswith('sqlite:///'):
+                db_path = db_uri.replace('sqlite:///', '')
+                
+                # Trata caminho absoluto vs relativo
+                if not os.path.isabs(db_path):
+                    db_path = os.path.join(app.root_path, db_path)
+                    
+                print(f"Buscando arquivo de banco: {db_path}")
+                if os.path.exists(db_path):
+                    try:
+                        # Fechar todas as conexões antes
+                        db.session.remove()
+                        db.engine.dispose()
+                        os.remove(db_path)
+                        print("Arquivo SQLite deletado com sucesso.")
+                    except Exception as e:
+                        print(f"Aviso ao deletar arquivo (tentando db.drop_all): {e}")
+                        db.drop_all()
+                else:
+                    db.drop_all()
+            else:
+                db.drop_all()
+
             print("Recriando todas as tabelas...")
             db.create_all()
             print("Banco de dados resetado com sucesso! Os usuários e as cotações foram apagados.")

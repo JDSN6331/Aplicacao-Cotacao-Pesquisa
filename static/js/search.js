@@ -289,6 +289,23 @@ class HeaderSearch {
                 `);
             }
         }
+        
+        // Se for admin, adiciona botão excluir
+        if (typeof IS_ADMIN !== 'undefined' && IS_ADMIN) {
+            if (result.tipo === 'cotacao') {
+                buttons.push(`
+                    <button type="button" class="btn btn-sm text-danger" title="Excluir Cotação" onclick="excluirCotacao(${result.id})" style="background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.3); backdrop-filter: blur(10px); transition: all 0.3s ease; margin-right: 5px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `);
+            } else {
+                 buttons.push(`
+                    <button type="button" class="btn btn-sm text-danger" title="Excluir Pesquisa" onclick="excluirPesquisa(${result.id})" style="background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.3); backdrop-filter: blur(10px); transition: all 0.3s ease; margin-right: 5px;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `);
+            }
+        }
 
         // Botão "Ver na Lista" que redireciona para a aba correta
         buttons.push(`

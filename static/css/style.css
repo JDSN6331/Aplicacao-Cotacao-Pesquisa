@@ -143,7 +143,8 @@ body::before {
 /* Ocultar asteriscos de campos obrigatórios */
 .form-label .text-danger,
 label .text-danger,
-.text-danger:has(*) {
+.form-label.text-danger:has(*),
+label.text-danger:has(*) {
     display: none !important;
 }
 
@@ -502,7 +503,6 @@ label .text-danger,
     border: none !important;
     border-radius: 12px !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
-    overflow: hidden !important;
 }
 
 .table-responsive .table,
@@ -2949,4 +2949,29 @@ footer p {
 .overview-card.active .pesquisa-overlay-icon {
     background: #58975B;
     box-shadow: 0 0 0 1px #58975B;
+}
+
+/* ===== SWEETALERT2 TEMA ESCURO ===== */
+[data-theme="dark"] .swal2-popup {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-glass) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .swal2-title,
+[data-theme="dark"] .swal2-html-container,
+[data-theme="dark"] .swal2-content {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .swal2-validation-message {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .swal2-success-circular-line-left,
+[data-theme="dark"] .swal2-success-circular-line-right,
+[data-theme="dark"] .swal2-success-fix {
+    background-color: var(--bg-secondary) !important;
 }

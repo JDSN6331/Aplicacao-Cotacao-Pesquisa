@@ -529,6 +529,8 @@ def atualizar_cotacao(id):
 @cotacao_routes.route('/api/cotacao/<int:id>', methods=['DELETE'])
 @login_required
 def excluir_cotacao(id):
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Apenas administradores podem excluir cotações.'}), 403
     cotacao = Cotacao.query.get_or_404(id)
     db.session.delete(cotacao)
     db.session.commit()
@@ -537,6 +539,8 @@ def excluir_cotacao(id):
 @cotacao_routes.route('/api/cotacoes/excluir', methods=['POST'])
 @login_required
 def excluir_multiplas():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Apenas administradores podem excluir cotações.'}), 403
     ids = request.json.get('ids', [])
     for id in ids:
         cotacao = Cotacao.query.get(id)

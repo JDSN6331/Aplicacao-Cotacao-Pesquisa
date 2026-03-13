@@ -439,10 +439,26 @@ from models import db, PesquisaMercado, Anexo, HistoricoStatus, MAX_ANEXOS, Cota
 @pesquisa_routes.route('/api/pesquisas/<int:id>', methods=['DELETE'])
 @login_required
 def excluir_pesquisa(id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Apenas administradores podem excluir pesquisas.'}), 403
     pesquisa = PesquisaMercado.query.get_or_404(id)
     db.session.delete(pesquisa)
     db.session.commit()
     return '', 204
+
+
+@pesquisa_routes.route('/api/pesquisas/excluir', methods=['POST'])
+@login_required
+def excluir_multiplas_pesquisas():
+    if not current_user.is_admin:
+        return jsonify({'error': 'Apenas administradores podem excluir pesquisas.'}), 403
+    ids = request.json.get('ids', [])
+    for pid in ids:
+        pesquisa = PesquisaMercado.query.get(pid)
+        if pesquisa:
+            db.session.delete(pesquisa)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @pesquisa_routes.route('/pesquisa/<int:id>')

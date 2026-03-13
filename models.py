@@ -19,6 +19,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)  # Email agora é obrigatório
     password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

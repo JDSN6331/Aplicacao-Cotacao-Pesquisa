@@ -96,6 +96,12 @@
                             onclick="exportarTodos('andamento')" disabled>
                             <i class="fas fa-file-excel text-white"></i> Exportar Todos
                         </button>
+                        {% if current_user.is_admin %}
+                        <button type="button" class="btn btn-danger btn-sm ms-2" id="deleteAllAndamento"
+                            onclick="excluirSelecionados('andamento')" disabled>
+                            <i class="fas fa-trash text-white"></i> Excluir Selecionados
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="panel-filters">
@@ -174,6 +180,12 @@
                             onclick="exportarTodos('pesquisas')" disabled>
                             <i class="fas fa-file-excel text-white"></i> Exportar Todos
                         </button>
+                        {% if current_user.is_admin %}
+                        <button type="button" class="btn btn-danger btn-sm ms-2" id="deleteAllPesquisas"
+                            onclick="excluirSelecionados('pesquisas')" disabled>
+                            <i class="fas fa-trash text-white"></i> Excluir Selecionados
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="panel-filters">
@@ -252,6 +264,12 @@
                             onclick="exportarTodos('finalizadas')" disabled>
                             <i class="fas fa-file-excel text-white"></i> Exportar Todos
                         </button>
+                        {% if current_user.is_admin %}
+                        <button type="button" class="btn btn-danger btn-sm ms-2" id="deleteAllFinalizadas"
+                            onclick="excluirSelecionados('finalizadas')" disabled>
+                            <i class="fas fa-trash text-white"></i> Excluir Selecionados
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="panel-filters">
@@ -335,6 +353,12 @@
                             onclick="exportarTodos('pesquisas-finalizadas')" disabled>
                             <i class="fas fa-file-excel text-white"></i> Exportar Todos
                         </button>
+                        {% if current_user.is_admin %}
+                        <button type="button" class="btn btn-danger btn-sm ms-2" id="deleteAllPesquisasFinalizadas"
+                            onclick="excluirSelecionados('pesquisas-finalizadas')" disabled>
+                            <i class="fas fa-trash text-white"></i> Excluir Selecionados
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="panel-filters">
@@ -414,6 +438,12 @@
                             onclick="exportarTodos('perdidas')" disabled>
                             <i class="fas fa-file-excel text-white"></i> Exportar Todos
                         </button>
+                        {% if current_user.is_admin %}
+                        <button type="button" class="btn btn-danger btn-sm ms-2" id="deleteAllPerdidas"
+                            onclick="excluirSelecionados('perdidas')" disabled>
+                            <i class="fas fa-trash text-white"></i> Excluir Selecionados
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="panel-filters">
@@ -497,6 +527,12 @@
                             onclick="exportarTodos('pesquisas-perdidas')" disabled>
                             <i class="fas fa-file-excel text-white"></i> Exportar Todos
                         </button>
+                        {% if current_user.is_admin %}
+                        <button type="button" class="btn btn-danger btn-sm ms-2" id="deleteAllPesquisasPerdidas"
+                            onclick="excluirSelecionados('pesquisas-perdidas')" disabled>
+                            <i class="fas fa-trash text-white"></i> Excluir Selecionados
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="panel-filters">
@@ -606,6 +642,8 @@
 
 {% block extra_js %}
 <script>
+    // Variável global de permissão de admin (injetada pelo servidor)
+    const IS_ADMIN = {{ 'true' if current_user.is_admin else 'false' }};
     $(document).ready(function () {
         // Estado de paginação por card (10 itens por página)
         window.paginacao = {
@@ -613,7 +651,8 @@
             pesquisas: { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 },
             finalizadas: { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 },
             'pesquisas-finalizadas': { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 },
-            perdidas: { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 }
+            perdidas: { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 },
+            'pesquisas-perdidas': { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 }
         };
 
         // Storage para dados originais (antes de filtragem)
@@ -622,7 +661,8 @@
             pesquisas: [],
             finalizadas: [],
             'pesquisas-finalizadas': [],
-            perdidas: []
+            perdidas: [],
+            'pesquisas-perdidas': []
         };
         // Carregar contadores iniciais
         carregarContadores();
@@ -987,6 +1027,84 @@
         console.log(`🔍 Filtro aplicado em ${tipo}: ${dados.length} resultados`);
     }
 
+    // Função para atualizar o estado do botão de exportar/excluir
+    window.updateExportButton = function(cardId) {
+        const containerId = cardId.startsWith('pesquisas') ?
+            (cardId === 'pesquisas' ? 'tabelaPesquisas' : (cardId === 'pesquisas-finalizadas' ? 'tabelaPesquisasFinalizadas' : 'tabelaPesquisasPerdidas')) :
+            (cardId === 'andamento' ? 'tabelaAndamento' : (cardId === 'finalizadas' ? 'tabelaFinalizadas' : 'tabelaPerdidas'));
+
+        const ids = $(`#${containerId} .row-checkbox:checked`).map(function() {
+            return $(this).data('id');
+        }).get();
+
+        const buttonId = 'exportAll' + cardId.charAt(0).toUpperCase() + cardId.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        const button = $('#' + buttonId);
+        button.prop('disabled', ids.length === 0);
+
+        // Também habilitar/desabilitar botão de excluir (apenas admin)
+        if (IS_ADMIN) {
+            const deleteButtonId = 'deleteAll' + cardId.charAt(0).toUpperCase() + cardId.slice(1).replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            $('#' + deleteButtonId).prop('disabled', ids.length === 0);
+        }
+    }
+
+    // Função para excluir selecionados
+    window.excluirSelecionados = function(cardId) {
+        const ids = [];
+        const tipo = cardId.startsWith('pesquisas') ? 'pesquisa' : 'cotacao';
+
+        const containerId = cardId.startsWith('pesquisas') ?
+            (cardId === 'pesquisas' ? 'tabelaPesquisas' : (cardId === 'pesquisas-finalizadas' ? 'tabelaPesquisasFinalizadas' : 'tabelaPesquisasPerdidas')) :
+            (cardId === 'andamento' ? 'tabelaAndamento' : (cardId === 'finalizadas' ? 'tabelaFinalizadas' : 'tabelaPerdidas'));
+
+        $(`#${containerId} .row-checkbox:checked`).each(function() {
+            ids.push($(this).data('id'));
+        });
+
+        if (ids.length === 0) return;
+
+        Swal.fire({
+            title: 'Excluir Selecionados?',
+            text: `Deseja realmente excluir ${ids.length} itens selecionados? Esta ação não pode ser desfeita.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, excluir',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const url = tipo === 'cotacao' ? '/api/cotacoes/excluir' : '/api/pesquisas/excluir';
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ ids: ids }),
+                    success: function() {
+                        Swal.fire('Excluído!', 'Os itens foram excluídos com sucesso.', 'success');
+                        // Recarregar os dados
+                        if (tipo === 'cotacao') {
+                            carregarCotacoes(cardId, `#${containerId} tbody`);
+                        } else {
+                            const status = cardId === 'pesquisas-finalizadas' ? 'finalizadas' : (cardId === 'pesquisas-perdidas' ? 'perdidas' : 'pesquisa');
+                            carregarPesquisas(status, `#${containerId} tbody`);
+                        }
+                        
+                        // Atualizar os contadores dos cards
+                        carregarContadores();
+                        
+                        // Atualizar estado do botão "Excluir Selecionados" (desabilitar, pois não há itens selecionados agora)
+                        updateExportButton(cardId);
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
+                    }
+                });
+            }
+        });
+    }
+
     // Função para renderizar tabela de cotações
     function renderizarTabelaCotacoes(cotacoes, targetSelector, tipo) {
         const tbody = $(targetSelector);
@@ -1039,8 +1157,13 @@
         const statusBloqueados = ['Cotação Finalizada', 'Cotação Perdida'];
         const podeEditar = !statusBloqueados.includes(cotacao.status);
 
+        // Montar string de exclusão (apenas admin)
+        const deleteItem = IS_ADMIN ? `
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="excluirCotacao(${id})"><i class="fas fa-trash"></i> Excluir</a></li>` : '';
+
         if (tipo === 'finalizadas') {
-            // Cotações Finalizadas: Exportar e Ir para Vendas
+            // Cotações Finalizadas: Exportar, Ir para Vendas, e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
@@ -1050,10 +1173,11 @@
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="https://vendascooxupe.lightning.force.com/lightning/n/Criar_Pedido" target="_blank"><i class="fas fa-shopping-cart"></i> Ir para Vendas</a></li>
+                            ${deleteItem}
                         </ul>
                     </div>`;
         } else if (tipo === 'perdidas' || !podeEditar) {
-            // Cotações Perdidas ou com status bloqueado: apenas Exportar
+            // Cotações Perdidas ou com status bloqueado: Exportar e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
@@ -1061,10 +1185,11 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'cotacao')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
+                            ${deleteItem}
                         </ul>
                     </div>`;
         } else {
-            // Cotações em Andamento: Editar, Exportar e Excluir
+            // Cotações em Andamento: Editar, Exportar e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
@@ -1073,8 +1198,7 @@
                             <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'cotacao')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="/cotacao/${id}"><i class="fas fa-edit"></i> Editar</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="excluirCotacao(${id})"><i class="fas fa-trash"></i> Excluir</a></li>
+                            ${deleteItem}
                         </ul>
                     </div>`;
         }
@@ -1136,8 +1260,13 @@
         const statusBloqueados = ['Pesquisa Finalizada', 'Pesquisa Perdida', 'Cotação Perdida'];
         const podeEditar = !statusBloqueados.includes(pesquisa.status);
 
+        // Montar string de exclusão (apenas admin)
+        const deleteItem = IS_ADMIN ? `
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="excluirPesquisa(${id})"><i class="fas fa-trash"></i> Excluir</a></li>` : '';
+
         if (status === 'finalizadas') {
-            // Pesquisas Finalizadas: Exportar e Ir para Vendas
+            // Pesquisas Finalizadas: Exportar, Ir para Vendas, e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
@@ -1147,10 +1276,11 @@
                             <li><a class="dropdown-item" href="#" onclick="exportarPesquisa(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="https://vendascooxupe.lightning.force.com/lightning/n/Criar_Pedido" target="_blank"><i class="fas fa-shopping-cart"></i> Ir para Vendas</a></li>
+                            ${deleteItem}
                         </ul>
                     </div>`;
         } else if (status === 'perdidas' || !podeEditar) {
-            // Pesquisas Perdidas ou com status bloqueado: Exportar e Histórico
+            // Pesquisas Perdidas ou com status bloqueado: Exportar e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
@@ -1158,10 +1288,11 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'pesquisa')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarPesquisa(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
+                            ${deleteItem}
                         </ul>
                     </div>`;
         } else {
-            // Pesquisas em Andamento: Editar, Exportar e Excluir
+            // Pesquisas em Andamento: Editar, Exportar e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
@@ -1170,8 +1301,7 @@
                             <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'pesquisa')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="/pesquisa/${id}"><i class="fas fa-edit"></i> Editar</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarPesquisa(${id})"><i class="fas fa-file-excel"></i> Exportar</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="excluirPesquisa(${id})"><i class="fas fa-trash"></i> Excluir</a></li>
+                            ${deleteItem}
                         </ul>
                     </div>`;
         }
@@ -1648,6 +1778,68 @@
             error: function (error) {
                 console.error('Erro ao carregar histórico:', error);
                 timeline.innerHTML = '<div class="alert alert-danger">Erro ao carregar histórico. Tente novamente mais tarde.</div>';
+            }
+        });
+    }
+    // Função para excluir uma cotação individual
+    window.excluirCotacao = function(id) {
+        Swal.fire({
+            title: 'Excluir Cotação?',
+            text: `Deseja realmente excluir a cotação ID ${id}? Esta ação não pode ser desfeita.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, excluir',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/api/cotacao/${id}`,
+                    type: 'DELETE',
+                    success: function() {
+                        Swal.fire('Excluído!', 'A cotação foi excluída com sucesso.', 'success');
+                        const activeCard = $('.overview-card.active').data('type') || 'andamento';
+                        const containerId = activeCard === 'andamento' ? 'tabelaAndamento' : (activeCard === 'finalizadas' ? 'tabelaFinalizadas' : 'tabelaPerdidas');
+                        carregarCotacoes(activeCard, `#${containerId} tbody`);
+                        carregarContadores();
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    // Função para excluir uma pesquisa individual
+    window.excluirPesquisa = function(id) {
+        Swal.fire({
+            title: 'Excluir Pesquisa?',
+            text: `Deseja realmente excluir a pesquisa ID ${id}? Esta ação não pode ser desfeita.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, excluir',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/api/pesquisas/${id}`,
+                    type: 'DELETE',
+                    success: function() {
+                        Swal.fire('Excluído!', 'A pesquisa foi excluída com sucesso.', 'success');
+                        const activeCard = $('.overview-card.active').data('type') || 'pesquisas';
+                        const status = activeCard === 'pesquisas-finalizadas' ? 'finalizadas' : (activeCard === 'pesquisas-perdidas' ? 'perdidas' : 'pesquisa');
+                        const containerId = activeCard === 'pesquisas' ? 'tabelaPesquisas' : (activeCard === 'pesquisas-finalizadas' ? 'tabelaPesquisasFinalizadas' : 'tabelaPesquisasPerdidas');
+                        carregarPesquisas(status, `#${containerId} tbody`);
+                        carregarContadores();
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
+                    }
+                });
             }
         });
     }

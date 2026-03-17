@@ -86,7 +86,7 @@ def delete_user(user_id):
 @login_required
 @admin_required
 def send_reset_password(user_id):
-    """Enviar link para redefinição de senha para o e-mail do usuário"""
+    """Gerar link para redefinição de senha (exibido apenas no console/painel por enquanto)"""
     try:
         user = User.query.get_or_404(user_id)
         
@@ -97,67 +97,17 @@ def send_reset_password(user_id):
         # Obter URL do link de reset (frontend)
         reset_url = url_for('auth.reset_password', token=token, _external=True)
         
-        # Configurar e-mail
-        mail_server = current_app.config.get('MAIL_SERVER', 'smtp.gmail.com')
-        mail_port = current_app.config.get('MAIL_PORT', 587)
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
-        
-        if not mail_username or not mail_password:
-            # Caso não haja configuração de e-mail, simula enviando no terminal
-            print(f"\n--- SIMULAÇÃO DE EMAIL ---")
-            print(f"Para: {user.email}")
-            print(f"Assunto: Redefinição de Senha")
-            print(f"Link: {reset_url}")
-            print(f"--------------------------\n")
-            return jsonify({
-                'success': True, 
-                'message': 'Simulação de e-mail enviada! Verifique o terminal do backend.',
-                'reset_url': reset_url
-            })
-
-        # Criar mensagem de e-mail
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'Redefinição de Senha - Cotações Cooxupé'
-        msg['From'] = mail_username
-        msg['To'] = user.email
-
-        html_content = f"""
-        <html>
-          <body>
-            <h2>Redefinição de Senha</h2>
-            <p>Olá {user.name},</p>
-            <p>Um administrador solicitou a redefinição da sua senha no sistema Cotações Cooxupé.</p>
-            <p>Clique no link abaixo para criar uma nova senha:</p>
-            <p><a href="{reset_url}" style="background-color: #2E7D32; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Criar Nova Senha</a></p>
-            <p>Ou acesse este link pelo navegador:<br>{reset_url}</p>
-            <p><small>Este link expira em 24 horas.</small></p>
-            <p>Se você não solicitou isso, ignore este e-mail.</p>
-          </body>
-        </html>
-        """
-        
-        part = MIMEText(html_content, 'html')
-        msg.attach(part)
-
-        # Enviar e-mail via SMTP
-        # Usar SMTP_SSL para a porta 465
-        server = smtplib.SMTP_SSL(mail_server, int(mail_port))
-        
-        server.login(mail_username, mail_password)
-        server.sendmail(mail_username, user.email, msg.as_string())
-        server.quit()
+        print(f"\n--- LINK DE REDEFINIÇÃO DE SENHA ---")
+        print(f"Para: {user.email}")
+        print(f"Link: {reset_url}")
+        print(f"------------------------------------\n")
 
         return jsonify({
             'success': True, 
-            'message': 'E-mail de redefinição enviado com sucesso!',
+            'message': 'Link de redefinição gerado! Verifique o console do backend.',
             'reset_url': reset_url
         })
         
-    except smtplib.SMTPAuthenticationError:
-        print("Erro de SMTP Auth")
-        return jsonify({'success': False, 'error': 'Falha na autenticação do e-mail. Verifique a configuração e a senha.'}), 500
     except Exception as e:
-        print(f"Erro ao enviar redefinição de senha: {e}")
-        return jsonify({'success': False, 'error': f'Erro ao enviar e-mail: {str(e)}'}), 500
+        print(f"Erro ao gerar redefinição de senha: {e}")
+        return jsonify({'success': False, 'error': f'Erro ao processar solicitação: {str(e)}'}), 500

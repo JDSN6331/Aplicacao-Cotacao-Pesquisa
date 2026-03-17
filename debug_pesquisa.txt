@@ -1,0 +1,5 @@
+Pesquisa (ID 1):
+matricula_cooperado do DB = '10003'
+nome_cooperado do DB = 'Hédio Antônio da Silva e Outro'
+Prefilled montado:
+{'nome_filial': '076:Loja Campos Gerais', 'numero_mesorregiao': 'REGIONAL 7 - Joaquim', 'matricula_cooperado': '10003', 'nome_cooperado': 'Hédio Antônio da Silva e Outro', 'analista_comercial': 'Joaquim', 'comprador': 'João', 'observacoes': 'Teste', 'forma_pagamento': 'À Vista', 'prazo_entrega': '2026-04-09', 'cultura': 'Soja', 'nome_vendedor': 'José Duque', 'motivo_venda_perdida': ''}

@@ -252,7 +252,7 @@
                             <p>${data.message || 'E-mail de redefinição enviado com sucesso!'}</p>
                             <p class="text-start mb-1 text-muted small mt-3">Copie o link abaixo para enviar via WhatsApp ou outro app:</p>
                             <div class="input-group">
-                                <input type="text" id="swal-input-url" class="form-control" value="${data.reset_url}" readonly>
+                                <input type="text" id="swal-input-url" class="form-control" value="${data.reset_url}" onclick="this.select();">
                                 <button class="btn btn-outline-secondary" type="button" id="copy-link-btn" onclick="navigator.clipboard.writeText(document.getElementById('swal-input-url').value); let btn = document.getElementById('copy-link-btn'); btn.innerHTML = '<i class=\'fas fa-check\'></i> Copiado'; btn.classList.replace('btn-outline-secondary', 'btn-success'); btn.classList.add('text-white'); setTimeout(() => { btn.innerHTML = '<i class=\'fas fa-copy\'></i> Copiar'; btn.classList.replace('btn-success', 'btn-outline-secondary'); btn.classList.remove('text-white'); }, 2000);">
                                     <i class="fas fa-copy"></i> Copiar
                                 </button>

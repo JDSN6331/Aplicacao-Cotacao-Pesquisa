@@ -25,10 +25,14 @@
                             (@cooxupe.com.br)</label>
                     </div>
 
-                    <div class="form-floating mb-3">
+                    <div class="form-floating mb-3 position-relative">
                         <input type="password" class="form-control" id="password" name="password" placeholder="Senha"
-                            required>
+                            required style="padding-right: 3rem;">
                         <label for="password"><i class="fas fa-lock me-2"></i>Senha</label>
+                        <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y me-2 text-muted" 
+                                id="togglePassword" style="z-index: 10; text-decoration: none;">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
 
                     <div class="d-grid gap-2 mt-4">
@@ -100,4 +104,26 @@
         transform: scale(0.85) translateY(-0.6rem) translateX(0.15rem);
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('togglePassword');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const passwordInput = document.getElementById('password');
+                const icon = this.querySelector('i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

@@ -142,9 +142,8 @@ def send_reset_password(user_id):
         msg.attach(part)
 
         # Enviar e-mail via SMTP
-        server = smtplib.SMTP(mail_server, int(mail_port))
-        if str(mail_use_tls).lower() in ['true', '1', 'yes']:
-            server.starttls()
+        # Usar SMTP_SSL para a porta 465
+        server = smtplib.SMTP_SSL(mail_server, int(mail_port))
         
         server.login(mail_username, mail_password)
         server.sendmail(mail_username, user.email, msg.as_string())

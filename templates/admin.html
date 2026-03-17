@@ -244,15 +244,46 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                alert(data.message || 'E-mail de redefinição enviado com sucesso!');
                 bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+                if (data.reset_url) {
+                    Swal.fire({
+                        title: 'Link de Redefinição Gerado',
+                        html: `
+                            <p>${data.message || 'E-mail de redefinição enviado com sucesso!'}</p>
+                            <p class="text-start mb-1 text-muted small mt-3">Copie o link abaixo para enviar via WhatsApp ou outro app:</p>
+                            <div class="input-group">
+                                <input type="text" id="swal-input-url" class="form-control" value="${data.reset_url}" readonly>
+                                <button class="btn btn-outline-secondary" type="button" id="copy-link-btn" onclick="navigator.clipboard.writeText(document.getElementById('swal-input-url').value); let btn = document.getElementById('copy-link-btn'); btn.innerHTML = '<i class=\'fas fa-check\'></i> Copiado'; btn.classList.replace('btn-outline-secondary', 'btn-success'); btn.classList.add('text-white'); setTimeout(() => { btn.innerHTML = '<i class=\'fas fa-copy\'></i> Copiar'; btn.classList.replace('btn-success', 'btn-outline-secondary'); btn.classList.remove('text-white'); }, 2000);">
+                                    <i class="fas fa-copy"></i> Copiar
+                                </button>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'Fechar',
+                        width: '600px'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Sucesso',
+                        text: data.message || 'E-mail de redefinição enviado com sucesso!',
+                        icon: 'success'
+                    });
+                }
             } else {
-                alert(data.error || 'Erro ao enviar e-mail de redefinição.');
+                Swal.fire({
+                    title: 'Erro',
+                    text: data.error || 'Erro ao enviar e-mail de redefinição.',
+                    icon: 'error'
+                });
             }
         })
         .catch(err => {
             console.error('Erro:', err);
-            alert('Erro ao processar a solicitação. Tente novamente.');
+            Swal.fire({
+                title: 'Erro',
+                text: 'Erro ao processar a solicitação. Tente novamente.',
+                icon: 'error'
+            });
         });
     }
 

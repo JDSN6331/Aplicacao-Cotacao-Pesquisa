@@ -106,12 +106,16 @@ def send_reset_password(user_id):
         
         if not mail_username or not mail_password:
             # Caso não haja configuração de e-mail, simula enviando no terminal
-            print(f"\\n--- SIMULAÇÃO DE EMAIL ---")
+            print(f"\n--- SIMULAÇÃO DE EMAIL ---")
             print(f"Para: {user.email}")
             print(f"Assunto: Redefinição de Senha")
             print(f"Link: {reset_url}")
-            print(f"--------------------------\\n")
-            return jsonify({'success': True, 'message': 'Simulação de e-mail enviada! Verifique o terminal do backend.'})
+            print(f"--------------------------\n")
+            return jsonify({
+                'success': True, 
+                'message': 'Simulação de e-mail enviada! Verifique o terminal do backend.',
+                'reset_url': reset_url
+            })
 
         # Criar mensagem de e-mail
         msg = MIMEMultipart('alternative')
@@ -146,7 +150,11 @@ def send_reset_password(user_id):
         server.sendmail(mail_username, user.email, msg.as_string())
         server.quit()
 
-        return jsonify({'success': True, 'message': 'E-mail de redefinição enviado com sucesso!'})
+        return jsonify({
+            'success': True, 
+            'message': 'E-mail de redefinição enviado com sucesso!',
+            'reset_url': reset_url
+        })
         
     except smtplib.SMTPAuthenticationError:
         print("Erro de SMTP Auth")

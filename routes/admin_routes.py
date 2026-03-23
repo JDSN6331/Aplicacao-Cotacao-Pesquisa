@@ -41,9 +41,16 @@ def update_user(user_id):
 
         new_name = data.get('name', '').strip()
         new_email = data.get('email', '').strip().lower()
+        new_departamento = data.get('departamento', '').strip()
 
         if not new_name or not new_email:
             return jsonify({'success': False, 'error': 'Nome e e-mail são obrigatórios.'}), 400
+
+        # Validar departamento se fornecido
+        if new_departamento:
+            departamentos_validos = ['Comercial', 'Suprimentos', 'Loja']
+            if new_departamento not in departamentos_validos:
+                return jsonify({'success': False, 'error': 'Departamento inválido.'}), 400
 
         # Validar domínio do e-mail
         if not new_email.endswith('@cooxupe.com.br'):
@@ -57,6 +64,8 @@ def update_user(user_id):
         user.name = new_name
         user.email = new_email
         user.username = new_email  # username = email neste sistema
+        if new_departamento:
+            user.departamento = new_departamento
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Usuário atualizado com sucesso!'})

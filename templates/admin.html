@@ -24,11 +24,12 @@
                     <table class="table table-hover" id="tabelaUsuarios">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Nome</th>
-                                <th>E-mail</th>
-                                <th>Tipo</th>
-                                <th>Ações</th>
+                                <th style="width: 50px;">ID</th>
+                                <th style="width: 25%;">Nome</th>
+                                <th style="width: 30%;">E-mail</th>
+                                <th style="width: 130px;">Departamento</th>
+                                <th style="width: 130px;">Tipo</th>
+                                <th style="width: 70px;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -37,6 +38,11 @@
                                 <td>{{ user.id }}</td>
                                 <td>{{ user.name }}</td>
                                 <td>{{ user.email }}</td>
+                                <td>
+                                    <span class="badge bg-info text-white">
+                                        <i class="fas fa-building me-1"></i>{{ user.departamento or 'N/A' }}
+                                    </span>
+                                </td>
                                 <td>
                                     {% if user.is_admin %}
                                     <span class="badge bg-warning text-dark">
@@ -57,7 +63,7 @@
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
                                                 <a class="dropdown-item" href="#"
-                                                    onclick='abrirModalEditar({{ user.id }}, {{ user.name|tojson }}, {{ user.email|tojson }})'>
+                                                    onclick='abrirModalEditar({{ user.id }}, {{ user.name|tojson }}, {{ user.email|tojson }}, {{ (user.departamento or "Comercial")|tojson }})'>
                                                     <i class="fas fa-edit"></i> Editar
                                                 </a>
                                             </li>
@@ -103,6 +109,14 @@
                     <label for="editUserEmail" class="form-label fw-bold">E-mail Institucional</label>
                     <input type="email" class="form-control" id="editUserEmail"
                         placeholder="email@cooxupe.com.br">
+                </div>
+                <div class="mb-3">
+                    <label for="editUserDepartamento" class="form-label fw-bold">Departamento</label>
+                    <select class="form-select" id="editUserDepartamento">
+                        <option value="Comercial">Comercial</option>
+                        <option value="Suprimentos">Suprimentos</option>
+                        <option value="Loja">Loja</option>
+                    </select>
                 </div>
             </div>
             <div class="modal-footer d-flex justify-content-between">
@@ -192,10 +206,11 @@
             $dropdown.removeAttr('data-drop-id');
         }
     });
-    function abrirModalEditar(id, name, email) {
+    function abrirModalEditar(id, name, email, departamento) {
         document.getElementById('editUserId').value = id;
         document.getElementById('editUserName').value = name;
         document.getElementById('editUserEmail').value = email;
+        document.getElementById('editUserDepartamento').value = departamento || 'Comercial';
         new bootstrap.Modal(document.getElementById('editUserModal')).show();
     }
 
@@ -203,6 +218,7 @@
         const id = document.getElementById('editUserId').value;
         const name = document.getElementById('editUserName').value.trim();
         const email = document.getElementById('editUserEmail').value.trim();
+        const departamento = document.getElementById('editUserDepartamento').value;
 
         if (!name || !email) {
             alert('Nome e e-mail são obrigatórios.');
@@ -212,7 +228,7 @@
         fetch(`/api/admin/users/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email })
+            body: JSON.stringify({ name, email, departamento })
         })
         .then(res => res.json())
         .then(data => {
@@ -252,8 +268,8 @@
                             <p>${data.message || 'E-mail de redefinição enviado com sucesso!'}</p>
                             <p class="text-start mb-1 text-muted small mt-3">Copie o link abaixo para enviar via WhatsApp ou outro app:</p>
                             <div class="input-group">
-                                <input type="text" id="swal-input-url" class="form-control" value="${data.reset_url}" onclick="this.select();">
-                                <button class="btn btn-outline-secondary" type="button" id="copy-link-btn" onclick="navigator.clipboard.writeText(document.getElementById('swal-input-url').value); let btn = document.getElementById('copy-link-btn'); btn.innerHTML = '<i class=\'fas fa-check\'></i> Copiado'; btn.classList.replace('btn-outline-secondary', 'btn-success'); btn.classList.add('text-white'); setTimeout(() => { btn.innerHTML = '<i class=\'fas fa-copy\'></i> Copiar'; btn.classList.replace('btn-success', 'btn-outline-secondary'); btn.classList.remove('text-white'); }, 2000);">
+                                <input type="text" id="swal-input-url" class="form-control" value="${data.reset_url}" onclick="this.select();" readonly>
+                                <button class="btn btn-outline-secondary" type="button" id="copy-link-btn" onclick="copiarLink()">
                                     <i class="fas fa-copy"></i> Copiar
                                 </button>
                             </div>
@@ -313,5 +329,52 @@
             alert('Erro ao excluir. Tente novamente.');
         });
     });
+
+    function copiarLink() {
+        const input = document.getElementById('swal-input-url');
+        const btn = document.getElementById('copy-link-btn');
+        const texto = input.value;
+
+        function onSucesso() {
+            btn.innerHTML = '<i class="fas fa-check"></i> Copiado';
+            btn.classList.replace('btn-outline-secondary', 'btn-success');
+            btn.classList.add('text-white');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-copy"></i> Copiar';
+                btn.classList.replace('btn-success', 'btn-outline-secondary');
+                btn.classList.remove('text-white');
+            }, 2000);
+        }
+
+        function onErro() {
+            // Último recurso: selecionar o texto para o usuário copiar manualmente
+            input.select();
+            input.setSelectionRange(0, 99999);
+            alert('Não foi possível copiar automaticamente. O texto foi selecionado — use Ctrl+C para copiar.');
+        }
+
+        // Tentar Clipboard API (funciona apenas em HTTPS ou localhost)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto)
+                .then(onSucesso)
+                .catch(() => {
+                    // Fallback: execCommand
+                    try {
+                        input.select();
+                        input.setSelectionRange(0, 99999);
+                        const ok = document.execCommand('copy');
+                        if (ok) { onSucesso(); } else { onErro(); }
+                    } catch (e) { onErro(); }
+                });
+        } else {
+            // Fallback direto: execCommand
+            try {
+                input.select();
+                input.setSelectionRange(0, 99999);
+                const ok = document.execCommand('copy');
+                if (ok) { onSucesso(); } else { onErro(); }
+            } catch (e) { onErro(); }
+        }
+    }
 </script>
 {% endblock %}

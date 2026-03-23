@@ -25,6 +25,15 @@
                             (@cooxupe.com.br)</label>
                     </div>
 
+                    <div class="form-floating mb-3">
+                        <select class="form-select" id="departamento" name="departamento" required>
+                            <option value="Comercial" selected>Comercial</option>
+                            <option value="Suprimentos">Suprimentos</option>
+                            <option value="Loja">Loja</option>
+                        </select>
+                        <label for="departamento"><i class="fas fa-building me-2"></i>Departamento</label>
+                    </div>
+
                     <div class="form-floating mb-3 position-relative">
                         <input type="password" class="form-control" id="password" name="password" placeholder="Senha"
                             required style="padding-right: 3rem;">
@@ -79,9 +88,11 @@
     .form-floating>label,
     .form-floating>.form-control:focus~label,
     .form-floating>.form-control:not(:placeholder-shown)~label,
+    .form-floating>.form-select~label,
     .card-body .form-floating>label,
     .card-body .form-floating>.form-control:focus~label,
-    .card-body .form-floating>.form-control:not(:placeholder-shown)~label {
+    .card-body .form-floating>.form-control:not(:placeholder-shown)~label,
+    .card-body .form-floating>.form-select~label {
         background: transparent !important;
         background-color: transparent !important;
         --bs-body-bg: transparent !important;
@@ -93,14 +104,16 @@
     }
 
     /* Aumentar espaçamento entre label e texto do input */
-    .form-floating>.form-control {
+    .form-floating>.form-control,
+    .form-floating>.form-select {
         padding-top: 1.8rem;
         padding-bottom: 0.5rem;
         height: calc(3.5rem + 4px);
     }
 
     .form-floating>.form-control:focus~label,
-    .form-floating>.form-control:not(:placeholder-shown)~label {
+    .form-floating>.form-control:not(:placeholder-shown)~label,
+    .form-floating>.form-select~label {
         transform: scale(0.85) translateY(-0.6rem) translateX(0.15rem);
     }
 </style>

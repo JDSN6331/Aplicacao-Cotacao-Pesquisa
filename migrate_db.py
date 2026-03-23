@@ -108,4 +108,42 @@ else:
 conn.commit()
 conn.close()
 
+# 4. Migrar banco de dados de USUARIOS (users.db) - Adicionar coluna departamento
+users_db_path = os.path.join(base_dir, 'instance', 'users.db')
+
+# Fallback para pasta raiz se nao encontrar na pasta instance
+if not os.path.exists(users_db_path):
+    users_db_path = os.path.join(base_dir, 'users.db')
+
+if os.path.exists(users_db_path):
+    print("\n--- Migrando banco de dados de usuarios ---")
+    print("Conectando ao banco de dados:", users_db_path)
+    
+    conn_users = sqlite3.connect(users_db_path)
+    cursor_users = conn_users.cursor()
+    
+    cursor_users.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    user_tables = [t[0] for t in cursor_users.fetchall()]
+    
+    if 'users' in user_tables:
+        cursor_users.execute("PRAGMA table_info(users)")
+        user_columns = [col[1] for col in cursor_users.fetchall()]
+        print("Colunas em users:", user_columns)
+        
+        if 'departamento' not in user_columns:
+            try:
+                cursor_users.execute("ALTER TABLE users ADD COLUMN departamento VARCHAR(50) NOT NULL DEFAULT 'Comercial'")
+                print("[OK] Coluna departamento adicionada em users com valor padrao 'Comercial'")
+            except Exception as e:
+                print("[ERRO] Erro ao adicionar coluna departamento:", e)
+        else:
+            print("[OK] Coluna departamento ja existe em users")
+    else:
+        print("[AVISO] Tabela users nao encontrada em users.db")
+    
+    conn_users.commit()
+    conn_users.close()
+else:
+    print("\n[AVISO] Banco de dados users.db nao encontrado. A coluna sera criada automaticamente pelo Flask.")
+
 print("\nMigracao concluida com sucesso!")

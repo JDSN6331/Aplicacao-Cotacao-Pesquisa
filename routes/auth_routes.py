@@ -43,10 +43,17 @@ def register():
         username = request.form.get('username', '').strip().lower()
         password = request.form.get('password')
         name = request.form.get('name', '').strip()
+        departamento = request.form.get('departamento', '').strip()
         
         # Validar campos obrigatórios
-        if not username or not password or not name:
+        if not username or not password or not name or not departamento:
             flash('Todos os campos são obrigatórios.', 'error')
+            return redirect(url_for('auth.register'))
+        
+        # Validar departamento
+        departamentos_validos = ['Comercial', 'Suprimentos', 'Loja']
+        if departamento not in departamentos_validos:
+            flash('Departamento inválido. Selecione uma opção válida.', 'error')
             return redirect(url_for('auth.register'))
         
         # Validar domínio do e-mail (apenas @cooxupe.com.br)
@@ -72,7 +79,7 @@ def register():
         # Verificar se é o primeiro usuário (será admin automaticamente)
         is_first_user = User.query.count() == 0
         
-        new_user = User(username=username, email=email, name=name, is_admin=is_first_user)
+        new_user = User(username=username, email=email, name=name, departamento=departamento, is_admin=is_first_user)
         new_user.set_password(password)
         
         db.session.add(new_user)

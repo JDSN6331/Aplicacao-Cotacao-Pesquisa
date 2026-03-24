@@ -52,7 +52,7 @@
                 <button type="button" class="theme-toggle" title="Alternar tema">
                     <i class="fas fa-sun icon-sun"></i>
                     <i class="fas fa-moon icon-moon"></i>
-                    <span class="theme-label">Escuro</span>
+                    <span class="theme-label"></span>
                 </button>
 
                 <a href="{{ url_for('routes.index') }}" class="nav-link active">
@@ -92,7 +92,7 @@
                 <button type="button" class="theme-toggle me-3" title="Alternar tema">
                     <i class="fas fa-sun icon-sun"></i>
                     <i class="fas fa-moon icon-moon"></i>
-                    <span class="theme-label">Escuro</span>
+                    <span class="theme-label"></span>
                 </button>
                 <!-- Navegação Visitante -->
                 {% if request.endpoint not in ['auth.login', 'auth.register', 'auth.reset_password'] %}

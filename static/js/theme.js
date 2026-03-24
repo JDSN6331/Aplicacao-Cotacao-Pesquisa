@@ -61,22 +61,9 @@ class ThemeManager {
      * Atualiza o visual do botão de toggle
      */
     updateToggleButton() {
-        const buttons = document.querySelectorAll('.theme-toggle');
-        buttons.forEach(button => {
-            const sunIcon = button.querySelector('.icon-sun');
-            const moonIcon = button.querySelector('.icon-moon');
-            const label = button.querySelector('.theme-label');
-
-            if (this.theme === 'dark') {
-                if (sunIcon) sunIcon.style.display = 'inline';
-                if (moonIcon) moonIcon.style.display = 'none';
-                if (label) label.textContent = 'Claro';
-            } else {
-                if (sunIcon) sunIcon.style.display = 'none';
-                if (moonIcon) moonIcon.style.display = 'inline';
-                if (label) label.textContent = 'Escuro';
-            }
-        });
+        // A visibilidade dos ícones e o texto (Claro/Escuro) 
+        // agora são gerenciados puramente via CSS baseado no atributo [data-theme]
+        // para evitar qualquer tipo de flicker durante o carregamento.
     }
 
     /**

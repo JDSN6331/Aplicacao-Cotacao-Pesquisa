@@ -1043,13 +1043,22 @@ header {
     font-size: 1.1rem;
 }
 
-[data-theme="dark"] .theme-toggle .icon-sun {
+[data-theme="dark"] .theme-toggle .icon-moon {
     display: none;
 }
 
-[data-theme="light"] .theme-toggle .icon-moon,
-:root:not([data-theme]) .theme-toggle .icon-moon {
+[data-theme="dark"] .theme-toggle .theme-label::after {
+    content: "Claro";
+}
+
+[data-theme="light"] .theme-toggle .icon-sun,
+:root:not([data-theme]) .theme-toggle .icon-sun {
     display: none;
+}
+
+[data-theme="light"] .theme-toggle .theme-label::after,
+:root:not([data-theme]) .theme-toggle .theme-label::after {
+    content: "Escuro";
 }
 
 /* ===== NAVEGAÇÃO ===== */

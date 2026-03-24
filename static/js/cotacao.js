@@ -174,16 +174,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Função para mostrar/esconder etapas
     function showStep(step) {
-        document.querySelectorAll('.step').forEach((el, index) => {
-            el.style.display = index + 1 === step ? 'block' : 'none';
-        });
-        updateNavigationButtons();
-
-        // Se for o passo 1, carregar filiais e configurar listeners
-        if (step === 1) {
-            setupFiliais();
-            setupCulturaListener();
+        const form = document.getElementById('cotacaoForm');
+        if (form) {
+            form.setAttribute('data-current-step', step);
         }
+        currentStep = step;
+        updateNavigationButtons();
     }
 
     // Inicializar controle de campos por fase
@@ -232,38 +228,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Função para atualizar botões de navegação
     function updateNavigationButtons() {
-        const prevButton = document.getElementById('prevButton');
         const nextButton = document.getElementById('nextButton');
-        const proximoStatusContainer = document.getElementById('proximoStatusContainer');
-
-        prevButton.style.display = currentStep === 1 ? 'none' : 'inline-block';
-
-        // Mostrar/ocultar campo Próximo Status apenas no último passo
-        if (proximoStatusContainer) {
-            if (currentStep === totalSteps) {
-                proximoStatusContainer.style.display = 'flex';
-            } else {
-                proximoStatusContainer.style.display = 'none';
-            }
-        }
-
         const statusEl = document.getElementById('statusAtual');
+
         if (statusEl && (statusEl.value === 'Cotação Finalizada' || statusEl.value === 'Cotação Perdida')) {
             if (nextButton) nextButton.style.display = 'none';
         } else if (nextButton) {
             nextButton.style.display = 'inline-block';
-            // Atualizar ícones e cores dos botões
-            if (currentStep === totalSteps) {
-                nextButton.innerHTML = '<i class="fas fa-save me-2"></i>Salvar';
-                // Botão Salvar em verde
-                nextButton.classList.remove('btn-primary');
-                nextButton.classList.add('btn-success');
-            } else {
-                nextButton.innerHTML = 'Avançar<i class="fas fa-arrow-right ms-2"></i>';
-                // Botão Avançar em azul
-                nextButton.classList.remove('btn-success');
-                nextButton.classList.add('btn-primary');
-            }
         }
     }
 
@@ -996,9 +967,10 @@ document.addEventListener('DOMContentLoaded', function () {
         addProduto();
     });
 
-    // Inicializar produtos ao editar
-    console.log('Inicializando produtos...');
-    console.log('window.produtosCotacao:', window.produtosCotacao);
+    // Inicialização do formulário
+    console.log('Inicializando formulário de cotação...');
+    setupFiliais();
+    setupCulturaListener();
 
     if (window.produtosCotacao && Array.isArray(window.produtosCotacao) && window.produtosCotacao.length > 0) {
         console.log(`Carregando ${window.produtosCotacao.length} produtos existentes...`);

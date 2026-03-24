@@ -30,10 +30,46 @@
     .step, .produto-item, .btn-navigation, .btn-add-produto, .btn-remove-produto
     */
     .step {
+        display: none; /* Esconde todas as etapas por padrão */
         padding: 20px;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         margin-bottom: 20px;
+    }
+
+    /* Controle de visibilidade atômica via atributo data-current-step */
+    #cotacaoForm[data-current-step="1"] #step1,
+    #cotacaoForm[data-current-step="2"] #step2,
+    #cotacaoForm[data-current-step="3"] #step3 {
+        display: block;
+        animation: fadeIn 0.2s ease-in-out;
+    }
+
+    /* Visibilidade dos botões baseada na etapa */
+    #cotacaoForm[data-current-step="1"] #prevButton { display: none !important; }
+    #cotacaoForm:not([data-current-step="1"]) #prevButton { display: inline-block !important; }
+    
+    /* Configuração do botão Avançar -> Salvar no Passo 3 */
+    #cotacaoForm[data-current-step="3"] #nextButton {
+        background-color: #198754 !important; /* success color */
+        border-color: #198754 !important;
+    }
+    #cotacaoForm[data-current-step="3"] #nextButton .btn-text-avancar,
+    #cotacaoForm:not([data-current-step="3"]) #nextButton .btn-text-salvar {
+        display: none;
+    }
+    
+    /* Container de Próximo Status apenas no passo 3 */
+    #cotacaoForm[data-current-step="3"] #proximoStatusContainer {
+        display: flex !important;
+    }
+    #cotacaoForm:not([data-current-step="3"]) #proximoStatusContainer {
+        display: none !important;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .produto-item {
@@ -161,7 +197,7 @@
 
             <form id="cotacaoForm" method="POST"
                 action="{{ url_for('cotacao_routes.criar_cotacao') if not cotacao else url_for('cotacao_routes.atualizar_cotacao', id=cotacao.id) }}"
-                enctype="multipart/form-data">
+                enctype="multipart/form-data" data-current-step="1">
                 <input type="hidden" name="id" value="{{ cotacao.id if cotacao }}">
                 <input type="hidden" id="statusAtual" value="{{ cotacao.status if cotacao else 'Criação' }}">
                 <input type="hidden" name="pesquisa_origem_id" id="pesquisa_origem_id"
@@ -477,7 +513,7 @@
                 {# Campo Próximo Status e Botões de Navegação #}
                 <div class="card-footer d-flex justify-content-end align-items-center flex-wrap flex-md-nowrap gap-2">
                     <div class="order-2 order-md-1 align-items-center" id="proximoStatusContainer"
-                        style="min-width:250px;max-width:350px; display: none;">
+                        style="min-width:250px;max-width:350px;">
                         <label for="status" class="form-label mb-0 fw-bold text-success me-2"
                             style="white-space:nowrap;">Próximo Status </label>
                         <select class="form-select border-success shadow-sm fw-bold" id="status" name="status"
@@ -497,7 +533,8 @@
                             <i class="fas fa-times"></i> Cancelar
                         </a>
                         <button type="button" class="btn btn-primary" id="nextButton">
-                            <i class="fas fa-save"></i> Avançar
+                            <span class="btn-text-avancar">Avançar <i class="fas fa-arrow-right ms-2"></i></span>
+                            <span class="btn-text-salvar"><i class="fas fa-save me-2"></i>Salvar</span>
                         </button>
                     </div>
                 </div>

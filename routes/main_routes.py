@@ -9,31 +9,36 @@ from models import db, Cotacao, PesquisaMercado, HistoricoStatus
 # Blueprint com nome 'routes' para manter compatibilidade com templates
 main_routes = Blueprint('routes', __name__)
 
+def get_dashboard_stats():
+    """Calcula estatísticas para o dashboard de forma centralizada"""
+    return {
+        'andamento': Cotacao.query.filter(Cotacao.status.in_([
+            'Análise Comercial', 
+            'Análise Suprimentos',
+            'Avaliação Comercial',
+            'Aguardando Cooperado',
+            'Revisão Comercial',
+            'Revisão Suprimentos'
+        ])).count(),
+        'pesquisas': PesquisaMercado.query.filter(PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])).count(),
+        'finalizadas': Cotacao.query.filter_by(status='Cotação Finalizada').count(),
+        'pesquisas_finalizadas': PesquisaMercado.query.filter_by(status='Pesquisa Finalizada').count(),
+        'perdidas': Cotacao.query.filter_by(status='Cotação Perdida').count(),
+        'pesquisas_perdidas': PesquisaMercado.query.filter_by(status='Pesquisa Perdida').count()
+    }
+
 @main_routes.route('/', endpoint='index')
 @login_required
 def index():
-    return render_template('index.html')
+    stats = get_dashboard_stats()
+    return render_template('index.html', stats=stats)
 
 @main_routes.route('/api/dashboard/stats')
 @login_required
 def dashboard_stats():
-    """Retorna contadores para os cards do dashboard"""
+    """Retorna contadores para os cards do dashboard em formato JSON"""
     try:
-        stats = {
-            'andamento': Cotacao.query.filter(Cotacao.status.in_([
-                'Análise Comercial', 
-                'Análise Suprimentos',
-                'Avaliação Comercial',
-                'Aguardando Cooperado',
-                'Revisão Comercial',
-                'Revisão Suprimentos'
-            ])).count(),
-            'pesquisas': PesquisaMercado.query.filter(PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])).count(),
-            'finalizadas': Cotacao.query.filter_by(status='Cotação Finalizada').count(),
-            'pesquisas_finalizadas': PesquisaMercado.query.filter_by(status='Pesquisa Finalizada').count(),
-            'perdidas': Cotacao.query.filter_by(status='Cotação Perdida').count(),
-            'pesquisas_perdidas': PesquisaMercado.query.filter_by(status='Pesquisa Perdida').count()
-        }
+        stats = get_dashboard_stats()
         return jsonify(stats)
     except Exception as e:
         print(f"Erro ao carregar stats: {e}")
@@ -42,7 +47,8 @@ def dashboard_stats():
             'pesquisas': 0,
             'finalizadas': 0,
             'pesquisas_finalizadas': 0,
-            'perdidas': 0
+            'perdidas': 0,
+            'pesquisas_perdidas': 0
         })
 
 @main_routes.route('/download/<path:filename>')

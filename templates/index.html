@@ -17,7 +17,7 @@
                     <i class="fas fa-file"></i>
                 </div>
                 <div class="card-content">
-                    <div class="card-number" id="count-andamento">0</div>
+                    <div class="card-number" id="count-andamento">{{ stats.andamento|default(0) }}</div>
                     <div class="card-label">Cotações em Andamento</div>
                 </div>
             </div>
@@ -26,7 +26,7 @@
                     <i class="fas fa-magnifying-glass"></i>
                 </div>
                 <div class="card-content">
-                    <div class="card-number" id="count-pesquisas">0</div>
+                    <div class="card-number" id="count-pesquisas">{{ stats.pesquisas|default(0) }}</div>
                     <div class="card-label">Pesquisas em Andamento</div>
                 </div>
             </div>
@@ -35,7 +35,7 @@
                     <i class="fas fa-file-circle-check"></i>
                 </div>
                 <div class="card-content">
-                    <div class="card-number" id="count-finalizadas">0</div>
+                    <div class="card-number" id="count-finalizadas">{{ stats.finalizadas|default(0) }}</div>
                     <div class="card-label">Cotações Finalizadas</div>
                 </div>
             </div>
@@ -49,7 +49,7 @@
                     </div>
                 </div>
                 <div class="card-content">
-                    <div class="card-number" id="count-pesquisas-finalizadas">0</div>
+                    <div class="card-number" id="count-pesquisas-finalizadas">{{ stats.pesquisas_finalizadas|default(0) }}</div>
                     <div class="card-label">Pesquisas Finalizadas</div>
                 </div>
             </div>
@@ -58,7 +58,7 @@
                     <i class="fas fa-file-circle-xmark"></i>
                 </div>
                 <div class="card-content">
-                    <div class="card-number" id="count-perdidas">0</div>
+                    <div class="card-number" id="count-perdidas">{{ stats.perdidas|default(0) }}</div>
                     <div class="card-label">Cotações Perdidas</div>
                 </div>
             </div>
@@ -72,7 +72,7 @@
                     </div>
                 </div>
                 <div class="card-content">
-                    <div class="card-number" id="count-pesquisas-perdidas">0</div>
+                    <div class="card-number" id="count-pesquisas-perdidas">{{ stats.pesquisas_perdidas|default(0) }}</div>
                     <div class="card-label">Pesquisas Perdidas</div>
                 </div>
             </div>
@@ -810,9 +810,9 @@
     }
 
     // Função para carregar dados por tipo
-    function carregarDadosPorTipo(tipo) {
-        // Resetar para página 1 sempre que trocar de card
-        if (window.paginacao && window.paginacao[tipo]) {
+    function carregarDadosPorTipo(tipo, manterPagina = false) {
+        // Resetar para página 1 apenas se não for solicitado o contrário
+        if (!manterPagina && window.paginacao && window.paginacao[tipo]) {
             window.paginacao[tipo].paginaAtual = 1;
         }
         switch (tipo) {
@@ -943,7 +943,8 @@
             'pesquisas': 'searchPesquisas',
             'finalizadas': 'searchFinalizadas',
             'pesquisas-finalizadas': 'searchPesquisasFinalizadas',
-            'perdidas': 'searchPerdidas'
+            'perdidas': 'searchPerdidas',
+            'pesquisas-perdidas': 'searchPesquisasPerdidas'
         };
 
         const searchTypeId = {
@@ -1028,12 +1029,12 @@
     }
 
     // Função para atualizar o estado do botão de exportar/excluir
-    window.updateExportButton = function(cardId) {
+    window.updateExportButton = function (cardId) {
         const containerId = cardId.startsWith('pesquisas') ?
             (cardId === 'pesquisas' ? 'tabelaPesquisas' : (cardId === 'pesquisas-finalizadas' ? 'tabelaPesquisasFinalizadas' : 'tabelaPesquisasPerdidas')) :
             (cardId === 'andamento' ? 'tabelaAndamento' : (cardId === 'finalizadas' ? 'tabelaFinalizadas' : 'tabelaPerdidas'));
 
-        const ids = $(`#${containerId} .row-checkbox:checked`).map(function() {
+        const ids = $(`#${containerId} .row-checkbox:checked`).map(function () {
             return $(this).data('id');
         }).get();
 
@@ -1049,7 +1050,7 @@
     }
 
     // Função para excluir selecionados
-    window.excluirSelecionados = function(cardId) {
+    window.excluirSelecionados = function (cardId) {
         const ids = [];
         const tipo = cardId.startsWith('pesquisas') ? 'pesquisa' : 'cotacao';
 
@@ -1057,7 +1058,7 @@
             (cardId === 'pesquisas' ? 'tabelaPesquisas' : (cardId === 'pesquisas-finalizadas' ? 'tabelaPesquisasFinalizadas' : 'tabelaPesquisasPerdidas')) :
             (cardId === 'andamento' ? 'tabelaAndamento' : (cardId === 'finalizadas' ? 'tabelaFinalizadas' : 'tabelaPerdidas'));
 
-        $(`#${containerId} .row-checkbox:checked`).each(function() {
+        $(`#${containerId} .row-checkbox:checked`).each(function () {
             ids.push($(this).data('id'));
         });
 
@@ -1081,7 +1082,7 @@
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({ ids: ids }),
-                    success: function() {
+                    success: function () {
                         Swal.fire('Excluído!', 'Os itens foram excluídos com sucesso.', 'success');
                         // Recarregar os dados
                         if (tipo === 'cotacao') {
@@ -1090,14 +1091,14 @@
                             const status = cardId === 'pesquisas-finalizadas' ? 'finalizadas' : (cardId === 'pesquisas-perdidas' ? 'perdidas' : 'pesquisa');
                             carregarPesquisas(status, `#${containerId} tbody`);
                         }
-                        
+
                         // Atualizar os contadores dos cards
                         carregarContadores();
-                        
+
                         // Atualizar estado do botão "Excluir Selecionados" (desabilitar, pois não há itens selecionados agora)
                         updateExportButton(cardId);
                     },
-                    error: function(xhr) {
+                    error: function (xhr) {
                         Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
                     }
                 });
@@ -1334,7 +1335,6 @@
 
     // Função para atualizar total de resultados
     function atualizarTotalResultados(total, tipo) {
-        // Atualiza texto "Página X de N" e re-renderiza os controles
         const estado = window.paginacao[tipo];
         if (!estado) return;
         estado.totalPaginas = Math.max(1, Math.ceil((total || 0) / estado.tamanhoPagina));
@@ -1376,8 +1376,8 @@
         if (!estado) return;
         if (novaPagina < 1 || novaPagina > estado.totalPaginas || novaPagina === estado.paginaAtual) return;
         estado.paginaAtual = novaPagina;
-        // Recarregar dados do tipo para aplicar o slice da nova página
-        carregarDadosPorTipo(tipo);
+        // Recarregar dados do tipo para aplicar o slice da nova página SEM RESETAR para 1
+        carregarDadosPorTipo(tipo, true);
     }
 
     // Função para aplicar filtros
@@ -1782,7 +1782,7 @@
         });
     }
     // Função para excluir uma cotação individual
-    window.excluirCotacao = function(id) {
+    window.excluirCotacao = function (id) {
         Swal.fire({
             title: 'Excluir Cotação?',
             text: `Deseja realmente excluir a cotação ID ${id}? Esta ação não pode ser desfeita.`,
@@ -1797,14 +1797,14 @@
                 $.ajax({
                     url: `/api/cotacao/${id}`,
                     type: 'DELETE',
-                    success: function() {
+                    success: function () {
                         Swal.fire('Excluído!', 'A cotação foi excluída com sucesso.', 'success');
                         const activeCard = $('.overview-card.active').data('type') || 'andamento';
                         const containerId = activeCard === 'andamento' ? 'tabelaAndamento' : (activeCard === 'finalizadas' ? 'tabelaFinalizadas' : 'tabelaPerdidas');
                         carregarCotacoes(activeCard, `#${containerId} tbody`);
                         carregarContadores();
                     },
-                    error: function(xhr) {
+                    error: function (xhr) {
                         Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
                     }
                 });
@@ -1813,7 +1813,7 @@
     }
 
     // Função para excluir uma pesquisa individual
-    window.excluirPesquisa = function(id) {
+    window.excluirPesquisa = function (id) {
         Swal.fire({
             title: 'Excluir Pesquisa?',
             text: `Deseja realmente excluir a pesquisa ID ${id}? Esta ação não pode ser desfeita.`,
@@ -1828,7 +1828,7 @@
                 $.ajax({
                     url: `/api/pesquisas/${id}`,
                     type: 'DELETE',
-                    success: function() {
+                    success: function () {
                         Swal.fire('Excluído!', 'A pesquisa foi excluída com sucesso.', 'success');
                         const activeCard = $('.overview-card.active').data('type') || 'pesquisas';
                         const status = activeCard === 'pesquisas-finalizadas' ? 'finalizadas' : (activeCard === 'pesquisas-perdidas' ? 'perdidas' : 'pesquisa');
@@ -1836,7 +1836,7 @@
                         carregarPesquisas(status, `#${containerId} tbody`);
                         carregarContadores();
                     },
-                    error: function(xhr) {
+                    error: function (xhr) {
                         Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
                     }
                 });

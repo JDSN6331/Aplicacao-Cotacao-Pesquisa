@@ -2871,7 +2871,8 @@ footer p {
 }
 
 /* Corre��o para �cone do Excel no bot�o Exportar */
-.content-status .btn .fa-file-excel {
+.content-status .btn .fa-file-excel,
+.content-status .btn .fa-trash {
     color: #fff !important;
 }
 

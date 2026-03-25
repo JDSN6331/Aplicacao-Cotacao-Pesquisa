@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, abort
 from flask_login import login_required, current_user
 from functools import wraps
-from models import db, User, Cotacao, PesquisaMercado, ProdutoCotacao
+from models import db, User, Cotacao, PesquisaMercado, ProdutoCotacao, HistoricoStatus
 from flask import current_app, url_for
 from itsdangerous import URLSafeTimedSerializer
 import smtplib
@@ -80,10 +80,12 @@ def painel_dados():
         PesquisaMercado.status.notin_(['Cotação Finalizada', 'Cotação Perdida'])
     ).count()
 
-    # Top 5 produtos em pesquisas
+    # Top 5 Produtos COTADOS
     top_produtos_rows = db.session.query(
-        PesquisaMercado.nome_produto, func.count(PesquisaMercado.id).label('total')
-    ).group_by(PesquisaMercado.nome_produto).order_by(func.count(PesquisaMercado.id).desc()).limit(5).all()
+        ProdutoCotacao.nome_produto, func.count(ProdutoCotacao.id).label('total')
+    ).join(Cotacao, ProdutoCotacao.cotacao_id == Cotacao.id)\
+     .filter(Cotacao.status != 'Cotação Perdida')\
+     .group_by(ProdutoCotacao.nome_produto).order_by(func.count(ProdutoCotacao.id).desc()).limit(5).all()
     top_produtos = [{'produto': r[0], 'total': r[1]} for r in top_produtos_rows]
 
     # Top 5 concorrentes
@@ -120,6 +122,78 @@ def painel_dados():
     usuario_ativo = usuario_ativo_c[0] if usuario_ativo_c else '-'
     usuario_ativo_count = usuario_ativo_c[1] if usuario_ativo_c else 0
 
+    # ── ANÁLISES ADICIONAIS ───────────────────────────────────────────────────
+    # 1. Tempo médio por status (Cotações)
+    historico_all = HistoricoStatus.query.filter(HistoricoStatus.cotacao_id != None).order_by(HistoricoStatus.cotacao_id, HistoricoStatus.data_mudanca).all()
+    tempos_status = {}
+    
+    if historico_all:
+        last_id = None
+        last_date = None
+        last_status = None
+        
+        for h in historico_all:
+            if h.cotacao_id != last_id:
+                last_id = h.cotacao_id
+                last_date = h.data_mudanca
+                last_status = h.status_novo
+                continue
+                
+            if last_status:
+                delta = (h.data_mudanca - last_date).total_seconds() / 3600.0
+                if last_status not in tempos_status:
+                    tempos_status[last_status] = []
+                tempos_status[last_status].append(delta)
+            
+            last_date = h.data_mudanca
+            last_status = h.status_novo
+            
+        cotacoes_ativas = Cotacao.query.filter(~Cotacao.status.in_(['Cotação Finalizada', 'Cotação Perdida'])).all()
+        for c in cotacoes_ativas:
+            if c.status not in tempos_status:
+                tempos_status[c.status] = []
+            delta = (datetime.now() - c.data_entrada_status).total_seconds() / 3600.0
+            tempos_status[c.status].append(delta)
+
+    tempo_medio_status = []
+    for st, tempos in tempos_status.items():
+        media_horas = sum(tempos) / len(tempos) if tempos else 0
+        media_dias = round(media_horas / 24, 1)
+        tempo_medio_status.append({'status': st, 'media_dias': media_dias})
+    tempo_medio_status.sort(key=lambda x: x['media_dias'], reverse=True)
+
+    # 2. Cotações e Pesquisas por Loja
+    lojas_c = db.session.query(Cotacao.nome_filial, func.count(Cotacao.id)).group_by(Cotacao.nome_filial).all()
+    lojas_p = db.session.query(PesquisaMercado.nome_filial, func.count(PesquisaMercado.id)).group_by(PesquisaMercado.nome_filial).all()
+    
+    lojas_map = {}
+    for filial, total in lojas_c:
+        lojas_map[filial] = {'loja': filial, 'cotacoes': total, 'pesquisas': 0}
+    for filial, total in lojas_p:
+        if filial not in lojas_map:
+            lojas_map[filial] = {'loja': filial, 'cotacoes': 0, 'pesquisas': 0}
+        lojas_map[filial]['pesquisas'] = total
+        
+    por_loja = list(lojas_map.values())
+    por_loja.sort(key=lambda x: (x['cotacoes'] + x['pesquisas']), reverse=True)
+    por_loja = por_loja[:10] # Top 10 lojas
+
+    # 3. Cotações e Pesquisas por Regional
+    reg_c = db.session.query(Cotacao.numero_mesorregiao, func.count(Cotacao.id)).group_by(Cotacao.numero_mesorregiao).all()
+    reg_p = db.session.query(PesquisaMercado.numero_mesorregiao, func.count(PesquisaMercado.id)).group_by(PesquisaMercado.numero_mesorregiao).all()
+    
+    reg_map = {}
+    for r, total in reg_c:
+        reg_map[r] = {'regional': r, 'cotacoes': total, 'pesquisas': 0}
+    for r, total in reg_p:
+        if r not in reg_map:
+            reg_map[r] = {'regional': r, 'cotacoes': 0, 'pesquisas': 0}
+        reg_map[r]['pesquisas'] = total
+        
+    por_regional = list(reg_map.values())
+    por_regional.sort(key=lambda x: (x['cotacoes'] + x['pesquisas']), reverse=True)
+
+
     return jsonify({
         'cotacoes': {
             'total': total_cotacoes,
@@ -147,6 +221,11 @@ def painel_dados():
             'dist_departamentos': dist_departamentos,
             'usuario_mais_ativo': usuario_ativo,
             'usuario_mais_ativo_count': usuario_ativo_count,
+        },
+        'analises': {
+            'tempo_status': tempo_medio_status,
+            'por_loja': por_loja,
+            'por_regional': por_regional
         }
     })
 

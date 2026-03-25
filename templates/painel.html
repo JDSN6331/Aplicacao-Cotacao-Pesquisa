@@ -344,6 +344,13 @@
         </div>
     </div>
 
+    <div class="charts-grid" style="grid-template-columns: 1fr;">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-clock"></i> Tempo Médio em Cada Status (Dias)</div>
+            <div class="chart-wrapper"><canvas id="chartTempoStatus"></canvas></div>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════════════════ -->
     <!-- SEÇÃO 2 — PESQUISAS                                     -->
     <!-- ═══════════════════════════════════════════════════════ -->
@@ -375,7 +382,7 @@
     <!-- Top Produtos e Concorrentes -->
     <div class="charts-grid">
         <div class="chart-card">
-            <div class="chart-card-title"><i class="fas fa-seedling"></i> Top 5 Produtos Pesquisados</div>
+            <div class="chart-card-title"><i class="fas fa-seedling"></i> Top 5 Produtos Cotados</div>
             <ul class="top-list" id="topProdutos">
                 <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
                 <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
@@ -393,7 +400,26 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- SEÇÃO 3 — USUÁRIOS                                      -->
+    <!-- SEÇÃO 3 — ANÁLISES POR LOCALIDADE                       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="section-divider"></div>
+    <div class="section-title">
+        <i class="fas fa-map-marker-alt"></i> Análise por Localidade
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-store"></i> Operações por Loja (Top 10)</div>
+            <div class="chart-wrapper"><canvas id="chartPorLoja"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-map"></i> Operações por Regional</div>
+            <div class="chart-wrapper"><canvas id="chartPorRegional"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SEÇÃO 4 — USUÁRIOS                                      -->
     <!-- ═══════════════════════════════════════════════════════ -->
     <div class="section-divider"></div>
     <div class="section-title">
@@ -534,8 +560,9 @@ async function carregarPainel() {
         document.getElementById('painelUpdated').innerHTML =
             `<i class="fas fa-check-circle" style="color:var(--success)"></i> Atualizado às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`;
 
-        renderCotacoes(d.cotacoes);
+        renderCotacoes(d.cotacoes, d.analises);
         renderPesquisas(d.pesquisas);
+        renderLocalidade(d.analises);
         renderUsuarios(d.usuarios);
 
     } catch(e) {
@@ -546,13 +573,12 @@ async function carregarPainel() {
 }
 
 // ── COTAÇÕES ──────────────────────────────────────────────────────────────────
-function renderCotacoes(c) {
+function renderCotacoes(c, analises) {
     renderKPI(document.getElementById('kpiCotacoes'), [
         { icon:'fa-list',            label:'Total de Cotações',    value: c.total,         color:'#2E7D32' },
         { icon:'fa-spinner',         label:'Em Andamento',         value: c.em_andamento,  color:'#0288D1',
           badge: c.total > 0 ? {type:'info', text: Math.round(c.em_andamento/c.total*100)+'%'} : null },
-        { icon:'fa-check-circle',    label:'Finalizadas',          value: c.finalizadas,   color:'#43A047',
-          badge: {type:'success', text:'✓'} },
+        { icon:'fa-check-circle',    label:'Finalizadas',          value: c.finalizadas,   color:'#43A047' },
         { icon:'fa-times-circle',    label:'Perdidas',             value: c.perdidas,      color:'#C62828',
           badge: c.perdidas > 0 ? {type:'danger', text:'✗'} : null },
         { icon:'fa-trophy',          label:'Taxa de Sucesso',      value: c.taxa_sucesso+'%', color:'#F9A825',
@@ -578,10 +604,11 @@ function renderCotacoes(c) {
     // Gráfico barras — meses
     const mesLabels = c.por_mes.map(m => m.label);
     const mesData   = c.por_mes.map(m => m.total);
+    const coresMes  = mesLabels.map((_, i) => PALETTE.multi[i % PALETTE.multi.length]);
     makeChart('chartCotacoesMes', 'bar', mesLabels, [{
         label: 'Cotações',
         data: mesData,
-        backgroundColor: 'rgba(46,125,50,0.75)',
+        backgroundColor: coresMes,
         borderRadius: 6,
         borderSkipped: false
     }], {
@@ -591,6 +618,27 @@ function renderCotacoes(c) {
             y: { grid: { color: themeGrid() }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true }
         }
     });
+
+    // Gráfico barras — tempo por status
+    if (analises && analises.tempo_status) {
+        const tsLabels = analises.tempo_status.map(t => t.status);
+        const tsData = analises.tempo_status.map(t => t.media_dias);
+        const tsColors = tsLabels.map(l => PALETTE.status[l] || '#9E9E9E');
+
+        makeChart('chartTempoStatus', 'bar', tsLabels, [{
+            label: 'Média em Dias',
+            data: tsData,
+            backgroundColor: tsColors,
+            borderRadius: 6,
+            borderSkipped: false
+        }], {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: themeGrid() }, ticks: { color: themeLabel() } },
+                y: { grid: { color: themeGrid() }, ticks: { color: themeLabel() }, beginAtZero: true }
+            }
+        });
+    }
 }
 
 // ── PESQUISAS ─────────────────────────────────────────────────────────────────
@@ -623,10 +671,11 @@ function renderPesquisas(p) {
     // Gráfico barras — meses pesquisas
     const mLabels = p.por_mes.map(m => m.label);
     const mData   = p.por_mes.map(m => m.total);
+    const coresMesP = mLabels.map((_, i) => PALETTE.multi[(i+2) % PALETTE.multi.length]);
     makeChart('chartPesquisasMes', 'bar', mLabels, [{
         label: 'Pesquisas',
         data: mData,
-        backgroundColor: 'rgba(123,31,162,0.7)',
+        backgroundColor: coresMesP,
         borderRadius: 6,
         borderSkipped: false
     }], {
@@ -639,6 +688,41 @@ function renderPesquisas(p) {
 
     renderTopList('topProdutos',    p.top_produtos,    'produto',     'total');
     renderTopList('topConcorrentes', p.top_concorrentes, 'concorrente', 'total');
+}
+
+// ── LOCALIDADE ────────────────────────────────────────────────────────────────
+function renderLocalidade(a) {
+    if (!a) return;
+    
+    // Gráfico Loja
+    const lLabels = a.por_loja.map(l => l.loja);
+    const lCotacoes = a.por_loja.map(l => l.cotacoes);
+    const lPesquisas = a.por_loja.map(l => l.pesquisas);
+
+    makeChart('chartPorLoja', 'bar', lLabels, [
+        { label: 'Cotações', data: lCotacoes, backgroundColor: '#2E7D32', borderRadius: 4 },
+        { label: 'Pesquisas', data: lPesquisas, backgroundColor: '#7B1FA2', borderRadius: 4 }
+    ], {
+        scales: {
+            x: { grid: { color: themeGrid() }, ticks: { color: themeLabel() } },
+            y: { grid: { color: themeGrid() }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true }
+        }
+    });
+
+    // Gráfico Regional
+    const rLabels = a.por_regional.map(r => r.regional);
+    const rCotacoes = a.por_regional.map(r => r.cotacoes);
+    const rPesquisas = a.por_regional.map(r => r.pesquisas);
+
+    makeChart('chartPorRegional', 'bar', rLabels, [
+        { label: 'Cotações', data: rCotacoes, backgroundColor: '#2E7D32', borderRadius: 4 },
+        { label: 'Pesquisas', data: rPesquisas, backgroundColor: '#7B1FA2', borderRadius: 4 }
+    ], {
+        scales: {
+            x: { grid: { color: themeGrid() }, ticks: { color: themeLabel() } },
+            y: { grid: { color: themeGrid() }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true }
+        }
+    });
 }
 
 // ── USUÁRIOS ──────────────────────────────────────────────────────────────────

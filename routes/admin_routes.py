@@ -123,44 +123,63 @@ def painel_dados():
     usuario_ativo_count = usuario_ativo_c[1] if usuario_ativo_c else 0
 
     # ── ANÁLISES ADICIONAIS ───────────────────────────────────────────────────
-    # 1. Tempo médio por status (Cotações)
-    historico_all = HistoricoStatus.query.filter(HistoricoStatus.cotacao_id != None).order_by(HistoricoStatus.cotacao_id, HistoricoStatus.data_mudanca).all()
-    tempos_status = {}
-    
-    if historico_all:
-        last_id = None
-        last_date = None
-        last_status = None
-        
-        for h in historico_all:
+    # 1.1 Tempo médio por status (Cotações)
+    historico_c = HistoricoStatus.query.filter(HistoricoStatus.cotacao_id != None).order_by(HistoricoStatus.cotacao_id, HistoricoStatus.data_mudanca).all()
+    tempos_c = {}
+    if historico_c:
+        last_id, last_date, last_status = None, None, None
+        for h in historico_c:
             if h.cotacao_id != last_id:
-                last_id = h.cotacao_id
-                last_date = h.data_mudanca
-                last_status = h.status_novo
+                last_id, last_date, last_status = h.cotacao_id, h.data_mudanca, h.status_novo
                 continue
-                
             if last_status:
-                delta = (h.data_mudanca - last_date).total_seconds() / 3600.0
-                if last_status not in tempos_status:
-                    tempos_status[last_status] = []
-                tempos_status[last_status].append(delta)
+                delta = (h.data_mudanca - last_date).total_seconds() / 86400.0
+                if last_status not in tempos_c: tempos_c[last_status] = []
+                tempos_c[last_status].append(delta)
+            last_date, last_status = h.data_mudanca, h.status_novo
+    
+    # Adicionar tempo no status atual para cotações ativas
+    cotacoes_ativas = Cotacao.query.filter(~Cotacao.status.in_(['Cotação Finalizada', 'Cotação Perdida'])).all()
+    for c in cotacoes_ativas:
+        if c.status not in tempos_c: tempos_c[c.status] = []
+        delta = (datetime.now() - c.data_entrada_status).total_seconds() / 86400.0
+        tempos_c[c.status].append(delta)
             
-            last_date = h.data_mudanca
-            last_status = h.status_novo
-            
-        cotacoes_ativas = Cotacao.query.filter(~Cotacao.status.in_(['Cotação Finalizada', 'Cotação Perdida'])).all()
-        for c in cotacoes_ativas:
-            if c.status not in tempos_status:
-                tempos_status[c.status] = []
-            delta = (datetime.now() - c.data_entrada_status).total_seconds() / 3600.0
-            tempos_status[c.status].append(delta)
+    tempo_medio_cotacoes = []
+    for st, ts in tempos_c.items():
+        if not ts: continue
+        media = int(sum(ts) / len(ts))
+        tempo_medio_cotacoes.append({'status': st, 'media_dias': media})
+    tempo_medio_cotacoes.sort(key=lambda x: x['media_dias'], reverse=True)
 
-    tempo_medio_status = []
-    for st, tempos in tempos_status.items():
-        media_horas = sum(tempos) / len(tempos) if tempos else 0
-        media_dias = round(media_horas / 24, 1)
-        tempo_medio_status.append({'status': st, 'media_dias': media_dias})
-    tempo_medio_status.sort(key=lambda x: x['media_dias'], reverse=True)
+    # 1.2 Tempo médio por status (Pesquisas)
+    historico_p = HistoricoStatus.query.filter(HistoricoStatus.pesquisa_id != None).order_by(HistoricoStatus.pesquisa_id, HistoricoStatus.data_mudanca).all()
+    tempos_p = {}
+    if historico_p:
+        last_id, last_date, last_status = None, None, None
+        for h in historico_p:
+            if h.pesquisa_id != last_id:
+                last_id, last_date, last_status = h.pesquisa_id, h.data_mudanca, h.status_novo
+                continue
+            if last_status:
+                delta = (h.data_mudanca - last_date).total_seconds() / 86400.0
+                if last_status not in tempos_p: tempos_p[last_status] = []
+                tempos_p[last_status].append(delta)
+            last_date, last_status = h.data_mudanca, h.status_novo
+
+    # Adicionar tempo no status atual para pesquisas ativas
+    pesquisas_ativas = PesquisaMercado.query.filter(~PesquisaMercado.status.in_(['Finalizada', 'Perdida', 'Cotação Gerada'])).all()
+    for p in pesquisas_ativas:
+        if p.status not in tempos_p: tempos_p[p.status] = []
+        delta = (datetime.now() - p.data_entrada_status).total_seconds() / 86400.0
+        tempos_p[p.status].append(delta)
+
+    tempo_medio_pesquisas = []
+    for st, ts in tempos_p.items():
+        if not ts: continue
+        media = int(sum(ts) / len(ts))
+        tempo_medio_pesquisas.append({'status': st, 'media_dias': media})
+    tempo_medio_pesquisas.sort(key=lambda x: x['media_dias'], reverse=True)
 
     # 2. Cotações e Pesquisas por Loja
     lojas_c = db.session.query(Cotacao.nome_filial, func.count(Cotacao.id)).group_by(Cotacao.nome_filial).all()
@@ -223,7 +242,8 @@ def painel_dados():
             'usuario_mais_ativo_count': usuario_ativo_count,
         },
         'analises': {
-            'tempo_status': tempo_medio_status,
+            'tempo_status_cotacoes': tempo_medio_cotacoes,
+            'tempo_status_pesquisas': tempo_medio_pesquisas,
             'por_loja': por_loja,
             'por_regional': por_regional
         }

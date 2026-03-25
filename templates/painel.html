@@ -1,0 +1,722 @@
+{% extends "base.html" %}
+
+{% block title %}Painel de Análise - Cotações Cooxupé{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ===== PAINEL DE ANÁLISE ===== */
+    .painel-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 1.5rem 3rem;
+    }
+
+    /* Cabeçalho do painel */
+    .painel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .painel-header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .painel-header-title i {
+        font-size: 1.6rem;
+        color: var(--primary);
+    }
+
+    .painel-header-title h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .painel-header-title p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .painel-updated {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    /* Seção */
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--primary);
+    }
+
+    .section-title i {
+        color: var(--primary);
+    }
+
+    .section-divider {
+        margin: 2.5rem 0 1.5rem;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border-radius: var(--radius-md);
+        padding: 1.25rem 1rem;
+        box-shadow: var(--shadow-glass);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: var(--kpi-accent, var(--primary));
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 36px rgba(0,0,0,0.18);
+    }
+
+    [data-theme="dark"] .kpi-card {
+        background: rgba(40,40,40,0.85);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .kpi-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(46,125,50,0.12);
+        color: var(--kpi-accent, var(--primary));
+        font-size: 1rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .kpi-value {
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+
+    .kpi-label {
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        line-height: 1.2;
+    }
+
+    .kpi-sub {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        margin-top: 0.1rem;
+    }
+
+    /* Badges de acento */
+    .kpi-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.12rem 0.5rem;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .kpi-badge.success { background: rgba(76,175,80,0.15); color: var(--success); }
+    .kpi-badge.danger  { background: rgba(244, 67, 54, 0.15); color: var(--danger); }
+    .kpi-badge.warning { background: rgba(255,152,0,0.15); color: var(--warning); }
+    .kpi-badge.info    { background: rgba(33,150,243,0.15); color: var(--info); }
+
+    /* Charts Grid */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .charts-grid.three-cols {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .chart-card {
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        box-shadow: var(--shadow-glass);
+        transition: box-shadow 0.18s ease;
+    }
+
+    [data-theme="dark"] .chart-card {
+        background: rgba(40,40,40,0.85);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .chart-card-title {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .chart-card-title i {
+        color: var(--primary);
+        font-size: 0.9rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Tabela de top */
+    .top-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .top-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        font-size: 0.85rem;
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .top-list li {
+        border-color: rgba(255,255,255,0.06);
+    }
+
+    .top-list li:last-child { border-bottom: none; }
+
+    .top-rank {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .top-rank.rank-1 { background: #FFD700; color: #333; }
+    .top-rank.rank-2 { background: #C0C0C0; color: #333; }
+    .top-rank.rank-3 { background: #CD7F32; color: #fff; }
+
+    .top-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .top-count {
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    /* Loading skeleton */
+    .skeleton {
+        background: linear-gradient(90deg, rgba(200,200,200,0.3) 25%, rgba(200,200,200,0.15) 50%, rgba(200,200,200,0.3) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 6px;
+    }
+
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    /* Responsividade */
+    @media (max-width: 992px) {
+        .charts-grid { grid-template-columns: 1fr; }
+        .charts-grid.three-cols { grid-template-columns: 1fr; }
+        .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    }
+
+    @media (max-width: 576px) {
+        .painel-container { padding: 0 0.75rem 2rem; }
+        .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="painel-container">
+
+    <!-- Cabeçalho -->
+    <div class="painel-header">
+        <div class="painel-header-title">
+            <i class="fas fa-chart-line"></i>
+            <div>
+                <h2>Painel de Análise</h2>
+                <p>Métricas e indicadores do sistema</p>
+            </div>
+        </div>
+        <div class="painel-updated" id="painelUpdated">
+            <i class="fas fa-circle-notch fa-spin"></i> Carregando dados...
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SEÇÃO 1 — COTAÇÕES                                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="section-title">
+        <i class="fas fa-file-invoice-dollar"></i> Cotações
+    </div>
+
+    <!-- KPIs Cotações -->
+    <div class="kpi-grid" id="kpiCotacoes">
+        <!-- gerado via JS -->
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+    </div>
+
+    <!-- Gráficos Cotações -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-pie"></i> Distribuição por Status</div>
+            <div class="chart-wrapper"><canvas id="chartCotacoesStatus"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-bar"></i> Cotações por Mês (últimos 6 meses)</div>
+            <div class="chart-wrapper"><canvas id="chartCotacoesMes"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SEÇÃO 2 — PESQUISAS                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="section-divider"></div>
+    <div class="section-title">
+        <i class="fas fa-search-dollar"></i> Pesquisas de Mercado
+    </div>
+
+    <!-- KPIs Pesquisas -->
+    <div class="kpi-grid" id="kpiPesquisas">
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+    </div>
+
+    <!-- Gráficos Pesquisas -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-pie"></i> Pesquisas por Status</div>
+            <div class="chart-wrapper"><canvas id="chartPesquisasStatus"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-bar"></i> Pesquisas por Mês (últimos 6 meses)</div>
+            <div class="chart-wrapper"><canvas id="chartPesquisasMes"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Top Produtos e Concorrentes -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-seedling"></i> Top 5 Produtos Pesquisados</div>
+            <ul class="top-list" id="topProdutos">
+                <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
+                <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
+                <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
+            </ul>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-store"></i> Top 5 Concorrentes</div>
+            <ul class="top-list" id="topConcorrentes">
+                <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
+                <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
+                <li><span class="skeleton" style="width:100%;height:18px;display:block;"></span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SEÇÃO 3 — USUÁRIOS                                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="section-divider"></div>
+    <div class="section-title">
+        <i class="fas fa-users"></i> Usuários & Atividade
+    </div>
+
+    <!-- KPIs Usuários -->
+    <div class="kpi-grid" id="kpiUsuarios">
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:110px;"></div>
+    </div>
+
+    <!-- Gráfico Departamentos -->
+    <div class="charts-grid" style="grid-template-columns: 360px 1fr;">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-pie"></i> Usuários por Departamento</div>
+            <div class="chart-wrapper"><canvas id="chartDepartamentos"></canvas></div>
+        </div>
+        <div class="chart-card d-flex flex-column justify-content-center" id="cardUsuarioAtivo">
+            <div class="chart-card-title"><i class="fas fa-star"></i> Síntese Geral</div>
+            <div id="sintesesGerais" style="font-size:0.88rem; color: var(--text-secondary); line-height: 2;">
+                <span class="skeleton" style="width:80%;height:16px;display:block;margin-bottom:8px;"></span>
+                <span class="skeleton" style="width:60%;height:16px;display:block;margin-bottom:8px;"></span>
+                <span class="skeleton" style="width:70%;height:16px;display:block;"></span>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+// ── Paleta de cores ────────────────────────────────────────────────────────────
+const PALETTE = {
+    green:    ['#2E7D32','#4CAF50','#81C784','#A5D6A7','#C8E6C9','#E8F5E9'],
+    status: {
+        'Análise Comercial':     '#2E7D32',
+        'Análise Suprimentos':   '#0288D1',
+        'Avaliação Comercial':   '#7B1FA2',
+        'Aguardando Cooperado':  '#F9A825',
+        'Revisão Comercial':     '#E65100',
+        'Revisão Suprimentos':   '#AD1457',
+        'Cotação Finalizada':    '#43A047',
+        'Cotação Perdida':       '#C62828',
+    },
+    dept: { 'Comercial':'#2E7D32', 'Suprimentos':'#0288D1', 'Loja':'#F9A825', 'N/A':'#9E9E9E' },
+    multi: ['#2E7D32','#0288D1','#F9A825','#7B1FA2','#E65100','#AD1457','#00897B','#5D4037'],
+};
+
+// ── Detecção de tema ───────────────────────────────────────────────────────────
+function isDark() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function themeGrid() {
+    return isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+}
+
+function themeLabel() {
+    return isDark() ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)';
+}
+
+Chart.defaults.font.family = "'Inter', 'Segoe UI', sans-serif";
+
+// ── Gráficos registrados para atualizar ao trocar tema ────────────────────────
+const registeredCharts = [];
+
+function makeChart(id, type, labels, datasets, extraOptions={}) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    const cfg = {
+        type,
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: themeLabel(), font: { size: 11 }, padding: 12 }
+                },
+                tooltip: { mode: 'index', intersect: false }
+            },
+            ...extraOptions
+        }
+    };
+    const chart = new Chart(ctx, cfg);
+    registeredCharts.push(chart);
+    return chart;
+}
+
+// ── Render KPI card ────────────────────────────────────────────────────────────
+function renderKPI(container, cards) {
+    container.innerHTML = cards.map(c => `
+        <div class="kpi-card" style="--kpi-accent:${c.color||'var(--primary)'}">
+            <div class="kpi-icon" style="background:${(c.color||'#2E7D32')}22;color:${c.color||'var(--primary)'}">
+                <i class="fas ${c.icon}"></i>
+            </div>
+            <div class="kpi-value">${c.value}</div>
+            <div class="kpi-label">${c.label}</div>
+            ${c.badge ? `<span class="kpi-badge ${c.badge.type}">${c.badge.text}</span>` : ''}
+            ${c.sub ? `<div class="kpi-sub">${c.sub}</div>` : ''}
+        </div>
+    `).join('');
+}
+
+// ── Render top list ────────────────────────────────────────────────────────────
+function renderTopList(id, items, nameKey, countKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!items || items.length === 0) {
+        el.innerHTML = '<li style="color:var(--text-muted);font-size:0.83rem;">Sem dados disponíveis</li>';
+        return;
+    }
+    el.innerHTML = items.map((it, i) => `
+        <li>
+            <span class="top-rank rank-${i+1}">${i+1}</span>
+            <span class="top-name">${it[nameKey] || '-'}</span>
+            <span class="top-count">${it[countKey]}</span>
+        </li>
+    `).join('');
+}
+
+// ── Carregamento principal ─────────────────────────────────────────────────────
+async function carregarPainel() {
+    try {
+        const res = await fetch('/api/painel/dados');
+        if (!res.ok) throw new Error('Erro ao carregar dados');
+        const d = await res.json();
+        window._painelData = d;
+
+        const now = new Date();
+        document.getElementById('painelUpdated').innerHTML =
+            `<i class="fas fa-check-circle" style="color:var(--success)"></i> Atualizado às ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`;
+
+        renderCotacoes(d.cotacoes);
+        renderPesquisas(d.pesquisas);
+        renderUsuarios(d.usuarios);
+
+    } catch(e) {
+        console.error(e);
+        document.getElementById('painelUpdated').innerHTML =
+            `<i class="fas fa-exclamation-circle" style="color:var(--danger)"></i> Erro ao carregar dados`;
+    }
+}
+
+// ── COTAÇÕES ──────────────────────────────────────────────────────────────────
+function renderCotacoes(c) {
+    renderKPI(document.getElementById('kpiCotacoes'), [
+        { icon:'fa-list',            label:'Total de Cotações',    value: c.total,         color:'#2E7D32' },
+        { icon:'fa-spinner',         label:'Em Andamento',         value: c.em_andamento,  color:'#0288D1',
+          badge: c.total > 0 ? {type:'info', text: Math.round(c.em_andamento/c.total*100)+'%'} : null },
+        { icon:'fa-check-circle',    label:'Finalizadas',          value: c.finalizadas,   color:'#43A047',
+          badge: {type:'success', text:'✓'} },
+        { icon:'fa-times-circle',    label:'Perdidas',             value: c.perdidas,      color:'#C62828',
+          badge: c.perdidas > 0 ? {type:'danger', text:'✗'} : null },
+        { icon:'fa-trophy',          label:'Taxa de Sucesso',      value: c.taxa_sucesso+'%', color:'#F9A825',
+          sub: 'Finalizadas / (Fin. + Perdidas)', badge: {type: c.taxa_sucesso>=50?'success':'warning', text: c.taxa_sucesso+'%'} },
+    ]);
+
+    // Gráfico pizza — status
+    const statusLabels = c.dist_status.map(s => s.status);
+    const statusData   = c.dist_status.map(s => s.total);
+    const statusColors = statusLabels.map(l => PALETTE.status[l] || '#9E9E9E');
+
+    makeChart('chartCotacoesStatus', 'doughnut', statusLabels, [{
+        data: statusData,
+        backgroundColor: statusColors,
+        borderWidth: 2,
+        borderColor: isDark() ? '#1e1e1e' : '#fff',
+        hoverOffset: 8
+    }], {
+        plugins: { legend: { position: 'bottom', labels: {color:themeLabel(), font:{size:11}, padding:10} }},
+        cutout: '55%'
+    });
+
+    // Gráfico barras — meses
+    const mesLabels = c.por_mes.map(m => m.label);
+    const mesData   = c.por_mes.map(m => m.total);
+    makeChart('chartCotacoesMes', 'bar', mesLabels, [{
+        label: 'Cotações',
+        data: mesData,
+        backgroundColor: 'rgba(46,125,50,0.75)',
+        borderRadius: 6,
+        borderSkipped: false
+    }], {
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { color: themeGrid() }, ticks: { color: themeLabel() } },
+            y: { grid: { color: themeGrid() }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true }
+        }
+    });
+}
+
+// ── PESQUISAS ─────────────────────────────────────────────────────────────────
+function renderPesquisas(p) {
+    renderKPI(document.getElementById('kpiPesquisas'), [
+        { icon:'fa-clipboard-list',  label:'Total de Pesquisas',   value: p.total,          color:'#7B1FA2' },
+        { icon:'fa-spinner',         label:'Em Andamento',         value: p.em_andamento,   color:'#0288D1' },
+        { icon:'fa-exchange-alt',    label:'Convertidas',          value: p.convertidas,    color:'#43A047',
+          sub: 'Que geraram cotação' },
+        { icon:'fa-percent',         label:'Taxa de Conversão',    value: p.taxa_conversao+'%', color:'#E65100',
+          badge: {type: p.taxa_conversao>=50?'success':'warning', text: p.taxa_conversao+'%'} },
+    ]);
+
+    // Gráfico pizza — status pesquisas
+    const sLabels = p.dist_status.map(s => s.status);
+    const sData   = p.dist_status.map(s => s.total);
+    const sColors = sLabels.map(l => PALETTE.status[l] || '#9E9E9E');
+
+    makeChart('chartPesquisasStatus', 'doughnut', sLabels, [{
+        data: sData,
+        backgroundColor: sColors,
+        borderWidth: 2,
+        borderColor: isDark() ? '#1e1e1e' : '#fff',
+        hoverOffset: 8
+    }], {
+        plugins: { legend: { position: 'bottom', labels: {color:themeLabel(), font:{size:11}, padding:10} }},
+        cutout: '55%'
+    });
+
+    // Gráfico barras — meses pesquisas
+    const mLabels = p.por_mes.map(m => m.label);
+    const mData   = p.por_mes.map(m => m.total);
+    makeChart('chartPesquisasMes', 'bar', mLabels, [{
+        label: 'Pesquisas',
+        data: mData,
+        backgroundColor: 'rgba(123,31,162,0.7)',
+        borderRadius: 6,
+        borderSkipped: false
+    }], {
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid:{color:themeGrid()}, ticks:{color:themeLabel()} },
+            y: { grid:{color:themeGrid()}, ticks:{color:themeLabel(), precision:0}, beginAtZero: true }
+        }
+    });
+
+    renderTopList('topProdutos',    p.top_produtos,    'produto',     'total');
+    renderTopList('topConcorrentes', p.top_concorrentes, 'concorrente', 'total');
+}
+
+// ── USUÁRIOS ──────────────────────────────────────────────────────────────────
+function renderUsuarios(u) {
+    renderKPI(document.getElementById('kpiUsuarios'), [
+        { icon:'fa-users',           label:'Total de Usuários',     value: u.total,   color:'#0288D1' },
+        { icon:'fa-crown',           label:'Administradores',       value: u.admins,  color:'#F9A825' },
+        { icon:'fa-user',            label:'Usuários Comuns',       value: u.comuns,  color:'#2E7D32' },
+        { icon:'fa-star',            label:'Vendedor Mais Ativo',   value: u.usuario_mais_ativo || '-',
+          color:'#E65100', sub: u.usuario_mais_ativo_count > 0 ? u.usuario_mais_ativo_count + ' cotações registradas' : '' },
+    ]);
+
+    // Gráfico rosca — departamentos
+    const dLabels = u.dist_departamentos.map(d => d.departamento);
+    const dData   = u.dist_departamentos.map(d => d.total);
+    const dColors = dLabels.map(l => PALETTE.dept[l] || '#9E9E9E');
+
+    makeChart('chartDepartamentos', 'doughnut', dLabels, [{
+        data: dData,
+        backgroundColor: dColors,
+        borderWidth: 2,
+        borderColor: isDark() ? '#1e1e1e' : '#fff',
+        hoverOffset: 8
+    }], {
+        plugins: { legend: { position: 'bottom', labels: {color:themeLabel(), font:{size:11}, padding:10} }},
+        cutout: '60%'
+    });
+
+    // Síntese geral
+    const totalOps = (window._painelData?.cotacoes?.total || 0) + (window._painelData?.pesquisas?.total || 0);
+    document.getElementById('sintesesGerais').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+                <i class="fas fa-users" style="color:var(--primary);width:18px;"></i>
+                <span><strong>${u.total}</strong> usuário${u.total !== 1 ? 's' : ''} cadastrado${u.total !== 1 ? 's' : ''} no sistema</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+                <i class="fas fa-crown" style="color:#F9A825;width:18px;"></i>
+                <span><strong>${u.admins}</strong> administrador${u.admins !== 1 ? 'es' : ''} / <strong>${u.comuns}</strong> usuário${u.comuns !== 1 ? 's' : ''} comum${u.comuns !== 1 ? 'ns' : ''}</span>
+            </div>
+            ${u.usuario_mais_ativo !== '-' ? `
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+                <i class="fas fa-star" style="color:#E65100;width:18px;"></i>
+                <span>Vendedor mais ativo: <strong>${u.usuario_mais_ativo}</strong> (${u.usuario_mais_ativo_count} cotações)</span>
+            </div>` : ''}
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+                <i class="fas fa-building" style="color:var(--info);width:18px;"></i>
+                <span>${u.dist_departamentos.map(d=>`<strong>${d.departamento}</strong>: ${d.total}`).join(' · ')}</span>
+            </div>
+        </div>
+    `;
+}
+
+// ── Atualizar cores dos gráficos ao trocar tema ────────────────────────────────
+window.addEventListener('themechange', () => {
+    registeredCharts.forEach(chart => {
+        if (chart.options.plugins?.legend?.labels) {
+            chart.options.plugins.legend.labels.color = themeLabel();
+        }
+        if (chart.options.scales) {
+            Object.values(chart.options.scales).forEach(scale => {
+                if (scale.ticks) scale.ticks.color = themeLabel();
+                if (scale.grid) scale.grid.color = themeGrid();
+            });
+        }
+        // Atualizar cor da borda das roscas/pizzas
+        if (chart.data.datasets) {
+            chart.data.datasets.forEach(ds => {
+                if (ds.borderColor && (chart.config.type === 'doughnut' || chart.config.type === 'pie')) {
+                    ds.borderColor = isDark() ? '#1e1e1e' : '#fff';
+                }
+            });
+        }
+        chart.update('none');
+    });
+});
+
+// Inicializar
+carregarPainel();
+</script>
+{% endblock %}

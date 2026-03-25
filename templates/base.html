@@ -70,11 +70,16 @@
                     <span>Nova Pesquisa</span>
                 </a>
 
+                <a href="{{ url_for('admin.painel_analytics') }}" class="btn btn-outline-success text-nowrap"
+                    style="font-size: 0.9rem;" title="Painel de Análise">
+                    <i class="fas fa-chart-line"></i>
+                    <span class="d-none d-lg-inline">Painel</span>
+                </a>
+
                 {% if current_user.is_admin %}
                 <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-success text-nowrap"
-                    style="font-size: 0.9rem;" title="Painel de Administração">
+                    style="font-size: 0.9rem;" title="Configurações">
                     <i class="fas fa-cog"></i>
-                    <span class="d-none d-lg-inline">Configurações</span>
                 </a>
                 {% endif %}
 

@@ -68,4 +68,5 @@ Thumbs.db
 
 # Atalhos locais
 *.bat
+!service/*.bat
 *.url

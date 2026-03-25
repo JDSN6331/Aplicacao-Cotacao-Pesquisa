@@ -409,12 +409,23 @@
 
     <div class="charts-grid">
         <div class="chart-card">
-            <div class="chart-card-title"><i class="fas fa-store"></i> Operações por Loja (Top 10)</div>
-            <div class="chart-wrapper"><canvas id="chartPorLoja"></canvas></div>
+            <div class="chart-card-title"><i class="fas fa-store"></i> Cotações por Loja (Top 10)</div>
+            <div class="chart-wrapper"><canvas id="chartCotacoesPorLoja"></canvas></div>
         </div>
         <div class="chart-card">
-            <div class="chart-card-title"><i class="fas fa-map"></i> Operações por Regional</div>
-            <div class="chart-wrapper"><canvas id="chartPorRegional"></canvas></div>
+            <div class="chart-card-title"><i class="fas fa-store"></i> Pesquisas por Loja (Top 10)</div>
+            <div class="chart-wrapper"><canvas id="chartPesquisasPorLoja"></canvas></div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-map"></i> Cotações por Regional</div>
+            <div class="chart-wrapper"><canvas id="chartCotacoesPorRegional"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-map"></i> Pesquisas por Regional</div>
+            <div class="chart-wrapper"><canvas id="chartPesquisasPorRegional"></canvas></div>
         </div>
     </div>
 
@@ -576,8 +587,7 @@ async function carregarPainel() {
 function renderCotacoes(c, analises) {
     renderKPI(document.getElementById('kpiCotacoes'), [
         { icon:'fa-list',            label:'Total de Cotações',    value: c.total,         color:'#2E7D32' },
-        { icon:'fa-spinner',         label:'Em Andamento',         value: c.em_andamento,  color:'#0288D1',
-          badge: c.total > 0 ? {type:'info', text: Math.round(c.em_andamento/c.total*100)+'%'} : null },
+        { icon:'fa-spinner',         label:'Em Andamento',         value: c.em_andamento,  color:'#0288D1' },
         { icon:'fa-check-circle',    label:'Finalizadas',          value: c.finalizadas,   color:'#43A047' },
         { icon:'fa-times-circle',    label:'Perdidas',             value: c.perdidas,      color:'#C62828',
           badge: c.perdidas > 0 ? {type:'danger', text:'✗'} : null },
@@ -699,8 +709,16 @@ function renderLocalidade(a) {
     const lCotacoes = a.por_loja.map(l => l.cotacoes);
     const lPesquisas = a.por_loja.map(l => l.pesquisas);
 
-    makeChart('chartPorLoja', 'bar', lLabels, [
-        { label: 'Cotações', data: lCotacoes, backgroundColor: '#2E7D32', borderRadius: 4 },
+    makeChart('chartCotacoesPorLoja', 'bar', lLabels, [
+        { label: 'Cotações', data: lCotacoes, backgroundColor: '#2E7D32', borderRadius: 4 }
+    ], {
+        scales: {
+            x: { grid: { color: themeGrid() }, ticks: { color: themeLabel() } },
+            y: { grid: { color: themeGrid() }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true }
+        }
+    });
+
+    makeChart('chartPesquisasPorLoja', 'bar', lLabels, [
         { label: 'Pesquisas', data: lPesquisas, backgroundColor: '#7B1FA2', borderRadius: 4 }
     ], {
         scales: {
@@ -714,8 +732,16 @@ function renderLocalidade(a) {
     const rCotacoes = a.por_regional.map(r => r.cotacoes);
     const rPesquisas = a.por_regional.map(r => r.pesquisas);
 
-    makeChart('chartPorRegional', 'bar', rLabels, [
-        { label: 'Cotações', data: rCotacoes, backgroundColor: '#2E7D32', borderRadius: 4 },
+    makeChart('chartCotacoesPorRegional', 'bar', rLabels, [
+        { label: 'Cotações', data: rCotacoes, backgroundColor: '#2E7D32', borderRadius: 4 }
+    ], {
+        scales: {
+            x: { grid: { color: themeGrid() }, ticks: { color: themeLabel() } },
+            y: { grid: { color: themeGrid() }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true }
+        }
+    });
+
+    makeChart('chartPesquisasPorRegional', 'bar', rLabels, [
         { label: 'Pesquisas', data: rPesquisas, backgroundColor: '#7B1FA2', borderRadius: 4 }
     ], {
         scales: {

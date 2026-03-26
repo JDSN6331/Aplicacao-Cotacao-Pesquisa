@@ -1471,7 +1471,7 @@
         if (!dataEntrada) return '-';
         const entrada = new Date(dataEntrada);
         const agora = new Date();
-        const diff = Math.floor((agora - entrada) / (1000 * 60 * 60 * 24));
+        const diff = Math.round((agora - entrada) / (1000 * 60 * 60 * 24));
         return diff >= 0 ? diff + ' dias' : '0 dias';
     }
 

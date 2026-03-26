@@ -61,7 +61,7 @@ class Cotacao(db.Model):
     __tablename__ = 'cotacoes'
     
     id = db.Column(db.Integer, primary_key=True)
-    data = db.Column(db.Date, nullable=False, default=datetime.now().date)
+    data = db.Column(db.Date, nullable=False, default=lambda: datetime.now().date())
     nome_filial = db.Column(db.String(100), nullable=False)
     numero_mesorregiao = db.Column(db.String(100), nullable=False)
     matricula_cooperado = db.Column(db.String(100), nullable=False)
@@ -90,7 +90,11 @@ class Cotacao(db.Model):
         return f'<Cotacao {self.id}>'
     
     def to_dict(self):
-        dias_no_status = (datetime.now().date() - self.data).days
+        # Calcular diferença de dias com base no arredondamento de 12 horas (<12h = 0, >12h = 1)
+        agora = datetime.now()
+        entrada = self.data_entrada_status or agora
+        diff_segundos = (agora - entrada).total_seconds()
+        dias_no_status = round(diff_segundos / 86400)
         valor_total = sum([produto.valor_total_com_frete or 0 for produto in self.produtos]) if self.produtos else 0
         fornecedor = self.produtos[0].fornecedor if self.produtos and self.produtos[0].fornecedor else '-'
         return {
@@ -158,7 +162,7 @@ class PesquisaMercado(db.Model):
     __tablename__ = 'pesquisas_mercado'
     
     id = db.Column(db.Integer, primary_key=True)
-    data = db.Column(db.Date, nullable=False, default=datetime.now().date)
+    data = db.Column(db.Date, nullable=False, default=lambda: datetime.now().date())
     nome_filial = db.Column(db.String(100), nullable=False)
     numero_mesorregiao = db.Column(db.String(100), nullable=False)
     matricula_cooperado = db.Column(db.String(100), nullable=False)
@@ -194,7 +198,11 @@ class PesquisaMercado(db.Model):
                                         foreign_keys='HistoricoStatus.pesquisa_id')
     
     def to_dict(self):
-        dias_no_status = (datetime.now().date() - self.data).days
+        # Calcular diferença de dias com base no arredondamento de 12 horas (<12h = 0, >12h = 1)
+        agora = datetime.now()
+        entrada = self.data_entrada_status or agora
+        diff_segundos = (agora - entrada).total_seconds()
+        dias_no_status = round(diff_segundos / 86400)
         return {
             'id': self.id,
             'data': self.data.strftime('%d/%m/%Y'),

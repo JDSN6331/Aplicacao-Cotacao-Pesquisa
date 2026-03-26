@@ -77,7 +77,7 @@ def painel_dados():
     pesquisas_convertidas = PesquisaMercado.query.filter_by(cotacao_gerada=True).count()
     taxa_conversao = round(pesquisas_convertidas / total_pesquisas * 100, 1) if total_pesquisas > 0 else 0
     em_andamento_p = PesquisaMercado.query.filter(
-        PesquisaMercado.status.notin_(['Cotação Finalizada', 'Cotação Perdida'])
+        PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])
     ).count()
 
     # Top 5 Produtos COTADOS
@@ -132,7 +132,8 @@ def painel_dados():
             if h.cotacao_id != last_id:
                 last_id, last_date, last_status = h.cotacao_id, h.data_mudanca, h.status_novo
                 continue
-            if last_status:
+            # Só contar transições entre status DIFERENTES
+            if last_status and h.status_novo != last_status:
                 delta = (h.data_mudanca - last_date).total_seconds() / 86400.0
                 if last_status not in tempos_c: tempos_c[last_status] = []
                 tempos_c[last_status].append(delta)
@@ -148,7 +149,7 @@ def painel_dados():
     tempo_medio_cotacoes = []
     for st, ts in tempos_c.items():
         if not ts: continue
-        media = int(sum(ts) / len(ts))
+        media = round(sum(ts) / len(ts))
         tempo_medio_cotacoes.append({'status': st, 'media_dias': media})
     tempo_medio_cotacoes.sort(key=lambda x: x['media_dias'], reverse=True)
 
@@ -161,14 +162,16 @@ def painel_dados():
             if h.pesquisa_id != last_id:
                 last_id, last_date, last_status = h.pesquisa_id, h.data_mudanca, h.status_novo
                 continue
-            if last_status:
+            # Só contar transições entre status DIFERENTES
+            if last_status and h.status_novo != last_status:
                 delta = (h.data_mudanca - last_date).total_seconds() / 86400.0
                 if last_status not in tempos_p: tempos_p[last_status] = []
                 tempos_p[last_status].append(delta)
             last_date, last_status = h.data_mudanca, h.status_novo
 
     # Adicionar tempo no status atual para pesquisas ativas
-    pesquisas_ativas = PesquisaMercado.query.filter(~PesquisaMercado.status.in_(['Finalizada', 'Perdida', 'Cotação Gerada'])).all()
+    # Adicionar tempo no status atual para pesquisas ativas
+    pesquisas_ativas = PesquisaMercado.query.filter(PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])).all()
     for p in pesquisas_ativas:
         if p.status not in tempos_p: tempos_p[p.status] = []
         delta = (datetime.now() - p.data_entrada_status).total_seconds() / 86400.0
@@ -177,7 +180,7 @@ def painel_dados():
     tempo_medio_pesquisas = []
     for st, ts in tempos_p.items():
         if not ts: continue
-        media = int(sum(ts) / len(ts))
+        media = round(sum(ts) / len(ts))
         tempo_medio_pesquisas.append({'status': st, 'media_dias': media})
     tempo_medio_pesquisas.sort(key=lambda x: x['media_dias'], reverse=True)
 

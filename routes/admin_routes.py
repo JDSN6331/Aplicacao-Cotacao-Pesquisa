@@ -61,8 +61,14 @@ def painel_dados():
     hoje = datetime.now()
     meses = []
     for i in range(5, -1, -1):
-        d = hoje - timedelta(days=i * 30)
-        meses.append({'mes': d.month, 'ano': d.year, 'label': d.strftime('%b/%y')})
+        # Aritmética correta de meses para evitar meses duplicados/pulados
+        m = hoje.month - i
+        y = hoje.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        d = hoje.replace(year=y, month=m, day=1)
+        meses.append({'mes': m, 'ano': y, 'label': d.strftime('%b/%y')})
 
     cotacoes_por_mes = []
     for m in meses:

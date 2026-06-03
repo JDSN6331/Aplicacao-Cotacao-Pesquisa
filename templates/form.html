@@ -135,6 +135,84 @@
         border-color: #198754 !important;
         box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
     }
+
+    /* Estilos para Histórico Padronizado */
+    .historico-timeline {
+        padding: 0.5rem 0;
+    }
+
+    .historico-card {
+        background: #ffffff;
+        border: 1px solid #e9ecef;
+        border-left: 4px solid #0d6efd;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .historico-card:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-left-color: #0d6efd;
+    }
+
+    /* Card para Status (azul/primário) */
+    .historico-card:has(i.fa-circle-notch) {
+        border-left-color: #0d6efd;
+    }
+
+    .historico-card:has(i.fa-circle-notch):hover {
+        border-left-color: #0c5de9;
+    }
+
+    /* Card para Edições de Campo (turquesa/info) */
+    .historico-card:has(i.fa-edit) {
+        border-left-color: #17a2b8;
+    }
+
+    .historico-card:has(i.fa-edit):hover {
+        border-left-color: #138496;
+    }
+
+    .historico-card-header {
+        gap: 0.75rem !important;
+    }
+
+    .historico-card-header i {
+        flex-shrink: 0;
+    }
+
+    .historico-card-body {
+        margin-top: 0.75rem;
+    }
+
+    .historico-card-body .text-muted {
+        color: #6c757d !important;
+    }
+
+    .historico-card-body .alert {
+        border-radius: 0.25rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0;
+    }
+
+    /* Estilos para boxes de antes/depois */
+    .historico-card-body > div[style*="background-color: rgba(255,193,7"] {
+        border-radius: 0.375rem;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .historico-card-body > div[style*="background-color: rgba(255,193,7"]:hover {
+        background-color: rgba(255, 193, 7, 0.15) !important;
+    }
+
+    .historico-card-body > div[style*="background-color: rgba(40,167,69"] {
+        border-radius: 0.375rem;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .historico-card-body > div[style*="background-color: rgba(40,167,69"]:hover {
+        background-color: rgba(40, 167, 69, 0.15) !important;
+    }
 </style>
 
 <div class="container mt-4">
@@ -177,18 +255,41 @@
                 </p>
             </div>
 
-            <!-- Histórico de Status (somente para cotações existentes) -->
+            <!-- Históricos com Abas (somente para cotações existentes) -->
             {% if cotacao %}
             <div class="mb-4">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse"
-                    data-bs-target="#historicoCollapse" aria-expanded="false">
-                    <i class="fas fa-history"></i> Ver Histórico de Status
+                    data-bs-target="#historicoCollapseContainer" aria-expanded="false" aria-controls="historicoCollapseContainer">
+                    <i class="fas fa-history"></i> Ver Históricos
                 </button>
-                <div class="collapse mt-3" id="historicoCollapse">
-                    <div class="card card-body" style="background-color: var(--bg-tertiary);">
-                        <h6 class="mb-3"><i class="fas fa-clock"></i> Histórico de Alterações</h6>
-                        <div id="historicoTimeline" class="timeline-container">
-                            <p class="text-muted">Carregando...</p>
+                <div class="collapse mt-3" id="historicoCollapseContainer">
+                    <div class="card historico-card-container">
+                        <div class="card-header historico-tabs-header">
+                            <h5 class="mb-0"><i class="fas fa-history"></i> Históricos</h5>
+                        </div>
+                        <ul class="nav nav-tabs historico-nav-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-status" data-bs-toggle="tab" data-bs-target="#historico-status-pane" type="button" role="tab" aria-controls="historico-status-pane" aria-selected="true">
+                                    <i class="fas fa-circle-notch"></i> Mudanças de Status
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-fields" data-bs-toggle="tab" data-bs-target="#historico-fields-pane" type="button" role="tab" aria-controls="historico-fields-pane" aria-selected="false">
+                                    <i class="fas fa-pen"></i> Alterações de Campos
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content historico-tab-content">
+                            <div class="tab-pane fade show active" id="historico-status-pane" role="tabpanel" aria-labelledby="tab-status">
+                                <div id="historicoTimeline" class="timeline-container">
+                                    <p class="text-muted">Carregando...</p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="historico-fields-pane" role="tabpanel" aria-labelledby="tab-fields">
+                                <div id="historicoEdicoesTimeline" class="timeline-container">
+                                    <p class="text-muted">Carregando...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -429,56 +530,129 @@
                                 }
                             }
 
-                            // Validação do campo de anexos para Cotação
+                            // ===== SISTEMA DE ACÚMULO DE ANEXOS (ANTES DE SALVAR) =====
+                            // Array para manter os arquivos selecionados (não salvos ainda)
+                            let selectedFilesForUpload = [];
+
+                            function addFilesToUpload(newFiles) {
+                                const errorDiv = document.getElementById('anexoError');
+                                const MAX_ANEXOS = 5;
+                                const listaExistentes = document.getElementById('lista-anexos-existentes');
+                                const anexosExistentes = listaExistentes ? listaExistentes.querySelectorAll('li').length : 0;
+
+                                // Validações gerais
+                                let filesValid = [];
+                                let errors = [];
+                                const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
+                                const ALLOWED_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'];
+
+                                for (let i = 0; i < newFiles.length; i++) {
+                                    const file = newFiles[i];
+                                    
+                                    // Validar tamanho
+                                    if (file.size > MAX_FILE_SIZE) {
+                                        const tamanhoMB = (file.size / (1024 * 1024)).toFixed(1);
+                                        errors.push(`${file.name}: ${tamanhoMB} MB (limite: 16 MB)`);
+                                        continue;
+                                    }
+                                    
+                                    // Validar extensão
+                                    const ext = file.name.split('.').pop().toLowerCase();
+                                    if (!ALLOWED_EXTS.includes(ext)) {
+                                        errors.push(`${file.name}: formato inválido`);
+                                        continue;
+                                    }
+                                    
+                                    filesValid.push(file);
+                                }
+
+                                // Mostrar erros, se houver
+                                if (errors.length > 0) {
+                                    errorDiv.textContent = 'Erros: ' + errors.join('; ');
+                                    errorDiv.style.display = 'block';
+                                    document.getElementById('anexo').classList.add('is-invalid');
+                                }
+
+                                // Validar limite total
+                                const totalArquivos = anexosExistentes + selectedFilesForUpload.length + filesValid.length;
+                                if (totalArquivos > MAX_ANEXOS) {
+                                    const disponivel = MAX_ANEXOS - anexosExistentes - selectedFilesForUpload.length;
+                                    const msg = `Limite excedido! Máximo ${MAX_ANEXOS} arquivos. Você já tem ${anexosExistentes} salvo(s) + ${selectedFilesForUpload.length} selecionado(s). Pode adicionar apenas ${disponivel} arquivo(s).`;
+                                    alert(msg);
+                                    errorDiv.textContent = msg;
+                                    errorDiv.style.display = 'block';
+                                    document.getElementById('anexo').classList.add('is-invalid');
+                                    document.getElementById('anexo').value = '';
+                                    return;
+                                }
+
+                                // Adicionar arquivos válidos ao array
+                                selectedFilesForUpload.push(...filesValid);
+
+                                // Limpar input e mensagens de erro se tudo OK
+                                if (errors.length === 0 && filesValid.length > 0) {
+                                    errorDiv.textContent = '';
+                                    errorDiv.style.display = 'none';
+                                    document.getElementById('anexo').classList.remove('is-invalid');
+                                }
+
+                                // Limpar input file (vai para vazio para permitir selecionar mesmo arquivo novamente)
+                                document.getElementById('anexo').value = '';
+
+                                // Atualizar visualização
+                                updateFileListDisplay();
+                            }
+
+                            function removeFileFromUpload(index) {
+                                selectedFilesForUpload.splice(index, 1);
+                                updateFileListDisplay();
+                            }
+
+                            function updateFileListDisplay() {
+                                let listContainer = document.getElementById('lista-arquivos-selecionados');
+                                
+                                if (!listContainer) {
+                                    // Criar container se não existir
+                                    const anexoContainer = document.getElementById('anexo').parentElement;
+                                    listContainer = document.createElement('div');
+                                    listContainer.id = 'lista-arquivos-selecionados';
+                                    listContainer.className = 'mt-3';
+                                    anexoContainer.appendChild(listContainer);
+                                }
+
+                                if (selectedFilesForUpload.length === 0) {
+                                    listContainer.innerHTML = '';
+                                    return;
+                                }
+
+                                let html = '<div class="d-flex align-items-center mb-2"><label class="form-label text-muted small mb-0"><i class="fas fa-hourglass-start me-1"></i>Arquivos a anexar (antes de salvar):</label></div>';
+                                html += '<ul class="list-group list-group-flush">';
+                                
+                                selectedFilesForUpload.forEach((file, index) => {
+                                    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                                    html += `
+                                        <li class="list-group-item d-flex justify-content-between align-items-center p-2 bg-warning bg-opacity-10 border-warning" id="file-${index}">
+                                            <span>
+                                                <i class="fas fa-file me-2"></i>${file.name} <small class="text-muted">(${sizeMB} MB)</small>
+                                            </span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFileFromUpload(${index})">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </li>
+                                    `;
+                                });
+
+                                html += '</ul>';
+                                listContainer.innerHTML = html;
+                            }
+
+                            // Event listener para acumular arquivos
                             document.addEventListener('DOMContentLoaded', function () {
                                 const anexoInput = document.getElementById('anexo');
                                 if (anexoInput) {
                                     anexoInput.addEventListener('change', function () {
-                                        const files = this.files;
-                                        const numArquivosSelecionados = files.length;
-                                        const errorDiv = document.getElementById('anexoError');
-                                        const MAX_ANEXOS = 5;
-                                        const listaExistentes = document.getElementById('lista-anexos-existentes');
-                                        const anexosExistentes = listaExistentes ? listaExistentes.querySelectorAll('li').length : 0;
-
-                                        if (numArquivosSelecionados + anexosExistentes > MAX_ANEXOS) {
-                                            const disponivel = MAX_ANEXOS - anexosExistentes;
-                                            errorDiv.textContent = `Limite excedido! Máximo ${MAX_ANEXOS} arquivos. Você já tem ${anexosExistentes} anexado(s), pode adicionar mais ${disponivel}.`;
-                                            this.classList.add('is-invalid');
-                                            errorDiv.style.display = 'block';
-                                            alert(`Limite de ${MAX_ANEXOS} arquivos excedido! Você selecionou ${numArquivosSelecionados} arquivo(s) mas só pode adicionar mais ${disponivel}.`);
-                                            this.value = '';
-                                            return;
-                                        }
-
-                                        let valid = true;
-                                        const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
-                                        for (let i = 0; i < files.length; i++) {
-                                            // Validar tamanho do arquivo
-                                            if (files[i].size > MAX_FILE_SIZE) {
-                                                const tamanhoMB = (files[i].size / (1024 * 1024)).toFixed(1);
-                                                errorDiv.textContent = `O arquivo "${files[i].name}" tem ${tamanhoMB} MB e excede o limite de 16 MB. Por favor, reduza o tamanho do arquivo.`;
-                                                this.classList.add('is-invalid');
-                                                errorDiv.style.display = 'block';
-                                                alert(`O arquivo "${files[i].name}" é muito grande (${tamanhoMB} MB). O tamanho máximo permitido é de 16 MB por arquivo.`);
-                                                this.value = '';
-                                                return;
-                                            }
-                                            const ext = files[i].name.split('.').pop().toLowerCase();
-                                            if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'].indexOf(ext) === -1) {
-                                                valid = false;
-                                                break;
-                                            }
-                                        }
-
-                                        if (!valid) {
-                                            errorDiv.textContent = 'Formato inválido! Formatos permitidos: PDF, Word, Excel e Imagens.';
-                                            this.classList.add('is-invalid');
-                                            errorDiv.style.display = 'block';
-                                            this.value = '';
-                                        } else {
-                                            errorDiv.textContent = '';
-                                            this.classList.remove('is-invalid');
+                                        if (this.files && this.files.length > 0) {
+                                            addFilesToUpload(this.files);
                                         }
                                     });
                                 }
@@ -560,7 +734,16 @@
 </script>
 {% endif %}
 
-
+<!-- Variáveis de permissão passadas do backend -->
+<script>
+    // @ts-nocheck
+    window.podeEditarCampos = {{ 'true' if pode_editar is not defined or pode_editar else 'false' }};
+    window.usuarioDepto = '{{ usuario_depto if usuario_depto is defined else 'N/A' }}';
+    console.log('Permissões de campos:', {
+        pode_editar_campos: window.podeEditarCampos,
+        usuario_depto: window.usuarioDepto
+    });
+</script>
 
 <script src="{{ url_for('static', filename='js/cotacao.js') }}?v=18"></script>
 {% endblock %}

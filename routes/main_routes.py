@@ -4,10 +4,23 @@ from services.utils import carregar_filiais_mesoregioes, carregar_contas_cache, 
 from urllib.parse import unquote
 import os
 import pandas as pd
-from models import db, Cotacao, PesquisaMercado, HistoricoStatus
+from models import db, Cotacao, PesquisaMercado, HistoricoStatus, Anexo
 
 # Blueprint com nome 'routes' para manter compatibilidade com templates
 main_routes = Blueprint('routes', __name__)
+
+def carregar_regioes_cache():
+    """Carrega o arquivo de regiões e múltiplos em cache"""
+    try:
+        arquivo = os.path.join('data', 'Região x Múltiplos.xlsx')
+        if not os.path.exists(arquivo):
+            return None, 'Arquivo de regiões não encontrado'
+        
+        df = pd.read_excel(arquivo, sheet_name='Sheet1')
+        df.columns = df.columns.str.strip()  # Remove espaços das colunas
+        return df, None
+    except Exception as e:
+        return None, f'Erro ao carregar regiões: {str(e)}'
 
 def get_dashboard_stats():
     """Calcula estatísticas para o dashboard de forma centralizada"""
@@ -26,6 +39,43 @@ def get_dashboard_stats():
         'perdidas': Cotacao.query.filter_by(status='Cotação Perdida').count(),
         'pesquisas_perdidas': PesquisaMercado.query.filter_by(status='Pesquisa Perdida').count()
     }
+
+@main_routes.route('/api/multiplo/filial')
+@login_required
+def obter_multiplo_filial():
+    """Retorna o múltiplo (quantidade em TN) baseado na filial selecionada"""
+    nome_filial = request.args.get('filial', '').strip()
+    
+    if not nome_filial:
+        return jsonify({'success': False, 'error': 'Filial não informada'}), 400
+    
+    df, error = carregar_regioes_cache()
+    if error:
+        return jsonify({'success': False, 'error': error}), 500
+    
+    try:
+        # Procurar a filial no arquivo
+        resultado = df[df['FILIAL'].astype(str).str.contains(nome_filial, case=False, na=False)]
+        
+        if resultado.empty:
+            return jsonify({'success': False, 'error': 'Filial não encontrada'}), 404
+        
+        # Pegar a primeira correspondência
+        linha = resultado.iloc[0]
+        regiao = linha['REGIÃO'].strip()
+        multiplo = int(linha['MÚLTIPLO'])  # Ler diretamente da coluna MÚLTIPLO
+        
+        if multiplo is None or multiplo <= 0:
+            return jsonify({'success': False, 'error': f'Múltiplo inválido configurado para a região "{regiao}"'}), 400
+        
+        return jsonify({
+            'success': True,
+            'filial': nome_filial,
+            'regiao': regiao,
+            'multiplo': multiplo
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @main_routes.route('/', endpoint='index')
 @login_required
@@ -56,12 +106,20 @@ def dashboard_stats():
 def download_file(filename):
     filename = unquote(filename)
     filename = filename.replace('\\', '/').replace('..', '')
+    
+    # Tentar primeiro procurar o arquivo com o novo nome único no banco de dados
+    # Se o filename vem do campo 'filename' do Anexo, procuramos o anexo que tem esse filename
+    anexo = Anexo.query.filter_by(filename=filename).first()
+    if anexo and anexo.filepath and os.path.isfile(anexo.filepath):
+        return send_file(anexo.filepath, as_attachment=True, download_name=anexo.filename)
+    
+    # Fallback para compatibilidade com arquivos antigos (sem timestamp/uuid no nome)
     uploads_path = os.path.join('uploads', filename)
     cotacoes_path = os.path.join('exports', filename)
     if os.path.isfile(uploads_path):
-        return send_file(uploads_path, as_attachment=True)
+        return send_file(uploads_path, as_attachment=True, download_name=filename)
     elif os.path.isfile(cotacoes_path):
-        return send_file(cotacoes_path, as_attachment=True)
+        return send_file(cotacoes_path, as_attachment=True, download_name=filename)
     else:
         abort(404, description='Arquivo não encontrado.')
 

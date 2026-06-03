@@ -85,8 +85,10 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         
-        flash('Cadastro realizado com sucesso! Faça login.', 'success')
-        return redirect(url_for('auth.login'))
+        # Login automático após registro bem-sucedido
+        login_user(new_user)
+        flash('Cadastro realizado com sucesso! Bem-vindo!', 'success')
+        return redirect(url_for('routes.index'))
         
     return render_template('register.html')
 

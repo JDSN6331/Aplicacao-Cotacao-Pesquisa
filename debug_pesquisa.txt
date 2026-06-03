@@ -1,0 +1,5 @@
+Pesquisa (ID 1):
+matricula_cooperado do DB = ''
+nome_cooperado do DB = ''
+Prefilled montado:
+{'nome_filial': '', 'numero_mesorregiao': '', 'matricula_cooperado': '', 'nome_cooperado': '', 'analista_comercial': '', 'comprador': '', 'observacoes': '', 'forma_pagamento': '', 'prazo_entrega': '', 'cultura': '', 'nome_vendedor': '', 'motivo_venda_perdida': ''}

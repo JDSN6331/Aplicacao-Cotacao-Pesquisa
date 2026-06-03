@@ -85,6 +85,10 @@ class Cotacao(db.Model):
                                         cascade='all, delete-orphan', 
                                         order_by='HistoricoStatus.data_mudanca.desc()',
                                         foreign_keys='HistoricoStatus.cotacao_id')
+    historico_edicao = db.relationship('HistoricoEdicaoCampo', backref='cotacao', lazy=True,
+                                        cascade='all, delete-orphan',
+                                        order_by='HistoricoEdicaoCampo.data_mudanca.desc()',
+                                        foreign_keys='HistoricoEdicaoCampo.cotacao_id')
     
     def __repr__(self):
         return f'<Cotacao {self.id}>'
@@ -95,7 +99,7 @@ class Cotacao(db.Model):
         entrada = self.data_entrada_status or agora
         diff_segundos = (agora - entrada).total_seconds()
         dias_no_status = round(diff_segundos / 86400)
-        valor_total = sum([produto.valor_total_com_frete or 0 for produto in self.produtos]) if self.produtos else 0
+        valor_total = sum([produto.valor_total or 0 for produto in self.produtos]) if self.produtos else 0
         fornecedor = self.produtos[0].fornecedor if self.produtos and self.produtos[0].fornecedor else '-'
         return {
             'id': self.id,
@@ -136,9 +140,8 @@ class ProdutoCotacao(db.Model):
     fornecedor = db.Column(db.String(100), nullable=True)
     preco_custo = db.Column(db.Float, nullable=True)
     custo_alvo = db.Column(db.Float, nullable=True)  # Novo campo: Custo Alvo
-    valor_frete = db.Column(db.Float, nullable=True)  # Frete por TN
-    prazo_entrega_fornecedor = db.Column(db.Date, nullable=True)
-    valor_total_com_frete = db.Column(db.Float, nullable=True)
+    tipo_frete = db.Column(db.String(10), nullable=True)  # CIF ou FOB
+    prazo_pagamento_fornecedor = db.Column(db.Date, nullable=True)
     
     def to_dict(self):
         return {
@@ -152,9 +155,8 @@ class ProdutoCotacao(db.Model):
             'fornecedor': self.fornecedor,
             'preco_custo': self.preco_custo,
             'custo_alvo': self.custo_alvo,
-            'valor_frete': self.valor_frete,
-            'prazo_entrega_fornecedor': self.prazo_entrega_fornecedor.strftime('%Y-%m-%d') if self.prazo_entrega_fornecedor else None,
-            'valor_total_com_frete': self.valor_total_com_frete
+            'tipo_frete': self.tipo_frete,
+            'prazo_pagamento_fornecedor': self.prazo_pagamento_fornecedor.strftime('%Y-%m-%d') if self.prazo_pagamento_fornecedor else None
         }
 
 
@@ -196,6 +198,12 @@ class PesquisaMercado(db.Model):
                                         cascade='all, delete-orphan', 
                                         order_by='HistoricoStatus.data_mudanca.desc()',
                                         foreign_keys='HistoricoStatus.pesquisa_id')
+    
+    # Relacionamento com histórico de edição de campos
+    historico_edicao = db.relationship('HistoricoEdicaoCampo', backref='pesquisa', lazy=True,
+                                        cascade='all, delete-orphan',
+                                        order_by='HistoricoEdicaoCampo.data_mudanca.desc()',
+                                        foreign_keys='HistoricoEdicaoCampo.pesquisa_id')
     
     def to_dict(self):
         # Calcular diferença de dias com base no arredondamento de 12 horas (<12h = 0, >12h = 1)
@@ -245,6 +253,7 @@ class HistoricoStatus(db.Model):
     status_novo = db.Column(db.String(50), nullable=False)
     data_mudanca = db.Column(db.DateTime, nullable=False, default=datetime.now)
     usuario = db.Column(db.String(100), nullable=True)  # Para futuro sistema de login
+    departamento = db.Column(db.String(100), nullable=True)  # Departamento do usuário
     observacao = db.Column(db.Text, nullable=True)
     
     def __repr__(self):
@@ -257,7 +266,45 @@ class HistoricoStatus(db.Model):
             'pesquisa_id': self.pesquisa_id,
             'status_anterior': self.status_anterior,
             'status_novo': self.status_novo,
-            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M'),
+            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M:%S'),
             'usuario': self.usuario,
+            'departamento': self.departamento,
             'observacao': self.observacao
+        }
+
+
+class HistoricoEdicaoCampo(db.Model):
+    """Modelo para armazenar histórico de mudanças de campos das cotações e pesquisas"""
+    __tablename__ = 'historico_edicao_campo'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cotacao_id = db.Column(db.Integer, db.ForeignKey('cotacoes.id'), nullable=True)
+    pesquisa_id = db.Column(db.Integer, db.ForeignKey('pesquisas_mercado.id'), nullable=True)
+    
+    # Informações da mudança
+    campo_nome = db.Column(db.String(100), nullable=False)  # Ex: 'preco_unitario', 'forma_pagamento'
+    campo_label = db.Column(db.String(100), nullable=False)  # Ex: 'Preço Unitário', 'Forma de Pagamento'
+    valor_anterior = db.Column(db.Text, nullable=True)  # Armazenar como string para flexibilidade
+    valor_novo = db.Column(db.Text, nullable=False)
+    
+    # Rastreabilidade
+    data_mudanca = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    usuario = db.Column(db.String(100), nullable=True)
+    departamento = db.Column(db.String(50), nullable=True)
+    
+    def __repr__(self):
+        return f'<HistoricoEdicaoCampo {self.id}: {self.campo_nome}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'cotacao_id': self.cotacao_id,
+            'pesquisa_id': self.pesquisa_id,
+            'campo_nome': self.campo_nome,
+            'campo_label': self.campo_label,
+            'valor_anterior': self.valor_anterior,
+            'valor_novo': self.valor_novo,
+            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M:%S'),
+            'usuario': self.usuario,
+            'departamento': self.departamento
         }

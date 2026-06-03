@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from models import db, PesquisaMercado, Anexo, HistoricoStatus, MAX_ANEXOS
-from services.utils import exportar_para_excel
+from models import db, PesquisaMercado, Anexo, HistoricoStatus, HistoricoEdicaoCampo, MAX_ANEXOS
+from services.utils import exportar_para_excel, comparar_e_registrar_edicoes, comparar_e_registrar_edicoes_produtos
 from datetime import datetime
 import os
 import pytz
@@ -10,6 +10,8 @@ import json
 import traceback
 import threading
 from services.email_service import enviar_email, obter_email_por_status
+import uuid
+import time
 
 pesquisa_routes = Blueprint('pesquisa_routes', __name__)
 
@@ -19,7 +21,40 @@ PESQUISA_STATUS_OPTIONS = [
     'Pesquisa Perdida'
 ]
 
+# Mapeamento de status -> departamento permitido para pesquisas
+PESQUISA_STATUS_DEPARTAMENTO_MAP = {
+    'Avaliação Comercial': 'Comercial',
+    'Pesquisa Finalizada': 'Comercial',
+    'Pesquisa Perdida': 'Comercial'
+}
+
 TZ_SP = pytz.timezone('America/Sao_Paulo')
+
+def pode_editar_pesquisa(usuario_departamento, status_pesquisa):
+    """
+    Verifica se um usuário do departamento especificado pode editar uma pesquisa com o status fornecido.
+    
+    Args:
+        usuario_departamento: Departamento do usuário autenticado
+        status_pesquisa: Status atual da pesquisa
+    
+    Returns:
+        bool: True se pode editar, False caso contrário
+    """
+    status_permitido = PESQUISA_STATUS_DEPARTAMENTO_MAP.get(status_pesquisa)
+    return status_permitido == usuario_departamento
+
+def obter_status_permitidos_pesquisa(usuario_departamento):
+    """
+    Retorna lista de status que o usuário pode transicionar para em pesquisas.
+    
+    Args:
+        usuario_departamento: Departamento do usuário autenticado
+    
+    Returns:
+        list: Status permitidos para o departamento
+    """
+    return [status for status, depto in PESQUISA_STATUS_DEPARTAMENTO_MAP.items() if depto == usuario_departamento]
 
 # Extensões de arquivo permitidas
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'}
@@ -27,10 +62,30 @@ ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def generate_unique_filename(original_filename):
+    """
+    Gera um nome único para o arquivo usando timestamp e UUID.
+    Mantém a extensão original para facilitar identificação.
+    
+    Exemplo: 1701234567_abc123_documento.pdf
+    """
+    timestamp = str(int(time.time() * 1000))  # milliseconds
+    uuid_short = str(uuid.uuid4())[:8]  # primeiros 8 chars do UUID
+    name, ext = os.path.splitext(secure_filename(original_filename))
+    return f"{timestamp}_{uuid_short}_{name}{ext}"
+
 @pesquisa_routes.route('/nova-pesquisa')
 @login_required
 def nova_pesquisa():
-    return render_template('pesquisa_form.html', status_options=PESQUISA_STATUS_OPTIONS)
+    # Obter departamento do usuário
+    usuario_depto = getattr(current_user, 'departamento', 'N/A')
+    
+    # Ao criar, a pesquisa inicia em "Avaliação Comercial" por padrão
+    # Para nova pesquisa, pode editar sempre
+    pode_editar = True
+    
+    return render_template('pesquisa_form.html', status_options=PESQUISA_STATUS_OPTIONS,
+                          pode_editar=pode_editar, usuario_depto=usuario_depto)
 
 @pesquisa_routes.route('/api/pesquisas', methods=['POST'])
 @login_required
@@ -188,7 +243,8 @@ def criar_pesquisa():
                 status_anterior=None,
                 status_novo=pesquisa.status,
                 observacao='Pesquisa criada',
-                usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
             )
             db.session.add(historico)
         
@@ -203,15 +259,17 @@ def criar_pesquisa():
                     if anexos_existentes >= MAX_ANEXOS:
                         break
                     
-                    filename = secure_filename(arquivo.filename)
+                    # Usar nome único para evitar conflitos ao sobrescrever arquivos
+                    filename_unique = generate_unique_filename(arquivo.filename)
+                    original_filename = secure_filename(arquivo.filename)
                     uploads_dir = os.path.join(os.getcwd(), 'uploads')
                     os.makedirs(uploads_dir, exist_ok=True)
-                    filepath = os.path.join('uploads', filename)
-                    arquivo.save(os.path.join(uploads_dir, filename))
+                    filepath = os.path.join('uploads', filename_unique)
+                    arquivo.save(os.path.join(uploads_dir, filename_unique))
                     
-                    # Criar registro de anexo
+                    # Criar registro de anexo (armazena nome original para exibição)
                     anexo = Anexo(
-                        filename=filename,
+                        filename=original_filename,
                         filepath=filepath,
                         pesquisa_id=pesquisa.id
                     )
@@ -276,6 +334,53 @@ def atualizar_pesquisa(id):
         pesquisa = PesquisaMercado.query.get_or_404(id)
         if pesquisa.status in ['Pesquisa Finalizada', 'Pesquisa Perdida']:
             return jsonify({'error': 'Não é possível editar uma pesquisa finalizada ou perdida.'}), 400
+        
+        # Validar permissão para EDIÇÃO DE CAMPOS (não aplica a mudança de status)
+        usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        data = request.form or request.json or {}
+        campos_editados = False
+        
+        # Verificar se há edição de campos além de status
+        campos_verificar = ['nome_filial', 'numero_mesorregiao', 'matricula_cooperado', 'nome_cooperado',
+                           'analista_comercial', 'comprador', 'observacoes', 'forma_pagamento', 
+                           'prazo_entrega', 'cultura', 'nome_vendedor', 'motivo_venda_perdida',
+                           'codigo_produto', 'nome_produto', 'quantidade_cotada', 'fornecedor']
+        
+        for campo in campos_verificar:
+            valor_novo = data.get(campo, '')
+            valor_atual = getattr(pesquisa, campo, '')
+            if valor_novo != valor_atual:
+                campos_editados = True
+                break
+        
+        # Se há edição de campos, validar permissão por departamento
+        if campos_editados and not pode_editar_pesquisa(usuario_depto, pesquisa.status):
+            return jsonify({'error': f'Sua permissão não permite editar campos de pesquisas com status "{pesquisa.status}". Este status é de responsabilidade do departamento de "{PESQUISA_STATUS_DEPARTAMENTO_MAP.get(pesquisa.status, "Desconhecido")}". Você pode alterar apenas o status.'}), 403
+        
+        
+        # Capturar estado anterior para registrar histórico de edições
+        pesquisa_anterior = {
+            'data': pesquisa.data,
+            'nome_filial': pesquisa.nome_filial,
+            'numero_mesorregiao': pesquisa.numero_mesorregiao,
+            'matricula_cooperado': pesquisa.matricula_cooperado,
+            'nome_cooperado': pesquisa.nome_cooperado,
+            'codigo_produto': pesquisa.codigo_produto,
+            'nome_produto': pesquisa.nome_produto,
+            'quantidade_cotada': pesquisa.quantidade_cotada,
+            'forma_pagamento': pesquisa.forma_pagamento,
+            'nome_concorrente': pesquisa.nome_concorrente,
+            'valor_concorrente': pesquisa.valor_concorrente,
+            'valor_cooxupe': pesquisa.valor_cooxupe,
+            'analista_comercial': pesquisa.analista_comercial,
+            'observacoes': pesquisa.observacoes,
+            'cultura': pesquisa.cultura,
+            'nome_vendedor': pesquisa.nome_vendedor,
+            'comprador': pesquisa.comprador,
+            'fornecedor': pesquisa.fornecedor,
+            'motivo_venda_perdida': pesquisa.motivo_venda_perdida,
+            'prazo_entrega': pesquisa.prazo_entrega
+        }
         
         def parse_float(val):
             try:
@@ -367,12 +472,15 @@ def atualizar_pesquisa(id):
             pesquisa.data_entrada_status = datetime.now(TZ_SP)
             
             # Registrar histórico de mudança de status
+            usuario = current_user.name if current_user.is_authenticated else 'Sistema'
+            departamento = getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
             historico = HistoricoStatus(
                 pesquisa_id=pesquisa.id,
                 status_anterior=status_anterior,
                 status_novo=novo_status,
                 observacao='Status atualizado',
-                usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+                usuario=usuario,
+                departamento=departamento
             )
             db.session.add(historico)
         
@@ -387,15 +495,17 @@ def atualizar_pesquisa(id):
                     if anexos_existentes >= MAX_ANEXOS:
                         break
                     
-                    filename = secure_filename(arquivo.filename)
+                    # Usar nome único para evitar conflitos ao sobrescrever arquivos
+                    filename_unique = generate_unique_filename(arquivo.filename)
+                    original_filename = secure_filename(arquivo.filename)
                     uploads_dir = os.path.join(os.getcwd(), 'uploads')
                     os.makedirs(uploads_dir, exist_ok=True)
-                    filepath = os.path.join('uploads', filename)
-                    arquivo.save(os.path.join(uploads_dir, filename))
+                    filepath = os.path.join('uploads', filename_unique)
+                    arquivo.save(os.path.join(uploads_dir, filename_unique))
                     
-                    # Criar registro de anexo
+                    # Criar registro de anexo (armazena nome original para exibição)
                     anexo = Anexo(
-                        filename=filename,
+                        filename=original_filename,
                         filepath=filepath,
                         pesquisa_id=pesquisa.id
                     )
@@ -403,6 +513,43 @@ def atualizar_pesquisa(id):
                     anexos_existentes += 1
         
         pesquisa.data_ultima_modificacao = datetime.now(TZ_SP)
+        
+        # Registrar histórico de edições de campos
+        campos_monitorados = {
+            'data': 'Data',
+            'nome_filial': 'Filial',
+            'numero_mesorregiao': 'Mesorregião',
+            'matricula_cooperado': 'Matrícula Cooperado',
+            'nome_cooperado': 'Nome Cooperado',
+            'codigo_produto': 'Código Produto',
+            'nome_produto': 'Nome Produto',
+            'quantidade_cotada': 'Quantidade',
+            'forma_pagamento': 'Forma de Pagamento',
+            'nome_concorrente': 'Concorrente',
+            'valor_concorrente': 'Valor Concorrente',
+            'valor_cooxupe': 'Valor Cooxupe',
+            'analista_comercial': 'Analista Comercial',
+            'observacoes': 'Observações',
+            'cultura': 'Cultura',
+            'nome_vendedor': 'Vendedor',
+            'comprador': 'Comprador',
+            'fornecedor': 'Fornecedor',
+            'motivo_venda_perdida': 'Motivo Venda Perdida',
+            'prazo_entrega': 'Prazo de Entrega'
+        }
+        
+        usuario = current_user.name if current_user.is_authenticated else 'Sistema'
+        departamento = getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+        
+        comparar_e_registrar_edicoes(
+            type('PesquisaAnterior', (), pesquisa_anterior)(),
+            pesquisa,
+            campos_monitorados,
+            pesquisa_id=pesquisa.id,
+            usuario=usuario,
+            departamento=departamento
+        )
+        
         db.session.commit()
         
         # Enviar e-mail para o departamento correto (em background para não bloquear)
@@ -465,7 +612,15 @@ def excluir_multiplas_pesquisas():
 @login_required
 def editar_pesquisa(id):
     pesquisa = PesquisaMercado.query.get_or_404(id)
-    return render_template('pesquisa_form.html', pesquisa=pesquisa, status_options=PESQUISA_STATUS_OPTIONS)
+    
+    # Obter departamento do usuário
+    usuario_depto = getattr(current_user, 'departamento', 'N/A')
+    
+    # Verificar se pode editar CAMPOS
+    pode_editar = pode_editar_pesquisa(usuario_depto, pesquisa.status)
+    
+    return render_template('pesquisa_form.html', pesquisa=pesquisa, status_options=PESQUISA_STATUS_OPTIONS,
+                          pode_editar=pode_editar, usuario_depto=usuario_depto)
 
 @pesquisa_routes.route('/api/pesquisa/<int:id>/exportar')
 @login_required
@@ -515,4 +670,42 @@ def excluir_anexo(id):
         return '', 204
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@pesquisa_routes.route('/api/pesquisas/<int:id>/permissoes', methods=['GET'])
+@login_required
+def get_permissoes_pesquisa(id):
+    """Retorna informações de permissão para edição de CAMPOS da pesquisa"""
+    try:
+        pesquisa = PesquisaMercado.query.get_or_404(id)
+        usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        
+        # Verificar se pode editar CAMPOS (não é sobre status)
+        pode_editar_campos = pode_editar_pesquisa(usuario_depto, pesquisa.status)
+        status_depto_pesquisa = PESQUISA_STATUS_DEPARTAMENTO_MAP.get(pesquisa.status, 'Desconhecido')
+        
+        return jsonify({
+            'success': True,
+            'pode_editar_campos': pode_editar_campos,
+            'usuario_depto': usuario_depto,
+            'status_pesquisa': pesquisa.status,
+            'status_depto_pesquisa': status_depto_pesquisa
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@pesquisa_routes.route('/api/pesquisas/<int:id>/historico-edicoes', methods=['GET'])
+@login_required
+def get_historico_edicoes_pesquisa(id):
+    """Retorna o histórico de edições de campos de uma pesquisa"""
+    try:
+        pesquisa = PesquisaMercado.query.get_or_404(id)
+        
+        historicos = HistoricoEdicaoCampo.query.filter_by(pesquisa_id=id).order_by(
+            HistoricoEdicaoCampo.data_mudanca.desc()
+        ).all()
+        
+        return jsonify([historico.to_dict() for historico in historicos])
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

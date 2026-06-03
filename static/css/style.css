@@ -2985,3 +2985,389 @@ footer p {
 [data-theme="dark"] .swal2-success-fix {
     background-color: var(--bg-secondary) !important;
 }
+
+/* ===== HISTÓRICOS PADRONIZADOS (Status e Edições) ===== */
+
+/* Container de históricos - fundo padronizado para ambos os tipos */
+.card-body.bg-light,
+.card-body[style*="background-color: var(--bg-tertiary)"] {
+    background-color: var(--bg-tertiary) !important;
+    border-radius: var(--radius-md);
+}
+
+/* Timeline container */
+.historico-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+/* Card de histórico - Base para ambos tipos */
+.historico-card {
+    background: var(--bg-primary) !important;
+    border-left: 4px solid #0c5de9;
+    border-radius: var(--radius-sm);
+    padding: var(--space-md);
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    color: #333;
+}
+
+.historico-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Card para Histórico de Status (azul) */
+.historico-card:has(i.fa-circle-notch) {
+    border-left-color: #0c5de9;
+}
+
+.historico-card:has(i.fa-circle-notch):hover {
+    border-left-color: #0d47a1;
+}
+
+/* Card para Edições de Campo (turquesa/info) */
+.historico-card:has(i.fa-edit) {
+    border-left-color: #17a2b8;
+}
+
+.historico-card:has(i.fa-edit):hover {
+    border-left-color: #138496;
+}
+
+/* Cabeçalho do card de histórico - Padronizado */
+.historico-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding-bottom: var(--space-md);
+    margin-bottom: var(--space-md);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.historico-card-header i {
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    color: #0c5de9;
+}
+
+.historico-card-header .fw-bold {
+    flex-grow: 1;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.historico-card-header .badge {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+}
+
+/* Body do card de histórico - Padronizado */
+.historico-card-body {
+    font-size: 0.9rem;
+    margin-top: var(--space-md);
+}
+
+.historico-card-body .text-muted {
+    color: var(--text-secondary) !important;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+.historico-card-body .text-muted i {
+    flex-shrink: 0;
+    width: 0.9rem;
+}
+
+/* Linha de informações do usuário e departamento */
+.historico-card-body .d-flex.justify-content-between {
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+}
+
+/* Estilo de badge de tipo (CAMPO, STATUS) */
+.historico-card-body .badge {
+    background-color: #0c5de9 !important;
+    color: white !important;
+    padding: var(--space-xs) var(--space-sm) !important;
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+}
+
+/* Especificar cores do badge para edições */
+.historico-card:has(i.fa-edit) .badge {
+    background-color: #17a2b8 !important;
+}
+
+/* Boxes de "Antes" e "Depois" - Cores padronizadas */
+.historico-antes,
+[style*="background-color: rgba(255,193,7"] {
+    background-color: rgba(255, 193, 7, 0.15) !important;
+    border-left: 3px solid #ffc107 !important;
+    padding: var(--space-md) !important;
+    border-radius: var(--radius-sm) !important;
+    transition: all var(--transition-fast);
+    color: #333 !important;
+}
+
+.historico-antes:hover,
+[style*="background-color: rgba(255,193,7"]:hover {
+    background-color: rgba(255, 193, 7, 0.25) !important;
+}
+
+.historico-depois,
+[style*="background-color: rgba(40,167,69"] {
+    background-color: rgba(40, 167, 69, 0.15) !important;
+    border-left: 3px solid #28a745 !important;
+    padding: var(--space-md) !important;
+    border-radius: var(--radius-sm) !important;
+    transition: all var(--transition-fast);
+    color: #1a5a2a !important;
+}
+
+.historico-depois:hover,
+[style*="background-color: rgba(40,167,69"]:hover {
+    background-color: rgba(40, 167, 69, 0.25) !important;
+}
+
+/* Melhorar legibilidade de labels em boxes */
+.historico-antes strong,
+[style*="background-color: rgba(255,193,7"] strong,
+.historico-depois strong,
+[style*="background-color: rgba(40,167,69"] strong {
+    color: var(--text-primary);
+    display: block;
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+/* Estilo para valores em caixas antes/depois */
+.historico-valor {
+    color: #1a1a1a;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .historico-antes small.text-muted,
+[data-theme="dark"] [style*="background-color: rgba(255,193,7"] small.text-muted,
+[data-theme="dark"] .historico-depois small.text-muted,
+[data-theme="dark"] [style*="background-color: rgba(40,167,69"] small.text-muted {
+    color: #a8c5dd !important;
+}
+
+[data-theme="dark"] .historico-valor {
+    color: #f5f5f5 !important;
+}
+
+/* Timeline do Modal de Histórico */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    padding: var(--space-md) 0;
+}
+
+.timeline-item {
+    display: flex;
+    gap: var(--space-lg);
+}
+
+.timeline-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #0c5de9;
+    font-size: 0.9rem;
+}
+
+.timeline-content {
+    flex-grow: 1;
+    padding-top: var(--space-xs);
+    color: #333;
+}
+
+.timeline-content strong {
+    display: block;
+    color: #1a1a1a;
+    margin-bottom: var(--space-sm);
+    font-weight: 600;
+}
+
+.timeline-content small {
+    color: #666;
+}
+
+/* Responsividade para históricos */
+@media (max-width: 768px) {
+    .historico-card-body .row {
+        flex-direction: column;
+    }
+}
+
+/* Estilos para o container de abas de históricos */
+.historico-card-container {
+    border: 1px solid var(--bs-border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.historico-tabs-header {
+    background-color: var(--bg-secondary);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.historico-tabs-header h5 {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.historico-nav-tabs {
+    background-color: var(--bg-tertiary);
+    border-bottom: 2px solid var(--bs-border-color);
+    padding: 0 var(--space-lg);
+    gap: var(--space-md);
+}
+
+.historico-nav-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: var(--space-md) var(--space-lg);
+    font-weight: 500;
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.historico-nav-tabs .nav-link:hover {
+    color: var(--text-primary);
+    background-color: transparent;
+}
+
+.historico-nav-tabs .nav-link.active {
+    color: #0c5de9;
+    border-bottom-color: #0c5de9;
+    background-color: transparent;
+}
+
+.historico-tab-content {
+    padding: var(--space-lg);
+    background-color: var(--bg-primary);
+    min-height: 300px;
+}
+
+/* Dark theme support para históricos */
+[data-theme="dark"] .historico-card {
+    background: var(--bg-secondary) !important;
+    border-left-color: #42a5f5 !important;
+    color: #e8e8e8;
+}
+
+[data-theme="dark"] .historico-card:has(i.fa-circle-notch) {
+    border-left-color: #42a5f5 !important;
+}
+
+[data-theme="dark"] .historico-card:has(i.fa-edit) {
+    border-left-color: #29b6f6 !important;
+}
+
+[data-theme="dark"] .historico-card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .historico-card-header i {
+    color: #5fb3f5;
+}
+
+[data-theme="dark"] .historico-card-header .fw-bold {
+    color: #f5f5f5 !important;
+}
+
+[data-theme="dark"] .historico-card-body {
+    color: #e8e8e8;
+}
+
+[data-theme="dark"] .historico-card-body .text-muted {
+    color: #a8c5dd !important;
+}
+
+[data-theme="dark"] .historico-card-body .text-muted i {
+    color: #a8c5dd !important;
+}
+
+[data-theme="dark"] .historico-card-body .fw-bold,
+[data-theme="dark"] .historico-card-header .fw-bold {
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .historico-antes,
+[data-theme="dark"] [style*="background-color: rgba(255,193,7"] {
+    background-color: rgba(255, 193, 7, 0.25) !important;
+    border-left-color: #fbc02d !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .historico-depois,
+[data-theme="dark"] [style*="background-color: rgba(40,167,69"] {
+    background-color: rgba(66, 165, 245, 0.25) !important;
+    border-left-color: #42a5f5 !important;
+    color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .historico-antes strong,
+[data-theme="dark"] [style*="background-color: rgba(255,193,7"] strong,
+[data-theme="dark"] .historico-depois strong,
+[data-theme="dark"] [style*="background-color: rgba(40,167,69"] strong {
+    color: #fff !important;
+}
+
+[data-theme="dark"] .timeline-icon {
+    background-color: rgba(66, 165, 245, 0.2);
+    color: #42a5f5;
+}
+
+[data-theme="dark"] .timeline-content {\n    color: #e8e8e8;\n}\n\n[data-theme="dark"] .timeline-content strong {\n    color: #f5f5f5 !important;\n}\n\n[data-theme="dark"] .timeline-content small {\n    color: #a8c5dd !important;\n}\n\n[data-theme="dark"] .timeline-container {\n    color: #e8e8e8;\n}\n\n[data-theme="dark"] .card-body.bg-light,
+[data-theme="dark"] .card-body[style*="background-color: var(--bg-tertiary)"] {
+    background-color: var(--bg-tertiary) !important;
+}
+
+[data-theme="dark"] .historico-card-container {
+    background-color: var(--bg-secondary);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .historico-tabs-header {
+    background-color: var(--bg-tertiary);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .historico-nav-tabs {
+    background-color: var(--bg-secondary);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .historico-nav-tabs .nav-link {
+    color: #a8c5dd;
+}
+
+[data-theme="dark"] .historico-nav-tabs .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e8e8e8;
+}
+
+[data-theme="dark"] .historico-nav-tabs .nav-link.active {
+    color: #42a5f5;
+}
+
+[data-theme="dark"] .historico-tab-content {
+    background-color: var(--bg-primary);
+}

@@ -763,9 +763,26 @@ def get_cotacao(id):
 @cotacao_routes.route('/api/anexos/<int:id>', methods=['DELETE'])
 @login_required
 def excluir_anexo(id):
-    """Excluir um anexo específico"""
+    """Excluir um anexo específico com validação de permissão"""
     try:
         anexo = Anexo.query.get_or_404(id)
+        usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        
+        # Verificar se o anexo pertence a uma cotação ou pesquisa
+        if anexo.cotacao_id:
+            cotacao = Cotacao.query.get(anexo.cotacao_id)
+            if not cotacao:
+                return jsonify({'error': 'Cotação não encontrada'}), 404
+            # Verificar se o usuário tem permissão para editar essa cotação
+            if not pode_editar_cotacao(usuario_depto, cotacao.status):
+                return jsonify({'error': 'Você não tem permissão para editar esta cotação'}), 403
+        elif anexo.pesquisa_id:
+            pesquisa = Pesquisa.query.get(anexo.pesquisa_id)
+            if not pesquisa:
+                return jsonify({'error': 'Pesquisa não encontrada'}), 404
+            # Verificar se o usuário tem permissão para editar essa pesquisa
+            if not pode_editar_pesquisa(usuario_depto, pesquisa.status):
+                return jsonify({'error': 'Você não tem permissão para editar esta pesquisa'}), 403
         
         # Remover arquivo físico se existir
         if anexo.filepath and os.path.exists(anexo.filepath):

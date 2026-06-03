@@ -46,6 +46,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
             
+            // Desabilitar botões de adicionar/remover produtos e anexos
+            document.querySelectorAll('#addProdutoButton, .btn-remove-produto, .btn-remove-anexo').forEach(el => {
+                el.disabled = true;
+                el.style.cursor = 'not-allowed';
+                el.style.opacity = '0.5';
+            });
+            
             // Remover botão de salvar
             const btnSalvar = document.getElementById('nextButton');
             if (btnSalvar) {
@@ -1405,8 +1412,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Substituir o submit padrão por AJAX para enviar os produtos corretamente
+    let isSubmittingCotacao = false;  // Flag para prevenir múltiplas submissões
+    
     document.getElementById('cotacaoForm').addEventListener('submit', function (e) {
         e.preventDefault();
+
+        // Prevenir múltiplas submissões
+        if (isSubmittingCotacao) {
+            console.log('⚠️ Submissão já em progresso, bloqueando novo envio');
+            return false;
+        }
 
         // VALIDAÇÃO EXTRA: Verificar motivo da cotação perdida
         if (document.getElementById('status').value === 'Cotação Perdida' &&
@@ -1414,6 +1429,15 @@ document.addEventListener('DOMContentLoaded', function () {
             alert('Por favor, preencha os campos obrigatórios: Motivo da Cotação Perdida');
             document.getElementById('motivo_venda_perdida').focus();
             return false;
+        }
+
+        // Marcar como submetendo
+        isSubmittingCotacao = true;
+        const nextBtn = document.getElementById('nextButton');
+        if (nextBtn) {
+            nextBtn.disabled = true;
+            nextBtn.style.opacity = '0.6';
+            nextBtn.style.cursor = 'not-allowed';
         }
 
         // VALIDAÇÃO INICIAL - Verificar se há campos vazios básicos
@@ -1549,11 +1573,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.location.href = '/';
                 } else {
                     alert(data.error || 'Ocorreu um erro ao salvar a cotação. Tente novamente.');
+                    // Reabilitar botão em caso de erro
+                    isSubmittingCotacao = false;
+                    if (nextBtn) {
+                        nextBtn.disabled = false;
+                        nextBtn.style.opacity = '1';
+                        nextBtn.style.cursor = 'pointer';
+                    }
                 }
             })
             .catch(err => {
                 if (err.message !== '413') {
                     alert('Ocorreu um erro ao enviar a cotação. Tente novamente.');
+                }
+                // Reabilitar botão em caso de erro
+                isSubmittingCotacao = false;
+                if (nextBtn) {
+                    nextBtn.disabled = false;
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.cursor = 'pointer';
                 }
             });
     });

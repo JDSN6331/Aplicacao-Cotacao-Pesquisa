@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from models import db, PesquisaMercado, Anexo, HistoricoStatus, HistoricoEdicaoCampo, MAX_ANEXOS
+from models import db, Cotacao, PesquisaMercado, Anexo, HistoricoStatus, HistoricoEdicaoCampo, MAX_ANEXOS
 from services.utils import exportar_para_excel, comparar_e_registrar_edicoes, comparar_e_registrar_edicoes_produtos
 from datetime import datetime
 import os
@@ -28,7 +28,24 @@ PESQUISA_STATUS_DEPARTAMENTO_MAP = {
     'Pesquisa Perdida': 'Comercial'
 }
 
+# Mapeamento de status -> departamento permitido para cotações (para validar anexos de cotações)
+COTACAO_STATUS_DEPARTAMENTO_MAP = {
+    'Análise Comercial': 'Comercial',
+    'Avaliação Comercial': 'Comercial',
+    'Aguardando Cooperado': 'Comercial',
+    'Revisão Comercial': 'Comercial',
+    'Cotação Finalizada': 'Comercial',
+    'Cotação Perdida': 'Comercial',
+    'Análise Suprimentos': 'Suprimentos',
+    'Revisão Suprimentos': 'Suprimentos'
+}
+
 TZ_SP = pytz.timezone('America/Sao_Paulo')
+
+def pode_editar_cotacao(usuario_departamento, status_cotacao):
+    """Verifica se um usuário pode editar uma cotação com o status fornecido."""
+    status_permitido = COTACAO_STATUS_DEPARTAMENTO_MAP.get(status_cotacao)
+    return status_permitido == usuario_departamento
 
 def pode_editar_pesquisa(usuario_departamento, status_pesquisa):
     """
@@ -654,9 +671,26 @@ def exportar_multiplas_pesquisas():
 @pesquisa_routes.route('/api/anexos/<int:id>', methods=['DELETE'])
 @login_required
 def excluir_anexo(id):
-    """Excluir um anexo específico"""
+    """Excluir um anexo específico com validação de permissão"""
     try:
         anexo = Anexo.query.get_or_404(id)
+        usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        
+        # Verificar se o anexo pertence a uma cotação ou pesquisa
+        if anexo.cotacao_id:
+            cotacao = Cotacao.query.get(anexo.cotacao_id)
+            if not cotacao:
+                return jsonify({'error': 'Cotação não encontrada'}), 404
+            # Verificar se o usuário tem permissão para editar essa cotação
+            if not pode_editar_cotacao(usuario_depto, cotacao.status):
+                return jsonify({'error': 'Você não tem permissão para editar esta cotação'}), 403
+        elif anexo.pesquisa_id:
+            pesquisa = PesquisaMercado.query.get(anexo.pesquisa_id)
+            if not pesquisa:
+                return jsonify({'error': 'Pesquisa não encontrada'}), 404
+            # Verificar se o usuário tem permissão para editar essa pesquisa
+            if not pode_editar_pesquisa(usuario_depto, pesquisa.status):
+                return jsonify({'error': 'Você não tem permissão para editar esta pesquisa'}), 403
         
         # Remover arquivo físico se existir
         if anexo.filepath and os.path.exists(anexo.filepath):

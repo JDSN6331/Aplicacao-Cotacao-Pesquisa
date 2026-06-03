@@ -531,6 +531,9 @@
                 // Bloquear todos os campos EXCETO status
                 $('input, textarea, select').not('#status').prop('disabled', true);
                 
+                // Desabilitar botões de adicionar/remover anexos
+                $('.btn-remove-anexo').prop('disabled', true).css({'opacity': '0.5', 'cursor': 'not-allowed'});
+                
                 // Remover botão de salvar
                 $('#btnSalvarPesquisa').hide();
                 
@@ -1204,10 +1207,25 @@
             return valido;
         }
 
+        let isSubmittingPesquisa = false;  // Flag para prevenir múltiplas submissões
+
         function salvarPesquisa(isGerarCotacao = false) {
+            // Prevenir múltiplas submissões
+            if (isSubmittingPesquisa) {
+                console.log('⚠️ Submissão já em progresso, bloqueando novo envio');
+                return false;
+            }
+
             // Validar campos obrigatórios
             if (!validarFormulario()) {
                 return;
+            }
+
+            // Marcar como submetendo
+            isSubmittingPesquisa = true;
+            const btnSalvar = $('#btnSalvarPesquisa');
+            if (btnSalvar) {
+                btnSalvar.prop('disabled', true).css({'opacity': '0.6', 'cursor': 'not-allowed'});
             }
 
             // Coletar dados do formulário em um objeto JS
@@ -1278,6 +1296,12 @@
                     } catch (e) {
                         alert('Ocorreu um erro ao salvar a pesquisa. Tente novamente.');
                     }
+                }
+                // Reabilitar botão em caso de erro
+                isSubmittingPesquisa = false;
+                const btnSalvar = $('#btnSalvarPesquisa');
+                if (btnSalvar) {
+                    btnSalvar.prop('disabled', false).css({'opacity': '1', 'cursor': 'pointer'});
                 }
             };
 

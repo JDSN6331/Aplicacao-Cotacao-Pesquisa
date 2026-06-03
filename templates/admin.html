@@ -63,7 +63,7 @@
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
                                                 <a class="dropdown-item" href="#"
-                                                    onclick='abrirModalEditar({{ user.id }}, {{ user.name|tojson }}, {{ user.email|tojson }}, {{ (user.departamento or "Comercial")|tojson }})'>
+                                                    onclick='abrirModalEditar({{ user.id }}, {{ user.name|tojson }}, {{ user.email|tojson }}, {{ (user.departamento or "Comercial")|tojson }}, {{ user.is_admin|tojson }})'>
                                                     <i class="fas fa-edit"></i> Editar
                                                 </a>
                                             </li>
@@ -117,6 +117,17 @@
                         <option value="Suprimentos">Suprimentos</option>
                         <option value="Loja">Loja</option>
                     </select>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="editUserIsAdmin">
+                        <label class="form-check-label" for="editUserIsAdmin">
+                            <i class="fas fa-crown me-1"></i>Promover a Administrador
+                        </label>
+                        <small class="d-block text-muted mt-1">
+                            Administradores têm acesso a todas as funcionalidades gerenciais
+                        </small>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer d-flex justify-content-between">
@@ -206,11 +217,12 @@
             $dropdown.removeAttr('data-drop-id');
         }
     });
-    function abrirModalEditar(id, name, email, departamento) {
+    function abrirModalEditar(id, name, email, departamento, isAdmin) {
         document.getElementById('editUserId').value = id;
         document.getElementById('editUserName').value = name;
         document.getElementById('editUserEmail').value = email;
         document.getElementById('editUserDepartamento').value = departamento || 'Comercial';
+        document.getElementById('editUserIsAdmin').checked = isAdmin || false;
         new bootstrap.Modal(document.getElementById('editUserModal')).show();
     }
 
@@ -219,6 +231,7 @@
         const name = document.getElementById('editUserName').value.trim();
         const email = document.getElementById('editUserEmail').value.trim();
         const departamento = document.getElementById('editUserDepartamento').value;
+        const is_admin = document.getElementById('editUserIsAdmin').checked;
 
         if (!name || !email) {
             alert('Nome e e-mail são obrigatórios.');
@@ -228,7 +241,7 @@
         fetch(`/api/admin/users/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, departamento })
+            body: JSON.stringify({ name, email, departamento, is_admin })
         })
         .then(res => res.json())
         .then(data => {

@@ -262,7 +262,7 @@ def painel_dados():
 @login_required
 @admin_required
 def update_user(user_id):
-    """Atualizar nome e email de um usuário"""
+    """Atualizar nome, email, departamento e tipo de usuário"""
     try:
         user = User.query.get_or_404(user_id)
         data = request.get_json()
@@ -270,6 +270,7 @@ def update_user(user_id):
         new_name = data.get('name', '').strip()
         new_email = data.get('email', '').strip().lower()
         new_departamento = data.get('departamento', '').strip()
+        new_is_admin = data.get('is_admin', False)
 
         if not new_name or not new_email:
             return jsonify({'success': False, 'error': 'Nome e e-mail são obrigatórios.'}), 400
@@ -289,11 +290,18 @@ def update_user(user_id):
         if existing:
             return jsonify({'success': False, 'error': 'Este e-mail já está em uso por outro usuário.'}), 400
 
+        # Validar que sempre há pelo menos um administrador
+        if user.is_admin and not new_is_admin:
+            total_admins = User.query.filter_by(is_admin=True).count()
+            if total_admins <= 1:
+                return jsonify({'success': False, 'error': 'Deve haver pelo menos um administrador no sistema. Promova outro usuário a admin antes de remover este acesso.'}), 400
+
         user.name = new_name
         user.email = new_email
         user.username = new_email  # username = email neste sistema
         if new_departamento:
             user.departamento = new_departamento
+        user.is_admin = bool(new_is_admin)
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Usuário atualizado com sucesso!'})

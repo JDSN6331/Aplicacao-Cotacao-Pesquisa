@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, send_file, abort
 from flask_login import login_required, current_user
-from models import db, Cotacao, ProdutoCotacao, Anexo, HistoricoStatus, MAX_ANEXOS
-from services.utils import exportar_para_excel
+from models import db, Cotacao, ProdutoCotacao, Anexo, HistoricoStatus, HistoricoEdicaoCampo, MAX_ANEXOS
+from services.utils import exportar_para_excel, comparar_e_registrar_edicoes, comparar_e_registrar_edicoes_produtos
 from datetime import datetime
 import os
 import pytz
@@ -12,6 +12,8 @@ import threading
 from services.email_service import enviar_email, obter_email_por_status
 from urllib.parse import unquote
 import sys
+import uuid
+import time
 
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -32,13 +34,63 @@ STATUS_OPTIONS = [
     'Cotação Perdida'
 ]
 
+# Mapeamento de status -> departamento(s) permitido(s)
+STATUS_DEPARTAMENTO_MAP = {
+    'Análise Comercial': 'Comercial',
+    'Avaliação Comercial': 'Comercial',
+    'Aguardando Cooperado': 'Comercial',
+    'Revisão Comercial': 'Comercial',
+    'Cotação Finalizada': 'Comercial',
+    'Cotação Perdida': 'Comercial',
+    'Análise Suprimentos': 'Suprimentos',
+    'Revisão Suprimentos': 'Suprimentos'
+}
+
 TZ_SP = pytz.timezone('America/Sao_Paulo')
+
+def pode_editar_cotacao(usuario_departamento, status_cotacao):
+    """
+    Verifica se um usuário do departamento especificado pode editar uma cotação com o status fornecido.
+    
+    Args:
+        usuario_departamento: Departamento do usuário autenticado
+        status_cotacao: Status atual da cotação
+    
+    Returns:
+        bool: True se pode editar, False caso contrário
+    """
+    status_permitido = STATUS_DEPARTAMENTO_MAP.get(status_cotacao)
+    return status_permitido == usuario_departamento
+
+def obter_status_permitidos(usuario_departamento):
+    """
+    Retorna lista de status que o usuário pode transicionar para.
+    
+    Args:
+        usuario_departamento: Departamento do usuário autenticado
+    
+    Returns:
+        list: Status permitidos para o departamento
+    """
+    return [status for status, depto in STATUS_DEPARTAMENTO_MAP.items() if depto == usuario_departamento]
 
 # Extensões de arquivo permitidas
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def generate_unique_filename(original_filename):
+    """
+    Gera um nome único para o arquivo usando timestamp e UUID.
+    Mantém a extensão original para facilitar identificação.
+    
+    Exemplo: 1701234567_abc123_documento.pdf
+    """
+    timestamp = str(int(time.time() * 1000))  # milliseconds
+    uuid_short = str(uuid.uuid4())[:8]  # primeiros 8 chars do UUID
+    name, ext = os.path.splitext(secure_filename(original_filename))
+    return f"{timestamp}_{uuid_short}_{name}{ext}"
 
 @cotacao_routes.route('/api/cotacoes')
 @login_required
@@ -66,6 +118,9 @@ def nova_cotacao():
     pesquisa_origem_id = None
     produtos_json = []
     prefilled = None
+
+    # Obter departamento do usuário
+    usuario_depto = getattr(current_user, 'departamento', 'N/A')
 
     if origem_pesquisa_id:
         from models import PesquisaMercado, HistoricoStatus
@@ -121,16 +176,27 @@ def nova_cotacao():
             anexos_herdados = pesquisa.anexos if pesquisa.anexos else []
             return render_template('form.html', cotacao=None, status_options=STATUS_OPTIONS, 
                                    produtos_json=produtos_json, pesquisa_origem_id=pesquisa_origem_id,
-                                   prefilled=prefilled, anexos_herdados=anexos_herdados)
+                                   prefilled=prefilled, anexos_herdados=anexos_herdados,
+                                   pode_editar=True, usuario_depto=usuario_depto)
 
-    return render_template('form.html', cotacao=None, status_options=STATUS_OPTIONS, pesquisa_origem_id=None)
+    return render_template('form.html', cotacao=None, status_options=STATUS_OPTIONS, pesquisa_origem_id=None,
+                          pode_editar=True, usuario_depto=usuario_depto)
 
 @cotacao_routes.route('/cotacao/<int:id>', methods=['GET'], endpoint='editar_cotacao')
 @login_required
 def editar_cotacao(id):
     cotacao = Cotacao.query.get_or_404(id)
     produtos_json = [p.to_dict() for p in cotacao.produtos]
-    return render_template('form.html', cotacao=cotacao, status_options=STATUS_OPTIONS, produtos_json=produtos_json)
+    
+    # Obter departamento do usuário
+    usuario_depto = getattr(current_user, 'departamento', 'N/A')
+    
+    # Verificar se pode editar CAMPOS
+    pode_editar = pode_editar_cotacao(usuario_depto, cotacao.status)
+    
+    return render_template('form.html', cotacao=cotacao, status_options=STATUS_OPTIONS, 
+                          produtos_json=produtos_json, pode_editar=pode_editar,
+                          usuario_depto=usuario_depto)
 
 @cotacao_routes.route('/api/cotacao', methods=['POST'])
 @login_required
@@ -231,7 +297,8 @@ def criar_cotacao():
             status_anterior=None,  # Primeiro status
             status_novo=cotacao.status,
             observacao='Cotação criada',
-            usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+            usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+            departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
         )
         db.session.add(historico)
         
@@ -244,15 +311,17 @@ def criar_cotacao():
                     if anexos_count >= MAX_ANEXOS:
                         break
                     
-                    filename = secure_filename(arquivo.filename)
+                    # Usar nome único para evitar conflitos ao sobrescrever arquivos
+                    filename_unique = generate_unique_filename(arquivo.filename)
+                    original_filename = secure_filename(arquivo.filename)
                     uploads_dir = os.path.join(os.getcwd(), 'uploads')
                     os.makedirs(uploads_dir, exist_ok=True)
-                    filepath = os.path.join('uploads', filename)
-                    arquivo.save(os.path.join(uploads_dir, filename))
+                    filepath = os.path.join('uploads', filename_unique)
+                    arquivo.save(os.path.join(uploads_dir, filename_unique))
                     
-                    # Criar registro de anexo
+                    # Criar registro de anexo (armazena nome original para exibição)
                     anexo = Anexo(
-                        filename=filename,
+                        filename=original_filename,
                         filepath=filepath,
                         cotacao_id=cotacao.id
                     )
@@ -289,15 +358,15 @@ def criar_cotacao():
                 return 0.0
         
         for produto_data in produtos_data:
-            # Tratar campo prazo_entrega_fornecedor corretamente
-            prazo_entrega_fornecedor = produto_data.get('prazo_entrega_fornecedor', '')
-            if prazo_entrega_fornecedor == 'null' or prazo_entrega_fornecedor == '' or prazo_entrega_fornecedor is None:
-                prazo_entrega_fornecedor = None
+            # Tratar campo prazo_pagamento_fornecedor corretamente
+            prazo_pagamento_fornecedor = produto_data.get('prazo_pagamento_fornecedor', '')
+            if prazo_pagamento_fornecedor == 'null' or prazo_pagamento_fornecedor == '' or prazo_pagamento_fornecedor is None:
+                prazo_pagamento_fornecedor = None
             else:
                 try:
-                    prazo_entrega_fornecedor = datetime.strptime(prazo_entrega_fornecedor, '%Y-%m-%d').date()
+                    prazo_pagamento_fornecedor = datetime.strptime(prazo_pagamento_fornecedor, '%Y-%m-%d').date()
                 except (ValueError, TypeError):
-                    prazo_entrega_fornecedor = None
+                    prazo_pagamento_fornecedor = None
             
             produto = ProdutoCotacao(
                 cotacao_id=cotacao.id,
@@ -310,9 +379,8 @@ def criar_cotacao():
                 fornecedor=produto_data.get('fornecedor', ''),
                 preco_custo=parse_money(produto_data.get('preco_custo', '')),
                 custo_alvo=parse_money(produto_data.get('custo_alvo', '')),
-                valor_frete=parse_money(produto_data.get('valor_frete', '')),
-                prazo_entrega_fornecedor=prazo_entrega_fornecedor,
-                valor_total_com_frete=parse_money(produto_data.get('valor_total_com_frete', ''))
+                tipo_frete=produto_data.get('tipo_frete', ''),
+                prazo_pagamento_fornecedor=prazo_pagamento_fornecedor
             )
             db.session.add(produto)
         
@@ -339,7 +407,8 @@ def criar_cotacao():
                     status_anterior=pesquisa_origem.status,
                     status_novo=pesquisa_origem.status,
                     observacao=f'Cotação #{cotacao.id} gerada a partir desta Pesquisa',
-                    usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+                    usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                    departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
                 )
                 db.session.add(hist_pesq)
 
@@ -383,6 +452,53 @@ def atualizar_cotacao(id):
         
         data = request.form
         
+        # Validar permissão para EDIÇÃO DE CAMPOS (não aplica a mudança de status)
+        usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        campos_editados = False
+        
+        # Verificar se há edição de campos além de status
+        campos_verificar = ['nome_filial', 'numero_mesorregiao', 'matricula_cooperado', 'nome_cooperado',
+                           'analista_comercial', 'comprador', 'observacoes', 'forma_pagamento', 
+                           'prazo_entrega', 'cultura', 'nome_vendedor', 'motivo_venda_perdida']
+        
+        for campo in campos_verificar:
+            valor_novo = data.get(campo, '')
+            valor_atual = getattr(cotacao, campo, '')
+            if valor_novo != valor_atual:
+                campos_editados = True
+                break
+        
+        # Verificar se há edição de produtos
+        produtos_json = data.get('produtos_json')
+        if produtos_json:
+            try:
+                produtos_data = json.loads(produtos_json)
+                if len(produtos_data) != len(cotacao.produtos):
+                    campos_editados = True
+            except:
+                pass
+        
+        # Se há edição de campos, validar permissão por departamento
+        if campos_editados and not pode_editar_cotacao(usuario_depto, cotacao.status):
+            depto_responsavel = STATUS_DEPARTAMENTO_MAP.get(cotacao.status, "Desconhecido")
+            return jsonify({'success': False, 'error': f'Esta cotação com status "{cotacao.status}" é de responsabilidade do departamento {depto_responsavel}. Você não pode editar os campos desta cotação.'}), 403
+        
+        # Capturar estado anterior para registrar histórico de edições
+        cotacao_anterior = {
+            'nome_filial': cotacao.nome_filial,
+            'numero_mesorregiao': cotacao.numero_mesorregiao,
+            'matricula_cooperado': cotacao.matricula_cooperado,
+            'nome_cooperado': cotacao.nome_cooperado,
+            'analista_comercial': cotacao.analista_comercial,
+            'comprador': cotacao.comprador,
+            'observacoes': cotacao.observacoes,
+            'forma_pagamento': cotacao.forma_pagamento,
+            'prazo_entrega': cotacao.prazo_entrega,
+            'cultura': cotacao.cultura,
+            'nome_vendedor': cotacao.nome_vendedor,
+            'motivo_venda_perdida': cotacao.motivo_venda_perdida
+        }
+        
         cotacao.nome_filial = data.get('nome_filial', cotacao.nome_filial)
         cotacao.numero_mesorregiao = data.get('numero_mesorregiao') or data.get('mesoregiao') or cotacao.numero_mesorregiao
         cotacao.matricula_cooperado = data.get('matricula_cooperado', cotacao.matricula_cooperado)
@@ -395,12 +511,15 @@ def atualizar_cotacao(id):
             cotacao.data_entrada_status = datetime.now(TZ_SP)
             
             # Registrar histórico de mudança de status
+            usuario = current_user.name if current_user.is_authenticated else 'Sistema'
+            departamento = getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
             historico = HistoricoStatus(
                 cotacao_id=cotacao.id,
                 status_anterior=status_anterior,
                 status_novo=novo_status,
                 observacao='Status atualizado',
-                usuario=current_user.name if current_user.is_authenticated else 'Sistema'
+                usuario=usuario,
+                departamento=departamento
             )
             db.session.add(historico)
         
@@ -432,15 +551,17 @@ def atualizar_cotacao(id):
                     if anexos_existentes >= MAX_ANEXOS:
                         break
                     
-                    filename = secure_filename(arquivo.filename)
+                    # Usar nome único para evitar conflitos ao sobrescrever arquivos
+                    filename_unique = generate_unique_filename(arquivo.filename)
+                    original_filename = secure_filename(arquivo.filename)
                     uploads_dir = os.path.join(os.getcwd(), 'uploads')
                     os.makedirs(uploads_dir, exist_ok=True)
-                    filepath = os.path.join('uploads', filename)
-                    arquivo.save(os.path.join(uploads_dir, filename))
+                    filepath = os.path.join('uploads', filename_unique)
+                    arquivo.save(os.path.join(uploads_dir, filename_unique))
                     
-                    # Adicionar novo anexo ao banco
+                    # Adicionar novo anexo ao banco (armazena nome original para exibição)
                     anexo = Anexo(
-                        filename=filename,
+                        filename=original_filename,
                         filepath=filepath,
                         cotacao_id=cotacao.id
                     )
@@ -448,6 +569,23 @@ def atualizar_cotacao(id):
                     anexos_existentes += 1
         
         # Atualizar produtos
+        # IMPORTANTE: Serializar dados dos produtos antigos ANTES de deletá-los
+        produtos_antigos_dados = []
+        for prod in cotacao.produtos:
+            produtos_antigos_dados.append({
+                'sku_produto': prod.sku_produto,
+                'nome_produto': prod.nome_produto,
+                'volume': prod.volume,
+                'unidade_medida': prod.unidade_medida,
+                'preco_unitario': prod.preco_unitario,
+                'valor_total': prod.valor_total,
+                'fornecedor': prod.fornecedor,
+                'preco_custo': prod.preco_custo,
+                'custo_alvo': prod.custo_alvo,
+                'tipo_frete': prod.tipo_frete,
+                'prazo_pagamento_fornecedor': prod.prazo_pagamento_fornecedor
+            })
+        
         for produto in cotacao.produtos:
             db.session.delete(produto)
         
@@ -467,15 +605,15 @@ def atualizar_cotacao(id):
                 return 0.0
         
         for produto_data in produtos_data:
-            # Tratar campo prazo_entrega_fornecedor corretamente
-            prazo_entrega_fornecedor = produto_data.get('prazo_entrega_fornecedor', '')
-            if prazo_entrega_fornecedor == 'null' or prazo_entrega_fornecedor == '' or prazo_entrega_fornecedor is None:
-                prazo_entrega_fornecedor = None
+            # Tratar campo prazo_pagamento_fornecedor corretamente
+            prazo_pagamento_fornecedor = produto_data.get('prazo_pagamento_fornecedor', '')
+            if prazo_pagamento_fornecedor == 'null' or prazo_pagamento_fornecedor == '' or prazo_pagamento_fornecedor is None:
+                prazo_pagamento_fornecedor = None
             else:
                 try:
-                    prazo_entrega_fornecedor = datetime.strptime(prazo_entrega_fornecedor, '%Y-%m-%d').date()
+                    prazo_pagamento_fornecedor = datetime.strptime(prazo_pagamento_fornecedor, '%Y-%m-%d').date()
                 except (ValueError, TypeError):
-                    prazo_entrega_fornecedor = None
+                    prazo_pagamento_fornecedor = None
             
             produto = ProdutoCotacao(
                 cotacao_id=cotacao.id,
@@ -488,13 +626,53 @@ def atualizar_cotacao(id):
                 fornecedor=produto_data.get('fornecedor', ''),
                 preco_custo=parse_money(produto_data.get('preco_custo', '')),
                 custo_alvo=parse_money(produto_data.get('custo_alvo', '')),
-                valor_frete=parse_money(produto_data.get('valor_frete', '')),
-                prazo_entrega_fornecedor=prazo_entrega_fornecedor,
-                valor_total_com_frete=parse_money(produto_data.get('valor_total_com_frete', ''))
+                tipo_frete=produto_data.get('tipo_frete', ''),
+                prazo_pagamento_fornecedor=prazo_pagamento_fornecedor
             )
             db.session.add(produto)
         
+        # Registrar histórico de mudanças nos produtos
+        usuario = current_user.name if current_user.is_authenticated else 'Sistema'
+        departamento = getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+        
+        comparar_e_registrar_edicoes_produtos(
+            produtos_antigos_dados,
+            produtos_data,
+            cotacao_id=cotacao.id,
+            usuario=usuario,
+            departamento=departamento
+        )
+        
         cotacao.data_ultima_modificacao = datetime.now(TZ_SP)
+        
+        # Registrar histórico de edições de campos
+        campos_monitorados = {
+            'nome_filial': 'Filial',
+            'numero_mesorregiao': 'Mesorregião',
+            'matricula_cooperado': 'Matrícula Cooperado',
+            'nome_cooperado': 'Nome Cooperado',
+            'analista_comercial': 'Analista Comercial',
+            'comprador': 'Comprador',
+            'observacoes': 'Observações',
+            'forma_pagamento': 'Forma de Pagamento',
+            'prazo_entrega': 'Prazo de Entrega',
+            'cultura': 'Cultura',
+            'nome_vendedor': 'Vendedor',
+            'motivo_venda_perdida': 'Motivo Venda Perdida'
+        }
+        
+        usuario = current_user.name if current_user.is_authenticated else 'Sistema'
+        departamento = getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+        
+        comparar_e_registrar_edicoes(
+            type('CotacaoAnterior', (), cotacao_anterior)(),
+            cotacao,
+            campos_monitorados,
+            cotacao_id=cotacao.id,
+            usuario=usuario,
+            departamento=departamento
+        )
+        
         db.session.commit()
         
         # Enviar e-mail para o departamento correto (em background para não bloquear)
@@ -601,4 +779,42 @@ def excluir_anexo(id):
         return '', 204
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@cotacao_routes.route('/api/cotacao/<int:id>/permissoes', methods=['GET'])
+@login_required
+def get_permissoes_cotacao(id):
+    """Retorna informações de permissão para edição de CAMPOS da cotação"""
+    try:
+        cotacao = Cotacao.query.get_or_404(id)
+        usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        
+        # Verificar se pode editar CAMPOS (não é sobre status)
+        pode_editar_campos = pode_editar_cotacao(usuario_depto, cotacao.status)
+        status_depto_cotacao = STATUS_DEPARTAMENTO_MAP.get(cotacao.status, 'Desconhecido')
+        
+        return jsonify({
+            'success': True,
+            'pode_editar_campos': pode_editar_campos,
+            'usuario_depto': usuario_depto,
+            'status_cotacao': cotacao.status,
+            'status_depto_cotacao': status_depto_cotacao
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@cotacao_routes.route('/api/cotacao/<int:id>/historico-edicoes', methods=['GET'])
+@login_required
+def get_historico_edicoes_cotacao(id):
+    """Retorna o histórico de edições de campos de uma cotação"""
+    try:
+        cotacao = Cotacao.query.get_or_404(id)
+        
+        historicos = HistoricoEdicaoCampo.query.filter_by(cotacao_id=id).order_by(
+            HistoricoEdicaoCampo.data_mudanca.desc()
+        ).all()
+        
+        return jsonify([historico.to_dict() for historico in historicos])
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

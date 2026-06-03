@@ -3,6 +3,74 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalSteps = 3;
     let produtos = [];
 
+    // Função para verificar e aplicar permissões de edição
+    function verificarEAplicarPermissoes() {
+        const cotacaoIdInput = document.querySelector('input[name="id"]');
+        
+        // Se está editando uma cotação (tem ID), carregar permissões via API
+        if (cotacaoIdInput && cotacaoIdInput.value) {
+            const cotacaoId = cotacaoIdInput.value;
+            fetch(`/api/cotacao/${cotacaoId}/permissoes`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.podeEditarCampos = data.pode_editar_campos;
+                        window.usuarioDepto = data.usuario_depto;
+                        
+                        console.log('Permissões de campos carregadas:', {
+                            pode_editar_campos: window.podeEditarCampos,
+                            usuario_depto: window.usuarioDepto,
+                            status_cotacao: data.status_cotacao
+                        });
+                        
+                        aplicarRestricoesCampos(window.podeEditarCampos, data.status_cotacao, data.status_depto_cotacao);
+                    }
+                })
+                .catch(error => console.error('Erro ao carregar permissões:', error));
+        } else {
+            // Se está criando, usar valores passados do template ou padrão
+            console.log('Modo criação - Usando permissões do template');
+            aplicarRestricoesCampos(window.podeEditarCampos, null, null);
+        }
+    }
+
+    // Função para aplicar restrições de edição APENAS DE CAMPOS (não status)
+    function aplicarRestricoesCampos(podeEditarCampos, statusCotacao, statusDeptoCotacao) {
+        if (!podeEditarCampos && statusCotacao) {
+            // Bloquear todos os campos EXCETO status
+            const todosInputs = document.querySelectorAll('input, textarea, select');
+            todosInputs.forEach(input => {
+                // Deixar status e navegação habilitados
+                if (input.id !== 'status' && !input.classList.contains('btn-close')) {
+                    input.disabled = true;
+                }
+            });
+            
+            // Remover botão de salvar
+            const btnSalvar = document.getElementById('nextButton');
+            if (btnSalvar) {
+                btnSalvar.style.display = 'none';
+            }
+            
+            // Mostrar mensagem de aviso
+            const form = document.getElementById('cotacaoForm');
+            if (form) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-warning alert-dismissible fade show mb-4';
+                alertDiv.role = 'alert';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-lock me-2"></i>
+                    <strong>Campos Somente Leitura</strong> — Esta cotação está sob responsabilidade do departamento ${statusDeptoCotacao}. Você não pode editar nenhum campo.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                form.insertBefore(alertDiv, form.firstChild);
+            }
+        }
+    }
+
+    // Chamar verificação de permissões ao carregar
+    verificarEAplicarPermissoes();
+
     // Carregar histórico de status se estiver editando uma cotação
     function carregarHistorico() {
         const cotacaoIdInput = document.querySelector('input[name="id"]');
@@ -16,24 +84,31 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.historicos.length > 0) {
-                    let html = '<div class="timeline">';
+                    let html = '<div class="historico-timeline">';
                     data.historicos.forEach((item, index) => {
                         const statusAnterior = item.status_anterior || 'Nova Cotação';
-                        const icon = index === 0 ? 'fa-check-circle text-success' : 'fa-arrow-right text-primary';
+                        const statusNovo = item.status_novo;
                         html += `
-                            <div class="timeline-item mb-3 d-flex align-items-start">
-                                <div class="timeline-icon me-3">
-                                    <i class="fas ${icon}"></i>
+                            <div class="historico-card mb-3">
+                                <div class="historico-card-header d-flex align-items-center gap-2 pb-2 mb-2" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                                    <i class="fas fa-circle-notch text-primary" style="font-size: 0.7rem;"></i>
+                                    <span class="fw-bold text-dark flex-grow-1">${statusAnterior}</span>
+                                    <i class="fas fa-arrow-right text-muted mx-1"></i>
+                                    <span class="fw-bold text-success">${statusNovo}</span>
                                 </div>
-                                <div class="timeline-content flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <strong>${statusAnterior} → ${item.status_novo}</strong>
-                                        <small class="text-muted">${item.data_mudanca}</small>
+                                <div class="historico-card-body small">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">
+                                            <i class="fas fa-calendar-alt"></i> ${item.data_mudanca}
+                                        </span>
+                                        <span class="text-muted">
+                                            <i class="fas fa-user"></i> ${item.usuario || 'Sistema'}
+                                        </span>
                                     </div>
-                                    ${item.observacao ? `<small class="text-muted">${item.observacao}</small>` : ''}
-                                    <div class="text-end mt-1">
-                                        <small class="text-muted" style="font-size: 0.75rem;">${item.usuario || 'Sistema'}</small>
+                                    <div class="text-muted mb-2">
+                                        <i class="fas fa-building"></i> <strong>Depto:</strong> ${item.departamento || 'N/A'}
                                     </div>
+                                    ${item.observacao ? `<div class="text-muted" style="font-style: italic; font-size: 0.85rem;"><i class="fas fa-comment"></i> ${item.observacao}</div>` : ''}
                                 </div>
                             </div>
                         `;
@@ -41,21 +116,101 @@ document.addEventListener('DOMContentLoaded', function () {
                     html += '</div>';
                     historicoContainer.innerHTML = html;
                 } else {
-                    historicoContainer.innerHTML = '<p class="text-muted mb-0">Nenhum histórico encontrado.</p>';
+                    historicoContainer.innerHTML = '<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Nenhum histórico encontrado.</div>';
                 }
             })
             .catch(error => {
                 console.error('Erro ao carregar histórico:', error);
-                historicoContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar histórico.</p>';
+                historicoContainer.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-circle"></i> Erro ao carregar histórico.</div>';
             });
     }
 
     // Carregar histórico quando o collapse for aberto
-    const historicoCollapse = document.getElementById('historicoCollapse');
-    if (historicoCollapse) {
-        historicoCollapse.addEventListener('show.bs.collapse', function () {
+    const historicoCollapseContainer = document.getElementById('historicoCollapseContainer');
+    if (historicoCollapseContainer) {
+        historicoCollapseContainer.addEventListener('show.bs.collapse', function () {
+            carregarHistorico();
+            carregarHistoricoEdicoes();
+        });
+    }
+
+    // Carregar histórico quando a aba de status for ativada
+    const tabStatus = document.getElementById('tab-status');
+    if (tabStatus) {
+        tabStatus.addEventListener('shown.bs.tab', function () {
             carregarHistorico();
         });
+    }
+
+    // Carregar histórico de edições quando a aba de campos for ativada
+    const tabFields = document.getElementById('tab-fields');
+    if (tabFields) {
+        tabFields.addEventListener('shown.bs.tab', function () {
+            carregarHistoricoEdicoes();
+        });
+    }
+    function carregarHistoricoEdicoes() {
+        const cotacaoIdInput = document.querySelector('input[name="id"]');
+        const historicoEdicoesContainer = document.getElementById('historicoEdicoesTimeline');
+
+        if (!cotacaoIdInput || !cotacaoIdInput.value || !historicoEdicoesContainer) return;
+
+        const cotacaoId = cotacaoIdInput.value;
+
+        fetch(`/api/cotacao/${cotacaoId}/historico-edicoes`)
+            .then(response => response.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    let html = '<div class="historico-timeline">';
+                    data.forEach((item, index) => {
+                        const valorAnterior = item.valor_anterior || '(vazio)';
+                        const valorNovo = item.valor_novo || '(vazio)';
+                        html += `
+                            <div class="historico-card mb-3">
+                                <div class="historico-card-header d-flex align-items-center gap-2 pb-2 mb-2" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                                    <i class="fas fa-edit text-info"></i>
+                                    <span class="fw-bold text-dark flex-grow-1">${item.campo_label}</span>
+                                </div>
+                                <div class="historico-card-body small">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">
+                                            <i class="fas fa-calendar-alt"></i> ${item.data_mudanca}
+                                        </span>
+                                        <span class="text-muted">
+                                            <i class="fas fa-user"></i> ${item.usuario || 'Sistema'}
+                                        </span>
+                                    </div>
+                                    <div class="text-muted mb-3">
+                                        <i class="fas fa-building"></i> <strong>Depto:</strong> ${item.departamento || 'N/A'}
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <div style="background-color: rgba(255,193,7,0.1); border-left: 3px solid #ffc107; padding: 8px; border-radius: 4px;">
+                                                <small class="text-muted d-block mb-1"><i class="fas fa-arrow-left"></i> <strong>Antes:</strong></small>
+                                                <small class="historico-valor d-block" style="word-break: break-word;">${valorAnterior}</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div style="background-color: rgba(40,167,69,0.1); border-left: 3px solid #28a745; padding: 8px; border-radius: 4px;">
+                                                <small class="text-muted d-block mb-1"><i class="fas fa-arrow-right"></i> <strong>Depois:</strong></small>
+                                                <small class="historico-valor d-block" style="word-break: break-word;">${valorNovo}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    historicoEdicoesContainer.innerHTML = html;
+                } else {
+                    historicoEdicoesContainer.innerHTML = '<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Nenhuma edição encontrada.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao carregar histórico de edições:', error);
+                historicoEdicoesContainer.innerHTML = '<div class="alert alert-danger mb-0"><i class="fas fa-exclamation-circle"></i> Erro ao carregar histórico.</div>';
+            });
     }
 
     // Função para controlar bloqueio de campos por fase (DESATIVADA TEMPORARIAMENTE)
@@ -135,9 +290,8 @@ document.addEventListener('DOMContentLoaded', function () {
             `valor_total_${index}`,
             `fornecedor_${index}`,
             `preco_custo_${index}`,
-            `valor_frete_${index}`,
-            `valor_total_com_frete_${index}`,
-            `prazo_entrega_fornecedor_${index}`
+            `tipo_frete_${index}`,
+            `prazo_pagamento_fornecedor_${index}`
         ];
 
         camposParaBloquear.forEach(campoId => {
@@ -157,9 +311,8 @@ document.addEventListener('DOMContentLoaded', function () {
             `valor_total_${index}`,
             `fornecedor_${index}`,
             `preco_custo_${index}`,
-            `valor_frete_${index}`,
-            `valor_total_com_frete_${index}`,
-            `prazo_entrega_fornecedor_${index}`
+            `tipo_frete_${index}`,
+            `prazo_pagamento_fornecedor_${index}`
         ];
 
         camposParaLiberar.forEach(campoId => {
@@ -201,13 +354,11 @@ document.addEventListener('DOMContentLoaded', function () {
         compradorInput.classList.remove('campo-bloqueado');
     }
 
-    // Listener para mudanças no status da cotação
-    document.getElementById('status').addEventListener('change', function () {
-        // Atualizar o campo hidden com o novo status
-        document.getElementById('statusAtual').value = this.value;
-        // Reaplicar controle de campos por fase
-        controlarCamposPorFase();
-    });
+
+    // O controle de bloqueio de campos por fase inicial já é feito no carregamento da página.
+    // Não devemos re-bloquear o formulário inteiro se o usuário estiver apenas alterando o status
+    // para "Cotação Perdida" na edição, pois ele precisa preencher o motivo e salvar.
+
 
     // DELEGADO GLOBAL: Limpar campos monetários com "R$ 0,00" ao focar
     // Funciona para todos os campos .money-input, inclusive os criados dinamicamente
@@ -274,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="form-group">
                             <label for="volume_${produtoIndex}" class="form-label">Volume <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" id="volume_${produtoIndex}" name="produtos[${produtoIndex}][volume]" required>
+                            <div class="invalid-feedback d-block" id="erro_volume_${produtoIndex}" style="display: none;"></div>
                         </div>
                     </div>
                 </div>
@@ -320,20 +472,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="row mt-3">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="valor_frete_${produtoIndex}" class="form-label">Valor do Frete (R$/TN)</label>
-                            <input type="text" class="form-control money-input" id="valor_frete_${produtoIndex}" name="produtos[${produtoIndex}][valor_frete]" value="R$ 0,00">
+                            <label for="tipo_frete_${produtoIndex}" class="form-label">Tipo de Frete</label>
+                            <select class="form-select" id="tipo_frete_${produtoIndex}" name="produtos[${produtoIndex}][tipo_frete]">
+                                <option value="">Selecione...</option>
+                                <option value="CIF">CIF</option>
+                                <option value="FOB">FOB</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="prazo_entrega_fornecedor_${produtoIndex}" class="form-label">Prazo de Entrega Fornecedor</label>
-                            <input type="date" class="form-control" id="prazo_entrega_fornecedor_${produtoIndex}" name="produtos[${produtoIndex}][prazo_entrega_fornecedor]">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label for="valor_total_com_frete_${produtoIndex}" class="form-label">Valor Total com Frete (R$)</label>
-                            <input type="text" class="form-control money-input" id="valor_total_com_frete_${produtoIndex}" name="produtos[${produtoIndex}][valor_total_com_frete]" readonly value="R$ 0,00">
+                            <label for="prazo_pagamento_fornecedor_${produtoIndex}" class="form-label">Prazo de Pagamento Fornecedor</label>
+                            <input type="date" class="form-control" id="prazo_pagamento_fornecedor_${produtoIndex}" name="produtos[${produtoIndex}][prazo_pagamento_fornecedor]">
                         </div>
                     </div>
                 </div>
@@ -380,18 +530,16 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById(`fornecedor_${produtoIndex}`).value = safeValue(produtoData.fornecedor);
             document.getElementById(`preco_custo_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.preco_custo);
             document.getElementById(`custo_alvo_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.custo_alvo);
-            document.getElementById(`valor_frete_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.valor_frete);
+            document.getElementById(`tipo_frete_${produtoIndex}`).value = safeValue(produtoData.tipo_frete);
 
             // DEBUG: Campo importante
-            const prazoElement = document.getElementById(`prazo_entrega_fornecedor_${produtoIndex}`);
+            const prazoElement = document.getElementById(`prazo_pagamento_fornecedor_${produtoIndex}`);
             if (prazoElement) {
-                prazoElement.value = safeValue(produtoData.prazo_entrega_fornecedor);
-                console.log(`Campo prazo_entrega_fornecedor_${produtoIndex} preenchido com: "${prazoElement.value}"`);
+                prazoElement.value = safeValue(produtoData.prazo_pagamento_fornecedor);
+                console.log(`Campo prazo_pagamento_fornecedor_${produtoIndex} preenchido com: "${prazoElement.value}"`);
             } else {
-                console.error(`Elemento prazo_entrega_fornecedor_${produtoIndex} não encontrado!`);
+                console.error(`Elemento prazo_pagamento_fornecedor_${produtoIndex} não encontrado!`);
             }
-
-            document.getElementById(`valor_total_com_frete_${produtoIndex}`).value = formatMoneyOrEmpty(produtoData.valor_total_com_frete);
         }
 
         // Adicionar event listeners para cálculos automáticos
@@ -418,8 +566,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const volumeInput = document.getElementById(`volume_${index}`);
         const precoUnitarioInput = document.getElementById(`preco_unitario_${index}`);
         const valorTotalInput = document.getElementById(`valor_total_${index}`);
-        const valorFreteInput = document.getElementById(`valor_frete_${index}`);
-        const valorTotalComFreteInput = document.getElementById(`valor_total_com_frete_${index}`);
 
         function calculateTotals() {
             const volume = parseFloat(volumeInput.value) || 0;
@@ -428,27 +574,39 @@ document.addEventListener('DOMContentLoaded', function () {
             precoUnitarioStr = precoUnitarioStr.replace(/\./g, ''); // remove pontos de milhar
             precoUnitarioStr = precoUnitarioStr.replace(',', '.'); // troca vírgula por ponto
             const precoUnitario = parseFloat(precoUnitarioStr) || 0;
-            // CORREÇÃO: Remover pontos de milhar do valor do frete também
-            let valorFreteStr = valorFreteInput.value.replace(/[^\d,.-]/g, '');
-            valorFreteStr = valorFreteStr.replace(/\./g, '');
-            valorFreteStr = valorFreteStr.replace(',', '.');
-            const valorFrete = parseFloat(valorFreteStr) || 0;
 
             const valorTotal = volume * precoUnitario;
-            // CORREÇÃO: Frete é informado por TN, então multiplicar pelo volume
-            const valorTotalComFrete = (valorFrete * volume) + valorTotal;
 
             valorTotalInput.value = formatMoney(valorTotal);
-            valorTotalComFreteInput.value = formatMoney(valorTotalComFrete);
         }
 
         volumeInput.addEventListener('input', calculateTotals);
         precoUnitarioInput.addEventListener('input', calculateTotals);
-        valorFreteInput.addEventListener('input', calculateTotals);
+
+        // Adicionar validação do múltiplo ao sair do campo volume
+        volumeInput.addEventListener('blur', function () {
+            const volume = parseFloat(this.value);
+            const multiplo = document.documentElement.dataset.multiploCotacao;
+            const errorDiv = document.getElementById(`erro_volume_${index}`);
+
+            if (multiplo && volume) {
+                if (volume % multiplo !== 0) {
+                    this.classList.add('is-invalid');
+                    errorDiv.textContent = `Valor deve ser múltiplo de ${multiplo} TN`;
+                    errorDiv.style.display = 'block';
+                } else {
+                    this.classList.remove('is-invalid');
+                    errorDiv.style.display = 'none';
+                }
+            } else if (!multiplo && volume) {
+                // Se não houver múltiplo definido ainda
+                this.classList.remove('is-invalid');
+                errorDiv.style.display = 'none';
+            }
+        });
 
         // Adicionar formatação monetária aos campos
         setupMoneyInput(precoUnitarioInput);
-        setupMoneyInput(valorFreteInput);
         // Adicionar formatação monetária ao campo de custo
         const precoCustoInput = document.getElementById(`preco_custo_${index}`);
         setupMoneyInput(precoCustoInput);
@@ -839,6 +997,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Limpar analista se não houver mesorregião
                 preencherAnalistaPorMesorregiao('');
             }
+
+            // Obter múltiplo da filial
+            if (selected) {
+                fetch(`/api/multiplo/filial?filial=${encodeURIComponent(selected)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('✅ Múltiplo obtido:', data.multiplo, 'para região:', data.regiao);
+                            // Armazenar múltiplo em atributo data global
+                            document.documentElement.dataset.multiploCotacao = data.multiplo;
+                            
+                            // Atualizar labels de todos os campos de volume com a info do múltiplo
+                            const labels = document.querySelectorAll('label[for^="volume_"]');
+                            labels.forEach(label => {
+                                const fieldId = label.getAttribute('for');
+                                const volumeInput = document.getElementById(fieldId);
+                                if (volumeInput) {
+                                    label.innerHTML = `Volume <span class="text-danger">*</span> <small class="text-muted" style="font-weight: normal;">(Múltiplo: ${data.multiplo} TN)</small>`;
+                                    volumeInput.dataset.multiplo = data.multiplo;
+                                }
+                            });
+                        } else {
+                            console.warn('⚠️ Não foi possível obter múltiplo:', data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro ao obter múltiplo:', error);
+                    });
+            }
         });
     }
 
@@ -959,7 +1146,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Função de validação desabilitada - nenhum campo é obrigatório
     function validarTodosCamposObrigatorios() {
-        return true;
+        let valido = true;
+        let erros = [];
+        const multiplo = document.documentElement.dataset.multiploCotacao;
+
+        // Validar múltiplo de volume para cada produto
+        produtos.forEach(function (produtoIndex) {
+            const volumeInput = document.getElementById(`volume_${produtoIndex}`);
+            const volume = parseFloat(volumeInput.value);
+
+            if (multiplo && volume) {
+                if (volume % multiplo !== 0) {
+                    valido = false;
+                    erros.push(`Produto ${produtoIndex + 1}: Volume deve ser múltiplo de ${multiplo} TN`);
+                    volumeInput.classList.add('is-invalid');
+                    document.getElementById(`erro_volume_${produtoIndex}`).textContent = `Valor deve ser múltiplo de ${multiplo} TN`;
+                    document.getElementById(`erro_volume_${produtoIndex}`).style.display = 'block';
+                } else {
+                    volumeInput.classList.remove('is-invalid');
+                    document.getElementById(`erro_volume_${produtoIndex}`).style.display = 'none';
+                }
+            }
+        });
+
+        if (!valido) {
+            alert('Por favor, corrija os erros de validação:\n\n' + erros.join('\n'));
+        }
+
+        return valido;
     }
 
     // Event Listener para adicionar produto
@@ -1245,6 +1459,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const form = e.target;
         const formData = new FormData(form);
 
+        // ===== ADICIONAR ARQUIVOS ACUMULADOS (SELECIONADOS ANTES DE SALVAR) =====
+        if (typeof selectedFilesForUpload !== 'undefined' && selectedFilesForUpload.length > 0) {
+            selectedFilesForUpload.forEach((file) => {
+                formData.append('anexos[]', file);
+            });
+            console.log(`✅ Adicionados ${selectedFilesForUpload.length} arquivo(s) selecionado(s) ao formulário`);
+        }
+
         // Montar array de produtos
         const produtos = [];
         document.querySelectorAll('.produto-item').forEach(function (produtoDiv, idx) {
@@ -1258,14 +1480,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 fornecedor: produtoDiv.querySelector(`[id^=fornecedor_]`).value,
                 preco_custo: produtoDiv.querySelector(`[id^=preco_custo_]`).value,
                 custo_alvo: produtoDiv.querySelector(`[id^=custo_alvo_]`).value,
-                valor_frete: produtoDiv.querySelector(`[id^=valor_frete_]`).value,
-                prazo_entrega_fornecedor: produtoDiv.querySelector(`[id^=prazo_entrega_fornecedor_]`).value,
-                valor_total_com_frete: produtoDiv.querySelector(`[id^=valor_total_com_frete_]`).value
+                tipo_frete: produtoDiv.querySelector(`[id^=tipo_frete_]`).value,
+                prazo_pagamento_fornecedor: produtoDiv.querySelector(`[id^=prazo_pagamento_fornecedor_]`).value
             };
 
             // DEBUG: Verificar campo importante
             console.log(`Produto ${idx + 1} sendo enviado:`, produto);
-            console.log(`Campo prazo_entrega_fornecedor: "${produto.prazo_entrega_fornecedor}"`);
+            console.log(`Campo prazo_pagamento_fornecedor: "${produto.prazo_pagamento_fornecedor}"`);
             produtos.push(produto);
         });
         formData.delete('produtos[]'); // Remover se existir

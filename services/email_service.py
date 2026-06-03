@@ -1,12 +1,26 @@
 import smtplib
 from email.mime.text import MIMEText
 
-# Lista de e-mails que receberão as notificações (fallback)
-NOTIFICATION_EMAILS = ['joseduque@cooxupe.com.br']
+# Admin e supervisores que recebem todas as notificações
+ADMIN_EMAIL = 'joseduque@cooxupe.com.br'
+SUPERVISOR_EMAIL = 'luizcypriano@cooxupe.com.br'
 
 # E-mails por departamento
-EMAIL_COMERCIAL = 'joseduque@cooxupe.com.br'
-EMAIL_SUPRIMENTOS = 'luizcypriano@cooxupe.com.br'
+EMAIL_COMERCIAL = [
+    'luizf@cooxupe.com.br',
+    'rafaelmoreira@cooxupe.com.br',
+    'thalles@cooxupe.com.br',
+    'anacassia@cooxupe.com.br',
+    'leiliele@cooxupe.com.br',
+    'joaquimneto@cooxupe.com.br'
+]
+
+EMAIL_SUPRIMENTOS = [
+    'marceloaugusto@cooxupe.com.br',
+    'viniciussilva@cooxupe.com.br',
+    'ludmilaferreira@cooxupe.com.br',
+    'guilhermerodrigues@cooxupe.com.br'
+]
 
 def obter_email_por_status(status):
     """
@@ -16,17 +30,14 @@ def obter_email_por_status(status):
         status: Status atual da cotação/pesquisa
         
     Returns:
-        E-mail ou lista de e-mails do departamento responsável
+        Lista de e-mails do departamento responsável + admin e supervisor
     """
     # Status que vão para Suprimentos
     if status in ['Análise Suprimentos', 'Revisão Suprimentos']:
-        return EMAIL_SUPRIMENTOS
-    # Status finais - notificar ambos
-    elif status in ['Cotação Finalizada', 'Pesquisa Finalizada', 'Cotação Perdida', 'Pesquisa Perdida']:
-        return [EMAIL_COMERCIAL, EMAIL_SUPRIMENTOS]
-    # Status que vão para Comercial (Análise Comercial, Avaliação Comercial, Aguardando Cooperado, Revisão Comercial)
+        return EMAIL_SUPRIMENTOS + [ADMIN_EMAIL, SUPERVISOR_EMAIL]
+    # Status que vão para Comercial (Análise Comercial, Avaliação Comercial, Aguardando Cooperado, Revisão Comercial, Cotação Finalizada, Cotação Perdida)
     else:
-        return EMAIL_COMERCIAL
+        return EMAIL_COMERCIAL + [ADMIN_EMAIL, SUPERVISOR_EMAIL]
 
 def enviar_email(destinatarios, assunto, corpo_html):
     """Envia e-mail usando SMTP com STARTTLS."""
@@ -42,7 +53,7 @@ def enviar_email(destinatarios, assunto, corpo_html):
 
     try:
         print(f'[EMAIL] Tentando conectar ao servidor SMTP: {smtp_server}:{smtp_port}')
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
             server.set_debuglevel(0)  # Definir para 1 para debug detalhado
             server.starttls()
             server.login(usuario, senha)

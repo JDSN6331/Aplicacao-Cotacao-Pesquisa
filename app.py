@@ -6,10 +6,14 @@ from flask_login import LoginManager
 from models import User
 from routes import routes, cotacao_routes, pesquisa_routes, admin_routes
 from routes.auth_routes import auth_routes
+from datetime import timedelta
 
 # Criar a aplicação Flask
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Configurar duração da sessão permanente
+app.permanent_session_lifetime = timedelta(seconds=app.config['PERMANENT_SESSION_LIFETIME'])
 
 # Inicializar extensões
 db.init_app(app)
@@ -23,12 +27,38 @@ login_manager.login_message_category = 'info'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# Middleware para gerenciar session timeout (before_request)
+@app.before_request
+def session_timeout_handler():
+    from flask import session, request
+    from flask_login import current_user
+    
+    # Ignorar requisições de arquivos estáticos
+    if request.path.startswith('/static/'):
+        return
+    
+    # Ignorar requisições de session/API públicas
+    if request.path.startswith('/api/session/'):
+        return
+    
+    # Se usuário está autenticado, marcar a sessão como permanente
+    try:
+        if current_user.is_authenticated:
+            session.permanent = True
+            session.modified = True
+    except Exception as e:
+        print(f'[SESSION] Erro no middleware: {str(e)}')
+
 # Registrar blueprints de rotas
 app.register_blueprint(routes, url_prefix='')
 app.register_blueprint(cotacao_routes)
 app.register_blueprint(pesquisa_routes)
 app.register_blueprint(auth_routes)
 app.register_blueprint(admin_routes)
+
+# Importar e registrar session_routes após os outros blueprints
+from routes.session_routes import session_routes
+app.register_blueprint(session_routes)
 
 # Tratamento global de erros
 @app.errorhandler(413)

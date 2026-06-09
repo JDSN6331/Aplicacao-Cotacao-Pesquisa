@@ -32,10 +32,13 @@ def obter_email_por_status(status):
     Returns:
         Lista de e-mails do departamento responsável + admin e supervisor
     """
-    # Status que vão para Suprimentos
+    # Status que vão para Suprimentos apenas
     if status in ['Análise Suprimentos', 'Revisão Suprimentos']:
         return EMAIL_SUPRIMENTOS + [ADMIN_EMAIL, SUPERVISOR_EMAIL]
-    # Status que vão para Comercial (Análise Comercial, Avaliação Comercial, Aguardando Cooperado, Revisão Comercial, Cotação Finalizada, Cotação Perdida)
+    # Status que vão para ambos os departamentos (Comercial + Suprimentos)
+    elif status in ['Cotação Finalizada', 'Cotação Perdida']:
+        return EMAIL_COMERCIAL + EMAIL_SUPRIMENTOS + [ADMIN_EMAIL, SUPERVISOR_EMAIL]
+    # Status que vão para Comercial
     else:
         return EMAIL_COMERCIAL + [ADMIN_EMAIL, SUPERVISOR_EMAIL]
 

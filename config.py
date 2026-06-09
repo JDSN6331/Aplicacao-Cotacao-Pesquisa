@@ -50,3 +50,19 @@ class Config:
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
+
+    # Configurações de Segurança - Session Timeout
+    # Tempo de inatividade até logout automático (em minutos)
+    PERMANENT_SESSION_LIFETIME = int(os.environ.get('SESSION_TIMEOUT_MINUTES', 30)) * 60  # Padrão: 30 minutos
+    # Tempo para alertar usuário antes de expirar (em segundos)
+    SESSION_WARNING_TIME = int(os.environ.get('SESSION_WARNING_SECONDS', 300))  # Padrão: 5 minutos
+    # Se False, session expira ao fechar o navegador mesmo que esteja marcada como permanente
+    SESSION_REFRESH_EACH_REQUEST = True
+    
+    # Detectar se está em produção ou desenvolvimento
+    _is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('ENV') == 'production'
+    
+    # Configurações seguras de cookie (adaptadas para ambiente)
+    SESSION_COOKIE_SECURE = _is_production  # Apenas HTTPS em produção
+    SESSION_COOKIE_HTTPONLY = True  # Não acessível por JavaScript (sempre ativo)
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Proteção contra CSRF (sempre ativo)

@@ -74,7 +74,7 @@ def obter_status_permitidos_pesquisa(usuario_departamento):
     return [status for status, depto in PESQUISA_STATUS_DEPARTAMENTO_MAP.items() if depto == usuario_departamento]
 
 # Extensões de arquivo permitidas
-ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'}
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png', 'eml', 'msg', 'oft'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -171,7 +171,6 @@ def criar_pesquisa():
             pesquisa.valor_concorrente = valor_concorrente_parsed
             pesquisa.valor_cooxupe = valor_cooxupe_parsed
             pesquisa.analista_comercial = data.get('analista_comercial', '')
-            pesquisa.observacoes = data.get('observacoes', '')
             
             # Campos adicionais - Tratamento correto
             cultura_value = data.get('cultura', '')
@@ -228,7 +227,7 @@ def criar_pesquisa():
                 valor_concorrente=valor_concorrente_parsed,
                 valor_cooxupe=valor_cooxupe_parsed,
                 analista_comercial=data.get('analista_comercial', ''),
-                observacoes=data.get('observacoes', ''),
+                observacoes='',  # Novo registro inicia com campo legado vazio
                 status=data.get('status', 'Avaliação Comercial'),
                 data_entrada_status=datetime.now(TZ_SP),
                 data_ultima_modificacao=datetime.now(TZ_SP),
@@ -251,6 +250,19 @@ def criar_pesquisa():
             db.session.add(pesquisa)
         
         db.session.flush()  # Obter ID da pesquisa antes de adicionar anexos
+
+        # Salvar a observação inicial se preenchida
+        obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
+        if obs_texto:
+            from models import Observacao
+            nova_obs = Observacao(
+                pesquisa_id=pesquisa.id,
+                texto=obs_texto,
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                origem='pesquisa'
+            )
+            db.session.add(nova_obs)
         
         # Registrar histórico de status
         if not pesquisa_id:
@@ -357,9 +369,9 @@ def atualizar_pesquisa(id):
         data = request.form or request.json or {}
         campos_editados = False
         
-        # Verificar se há edição de campos além de status
+        # Verificar se há edição de campos além de status (Observações são tratadas à parte)
         campos_verificar = ['nome_filial', 'numero_mesorregiao', 'matricula_cooperado', 'nome_cooperado',
-                           'analista_comercial', 'comprador', 'observacoes', 'forma_pagamento', 
+                           'analista_comercial', 'comprador', 'forma_pagamento', 
                            'prazo_entrega', 'cultura', 'nome_vendedor', 'motivo_venda_perdida',
                            'codigo_produto', 'nome_produto', 'quantidade_cotada', 'fornecedor']
         
@@ -390,7 +402,6 @@ def atualizar_pesquisa(id):
             'valor_concorrente': pesquisa.valor_concorrente,
             'valor_cooxupe': pesquisa.valor_cooxupe,
             'analista_comercial': pesquisa.analista_comercial,
-            'observacoes': pesquisa.observacoes,
             'cultura': pesquisa.cultura,
             'nome_vendedor': pesquisa.nome_vendedor,
             'comprador': pesquisa.comprador,
@@ -446,7 +457,19 @@ def atualizar_pesquisa(id):
             pesquisa.valor_cooxupe = parse_float(valor_coox)
             
         pesquisa.analista_comercial = data.get('analista_comercial', pesquisa.analista_comercial)
-        pesquisa.observacoes = data.get('observacoes', pesquisa.observacoes)
+        
+        # Salvar nova observação se preenchida no submit
+        nova_obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
+        if nova_obs_texto:
+            from models import Observacao
+            nova_obs = Observacao(
+                pesquisa_id=pesquisa.id,
+                texto=nova_obs_texto,
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                origem='pesquisa'
+            )
+            db.session.add(nova_obs)
         
         # Campos adicionais - CORREÇÃO: Usar data.get() e manter valores existentes se não fornecidos
         cultura_value = data.get('cultura')
@@ -741,5 +764,15 @@ def get_historico_edicoes_pesquisa(id):
         ).all()
         
         return jsonify([historico.to_dict() for historico in historicos])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@pesquisa_routes.route('/api/pesquisa/<int:id>/observacoes', methods=['GET'])
+@login_required
+def get_observacoes_pesquisa(id):
+    try:
+        from models import Observacao
+        observacoes = Observacao.query.filter_by(pesquisa_id=id).order_by(Observacao.data_criacao.desc()).all()
+        return jsonify([obs.to_dict() for obs in observacoes])
     except Exception as e:
         return jsonify({'error': str(e)}), 500

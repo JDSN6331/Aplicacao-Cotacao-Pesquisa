@@ -136,6 +136,29 @@
         box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
     }
 
+    /* Estilos para campos com aviso (warning) - Volume/Quantidade não segue múltiplo */
+    .is-warning {
+        border-color: #ff9800 !important;
+        padding-right: calc(1.5em + 0.75rem) !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23ff9800'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23ff9800' stroke='none'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right calc(0.375em + 0.1875rem) center !important;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem) !important;
+    }
+
+    .is-warning:focus {
+        border-color: #ff9800 !important;
+        box-shadow: 0 0 0 0.25rem rgba(255, 152, 0, 0.25) !important;
+    }
+
+    .is-warning~.invalid-feedback {
+        display: block;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 0.875em;
+        color: #ff9800;
+    }
+
     /* Estilos para Histórico Padronizado */
     .historico-timeline {
         padding: 0.5rem 0;
@@ -453,20 +476,159 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="form-group mb-3">
-                                <label for="observacoes" class="form-label">Observações</label>
-                                <textarea class="form-control" id="observacoes" name="observacoes"
-                                    rows="3">{{ cotacao.observacoes if cotacao else (prefilled.observacoes if prefilled else '') }}</textarea>
+                            <!-- Seção de Observações Estruturadas -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold"><i class="fas fa-comments me-2 text-success"></i>Observações</label>
+                                
+                                <!-- Observação Legada (se existir) -->
+                                {% if cotacao and cotacao.observacoes %}
+                                <div class="observacao-legada-card mb-3">
+                                    <div class="observacao-legada-title">
+                                        <i class="fas fa-history text-warning"></i> Observação Legada (Histórica)
+                                    </div>
+                                    <div class="observacao-legada-texto">{{ cotacao.observacoes }}</div>
+                                </div>
+                                {% elif prefilled and prefilled.observacoes %}
+                                <div class="observacao-legada-card mb-3">
+                                    <div class="observacao-legada-title">
+                                        <i class="fas fa-history text-warning"></i> Observação Legada (Pesquisa de Origem)
+                                    </div>
+                                    <div class="observacao-legada-texto">{{ prefilled.observacoes }}</div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Timeline de Observações Existentes -->
+                                <div class="observacoes-container">
+                                    <div class="observacao-timeline" id="observacoesTimeline">
+                                        {% if cotacao and cotacao.observacoes_lista %}
+                                            {% for obs in cotacao.observacoes_lista %}
+                                            <div class="observacao-card" id="obs-card-{{ obs.id }}">
+                                                <div class="observacao-header">
+                                                    <div class="observacao-meta">
+                                                        <span class="observacao-autor"><i class="fas fa-user me-1 text-muted"></i>{{ obs.usuario }}</span>
+                                                        <span class="observacao-depto">{{ obs.departamento }}</span>
+                                                        <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ obs.data_criacao }}</span>
+                                                    </div>
+                                                    {% if obs.usuario == current_user.name %}
+                                                    <div class="observacao-actions">
+                                                        <button type="button" class="observacao-action-btn" onclick="iniciarEdicaoObservacao({{ obs.id }})" title="Editar"><i class="fas fa-edit text-primary"></i></button>
+                                                        <button type="button" class="observacao-action-btn delete" onclick="excluirObservacao({{ obs.id }})" title="Excluir"><i class="fas fa-trash text-danger"></i></button>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="observacao-texto" id="obs-texto-{{ obs.id }}">{{ obs.texto }}</div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="text-muted small italic m-0" id="semObservacoesMsg">Nenhuma observação estruturada adicionada.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Inserção de Nova Observação -->
+                                <div class="observacao-nova-container mt-3">
+                                    <div class="observacao-nova-header">
+                                        <i class="fas fa-comment-medical text-success"></i> Adicionar Nova Observação
+                                    </div>
+                                    <textarea class="form-control" id="nova_observacao_input" name="nova_observacao" rows="2" placeholder="Digite uma nova observação sobre este registro..."></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <script>
+                        function iniciarEdicaoObservacao(id) {
+                            const textContainer = document.getElementById(`obs-texto-${id}`);
+                            const card = document.getElementById(`obs-card-${id}`);
+                            const textoAtual = textContainer.innerText.trim();
+                            
+                            // Salvar texto original
+                            card.setAttribute('data-original-texto', textoAtual);
+                            
+                            // Renderizar form de edição
+                            textContainer.innerHTML = `
+                                <div class="observacao-edit-form">
+                                    <textarea class="form-control observacao-edit-textarea" id="obs-edit-input-${id}">${textoAtual}</textarea>
+                                    <div class="d-flex gap-2 justify-content-end mt-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelarEdicaoObservacao(${id})">Cancelar</button>
+                                        <button type="button" class="btn btn-sm btn-primary" onclick="salvarEdicaoObservacao(${id})">Salvar</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        function cancelarEdicaoObservacao(id) {
+                            const textContainer = document.getElementById(`obs-texto-${id}`);
+                            const card = document.getElementById(`obs-card-${id}`);
+                            const textoOriginal = card.getAttribute('data-original-texto');
+                            textContainer.innerText = textoOriginal;
+                        }
+                        
+                        function salvarEdicaoObservacao(id) {
+                            const novoTexto = document.getElementById(`obs-edit-input-${id}`).value.trim();
+                            if (!novoTexto) {
+                                alert('A observação não pode ser vazia.');
+                                return;
+                            }
+                            
+                            fetch(`/api/observacoes/${id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ texto: novoTexto })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const textContainer = document.getElementById(`obs-texto-${id}`);
+                                    textContainer.innerText = novoTexto;
+                                } else {
+                                    alert('Erro ao salvar observação: ' + data.error);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Erro:', error);
+                                alert('Erro de conexão ao salvar observação.');
+                            });
+                        }
+                        
+                        function excluirObservacao(id) {
+                            if (!confirm('Tem certeza que deseja excluir esta observação?')) {
+                                return;
+                            }
+                            
+                            fetch(`/api/observacoes/${id}`, {
+                                method: 'DELETE'
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const card = document.getElementById(`obs-card-${id}`);
+                                    card.remove();
+                                    
+                                    // Se não sobrar nenhuma observação na timeline, exibe mensagem
+                                    const timeline = document.getElementById('observacoesTimeline');
+                                    if (timeline && timeline.querySelectorAll('.observacao-card').length === 0) {
+                                        timeline.innerHTML = '<p class="text-muted small italic m-0" id="semObservacoesMsg">Nenhuma observação estruturada adicionada.</p>';
+                                    }
+                                } else {
+                                    alert('Erro ao excluir observação: ' + data.error);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Erro:', error);
+                                alert('Erro de conexão ao excluir observação.');
+                            });
+                        }
+                    </script>
                     <div class="row">
                         <div class="col-md-12">
                             <div class="form-group mb-3">
                                 <label for="anexos" class="form-label">Anexar Arquivos (Máx. 5)</label>
                                 <input type="file" class="form-control" id="anexo" name="anexos[]" multiple
-                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.jpg,.jpeg,.png">
-                                <div class="form-text">Formatos permitidos: PDF, Word, Excel e Imagens. Limite de 5
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.jpg,.jpeg,.png,.eml,.msg,.oft">
+                                <div class="form-text">Formatos permitidos: PDF, Word, Excel, Imagens e E-mails. Limite de 5
                                     arquivos
                                     no total.</div>
                                 <div class="invalid-feedback" id="anexoError"></div>
@@ -544,7 +706,7 @@
                                 let filesValid = [];
                                 let errors = [];
                                 const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
-                                const ALLOWED_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'];
+                                const ALLOWED_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png', 'eml', 'msg', 'oft'];
 
                                 for (let i = 0; i < newFiles.length; i++) {
                                     const file = newFiles[i];

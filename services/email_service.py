@@ -1,5 +1,6 @@
 import smtplib
 from email.mime.text import MIMEText
+import os
 
 # Admin e supervisores que recebem todas as notificações
 ADMIN_EMAIL = 'joseduque@cooxupe.com.br'
@@ -44,6 +45,10 @@ def obter_email_por_status(status):
 
 def enviar_email(destinatarios, assunto, corpo_html):
     """Envia e-mail usando SMTP com STARTTLS."""
+    if os.environ.get('DESATIVAR_EMAILS', '').lower() in ['true', 'yes', '1']:
+        print(f'[EMAIL] [SIMULADO] Envio de e-mail desativado. Destinatários: {destinatarios} | Assunto: {assunto}')
+        return True
+
     smtp_server = 'mail.cooxupe.com.br'
     smtp_port = 587  # Porta STARTTLS
     usuario = 'joseduque@cooxupe.com.br'
@@ -78,6 +83,10 @@ def enviar_email(destinatarios, assunto, corpo_html):
 
 def enviar_notificacao_mudanca_status(cotacao):
     """Envia e-mail de notificação quando há mudança de status na cotação"""
+    if os.environ.get('DESATIVAR_EMAILS', '').lower() in ['true', 'yes', '1']:
+        print(f'[EMAIL] [SIMULADO] Notificação desativada. Cotação #{cotacao.id} -> Novo Status: {cotacao.status}')
+        return True
+
     try:
         # Determinar destinatário baseado no status
         destinatario = obter_email_por_status(cotacao.status)

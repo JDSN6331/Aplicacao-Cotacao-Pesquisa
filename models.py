@@ -77,6 +77,7 @@ class Cotacao(db.Model):
     cultura = db.Column(db.String(50), nullable=True)
     motivo_venda_perdida = db.Column(db.Text, nullable=True)
     nome_vendedor = db.Column(db.String(100), nullable=False)
+    pesquisa_id = db.Column(db.Integer, db.ForeignKey('pesquisas_mercado.id'), nullable=True)
     
     # Relacionamentos
     produtos = db.relationship('ProdutoCotacao', backref='cotacao', lazy=True, cascade='all, delete-orphan')
@@ -89,6 +90,11 @@ class Cotacao(db.Model):
                                         cascade='all, delete-orphan',
                                         order_by='HistoricoEdicaoCampo.data_mudanca.desc()',
                                         foreign_keys='HistoricoEdicaoCampo.cotacao_id')
+    observacoes_lista = db.relationship('Observacao', backref='cotacao', lazy=True,
+                                         cascade='all, delete-orphan',
+                                         order_by='Observacao.data_criacao.desc()',
+                                         foreign_keys='Observacao.cotacao_id')
+
     
     def __repr__(self):
         return f'<Cotacao {self.id}>'
@@ -122,7 +128,8 @@ class Cotacao(db.Model):
             'produtos': [produto.to_dict() for produto in self.produtos],
             'valor_total': valor_total,
             'fornecedor': fornecedor,
-            'anexos': [anexo.to_dict() for anexo in self.anexos]
+            'anexos': [anexo.to_dict() for anexo in self.anexos],
+            'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista]
         }
 
 
@@ -204,6 +211,11 @@ class PesquisaMercado(db.Model):
                                         cascade='all, delete-orphan',
                                         order_by='HistoricoEdicaoCampo.data_mudanca.desc()',
                                         foreign_keys='HistoricoEdicaoCampo.pesquisa_id')
+    observacoes_lista = db.relationship('Observacao', backref='pesquisa', lazy=True,
+                                         cascade='all, delete-orphan',
+                                         order_by='Observacao.data_criacao.desc()',
+                                         foreign_keys='Observacao.pesquisa_id')
+
     
     def to_dict(self):
         # Calcular diferença de dias com base no arredondamento de 12 horas (<12h = 0, >12h = 1)
@@ -238,7 +250,8 @@ class PesquisaMercado(db.Model):
             'comprador': self.comprador,
             'motivo_venda_perdida': self.motivo_venda_perdida,
             'prazo_entrega': self.prazo_entrega.strftime('%Y-%m-%d') if self.prazo_entrega else None,
-            'fornecedor': self.fornecedor
+            'fornecedor': self.fornecedor,
+            'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista]
         }
 
 
@@ -308,3 +321,36 @@ class HistoricoEdicaoCampo(db.Model):
             'usuario': self.usuario,
             'departamento': self.departamento
         }
+
+
+class Observacao(db.Model):
+    """Modelo para armazenar observações estruturadas de cotações e pesquisas"""
+    __tablename__ = 'observacoes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cotacao_id = db.Column(db.Integer, db.ForeignKey('cotacoes.id'), nullable=True)
+    pesquisa_id = db.Column(db.Integer, db.ForeignKey('pesquisas_mercado.id'), nullable=True)
+    
+    texto = db.Column(db.Text, nullable=False)
+    usuario = db.Column(db.String(100), nullable=False)
+    departamento = db.Column(db.String(50), nullable=False)
+    data_criacao = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    data_edicao = db.Column(db.DateTime, nullable=True)
+    origem = db.Column(db.String(20), nullable=False)
+    
+    def __repr__(self):
+        return f'<Observacao {self.id}: {self.texto[:20]}...>'
+        
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'cotacao_id': self.cotacao_id,
+            'pesquisa_id': self.pesquisa_id,
+            'texto': self.texto,
+            'usuario': self.usuario,
+            'departamento': self.departamento,
+            'data_criacao': self.data_criacao.strftime('%d/%m/%Y %H:%M:%S'),
+            'data_edicao': self.data_edicao.strftime('%d/%m/%Y %H:%M:%S') if self.data_edicao else None,
+            'origem': self.origem
+        }
+

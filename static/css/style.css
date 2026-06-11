@@ -3371,3 +3371,186 @@ footer p {
 [data-theme="dark"] .historico-tab-content {
     background-color: var(--bg-primary);
 }
+
+/* ===== SEÇÃO DE OBSERVAÇÕES ESTRUTURADAS ===== */
+.observacoes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-top: 1rem;
+}
+
+.observacao-timeline {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-left: 0.5rem;
+    border-left: 2px solid var(--primary-light);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.observacao-card {
+    position: relative;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.observacao-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Timeline bullet */
+.observacao-card::before {
+    content: '';
+    position: absolute;
+    left: calc(-1.5rem - 6px);
+    top: 1.25rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--bg-primary);
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.25);
+    z-index: 1;
+}
+
+.observacao-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: var(--font-size-sm);
+}
+
+.observacao-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.observacao-autor {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.observacao-depto {
+    background: rgba(46, 125, 50, 0.1);
+    color: var(--primary-dark);
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+}
+
+[data-theme="dark"] .observacao-depto {
+    background: rgba(76, 175, 80, 0.15);
+    color: var(--primary-light);
+}
+
+.observacao-data {
+    color: var(--text-muted);
+}
+
+.observacao-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.observacao-action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding: 0.2rem;
+    border-radius: 4px;
+    transition: all var(--transition-fast);
+}
+
+.observacao-action-btn:hover {
+    color: var(--primary);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.observacao-action-btn.delete:hover {
+    color: var(--danger);
+    background: rgba(244, 67, 54, 0.1);
+}
+
+.observacao-texto {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.observacao-legada-card {
+    background: rgba(255, 193, 7, 0.05);
+    border-left: 4px solid var(--warning);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .observacao-legada-card {
+    background: rgba(255, 193, 7, 0.02);
+}
+
+.observacao-legada-title {
+    font-weight: 600;
+    color: var(--warning);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.observacao-legada-texto {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+/* Área de inserção de observação */
+.observacao-nova-container {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    margin-top: 1.5rem;
+}
+
+.observacao-nova-header {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+}
+
+/* Edit Form inside observation card */
+.observacao-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.observacao-edit-textarea {
+    min-height: 80px;
+    width: 100%;
+}

@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', function () {
         volumeInput.addEventListener('input', calculateTotals);
         precoUnitarioInput.addEventListener('input', calculateTotals);
 
-        // Adicionar validação do múltiplo ao sair do campo volume
+        // Adicionar validação do múltiplo apenas ao sair do campo (blur event)
         volumeInput.addEventListener('blur', function () {
             const volume = parseFloat(this.value);
             const multiplo = document.documentElement.dataset.multiploCotacao;
@@ -598,17 +598,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (multiplo && volume) {
                 if (volume % multiplo !== 0) {
-                    this.classList.add('is-invalid');
-                    errorDiv.textContent = `Valor deve ser múltiplo de ${multiplo} TN`;
-                    errorDiv.style.display = 'block';
-                } else {
+                    this.classList.add('is-warning');
                     this.classList.remove('is-invalid');
-                    errorDiv.style.display = 'none';
+                    if (errorDiv) {
+                        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> O volume deve ser múltiplo de ${multiplo} TN. O valor informado (${volume} TN) não segue esta regra.`;
+                        errorDiv.style.display = 'block';
+                    }
+                } else {
+                    this.classList.remove('is-warning');
+                    this.classList.remove('is-invalid');
+                    if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                    }
                 }
             } else if (!multiplo && volume) {
-                // Se não houver múltiplo definido ainda
+                this.classList.remove('is-warning');
                 this.classList.remove('is-invalid');
-                errorDiv.style.display = 'none';
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
             }
         });
 
@@ -1153,34 +1161,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Função de validação desabilitada - nenhum campo é obrigatório
     function validarTodosCamposObrigatorios() {
-        let valido = true;
-        let erros = [];
+        let hasWarnings = false;
+        let warnings = [];
         const multiplo = document.documentElement.dataset.multiploCotacao;
 
-        // Validar múltiplo de volume para cada produto
+        // Validar múltiplo de volume para cada produto - APENAS ALERTA, NÃO BLOQUEIA
         produtos.forEach(function (produtoIndex) {
             const volumeInput = document.getElementById(`volume_${produtoIndex}`);
             const volume = parseFloat(volumeInput.value);
 
             if (multiplo && volume) {
                 if (volume % multiplo !== 0) {
-                    valido = false;
-                    erros.push(`Produto ${produtoIndex + 1}: Volume deve ser múltiplo de ${multiplo} TN`);
-                    volumeInput.classList.add('is-invalid');
-                    document.getElementById(`erro_volume_${produtoIndex}`).textContent = `Valor deve ser múltiplo de ${multiplo} TN`;
+                    hasWarnings = true;
+                    warnings.push(`Produto ${produtoIndex + 1}: Volume ${volume} TN não é múltiplo de ${multiplo} TN`);
+                    volumeInput.classList.add('is-warning');
+                    volumeInput.classList.remove('is-invalid');
+                    document.getElementById(`erro_volume_${produtoIndex}`).innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> O volume deve ser múltiplo de ${multiplo} TN. O valor informado (${volume} TN) não segue esta regra.`;
                     document.getElementById(`erro_volume_${produtoIndex}`).style.display = 'block';
                 } else {
+                    volumeInput.classList.remove('is-warning');
                     volumeInput.classList.remove('is-invalid');
                     document.getElementById(`erro_volume_${produtoIndex}`).style.display = 'none';
                 }
             }
         });
 
-        if (!valido) {
-            alert('Por favor, corrija os erros de validação:\n\n' + erros.join('\n'));
+        if (hasWarnings) {
+            alert('⚠️ Atenção - Volumes não seguem os múltiplos:\n\n' + warnings.join('\n') + '\n\nVocê pode continuar salvando, mas será exibido um alerta toda vez que abrir este registro.');
         }
 
-        return valido;
+        // ALTERADO: Sempre retorna true (permite salvar mesmo com avisos)
+        return true;
     }
 
     // Event Listener para adicionar produto
@@ -1199,6 +1210,29 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(`Produto ${index + 1}:`, prod);
             addProduto(prod);
         });
+        
+        // Validar múltiplos após carregar produtos (para mostrar alertas em formulários existentes)
+        setTimeout(function() {
+            const multiplo = document.documentElement.dataset.multiploCotacao;
+            produtos.forEach(function (produtoIndex) {
+                const volumeInput = document.getElementById(`volume_${produtoIndex}`);
+                if (volumeInput) {
+                    const volume = parseFloat(volumeInput.value);
+                    const errorDiv = document.getElementById(`erro_volume_${produtoIndex}`);
+                    
+                    if (multiplo && volume) {
+                        if (volume % multiplo !== 0) {
+                            volumeInput.classList.add('is-warning');
+                            volumeInput.classList.remove('is-invalid');
+                            if (errorDiv) {
+                                errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> O volume deve ser múltiplo de ${multiplo} TN. O valor informado (${volume} TN) não segue esta regra.`;
+                                errorDiv.style.display = 'block';
+                            }
+                        }
+                    }
+                }
+            });
+        }, 100);
     } else {
         console.log('Nenhum produto existente, criando novo...');
         addProduto(); // Adiciona o primeiro produto ao carregar (caso novo)

@@ -75,7 +75,7 @@ def obter_status_permitidos(usuario_departamento):
     return [status for status, depto in STATUS_DEPARTAMENTO_MAP.items() if depto == usuario_departamento]
 
 # Extensões de arquivo permitidas
-ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png'}
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 'jpeg', 'png', 'eml', 'msg', 'oft'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -280,16 +280,30 @@ def criar_cotacao():
             status=data.get('status', 'Análise Comercial'),
             analista_comercial=data.get('analista_comercial', ''),
             comprador=data.get('comprador', ''),
-            observacoes=data.get('observacoes', ''),
+            observacoes='',  # Novo registro inicia com campo legado vazio
             forma_pagamento=data.get('forma_pagamento', ''),
             prazo_entrega=prazo_entrega,
             cultura=data.get('cultura', ''),
             nome_vendedor=data.get('nome_vendedor', ''),
-            motivo_venda_perdida=data.get('motivo_venda_perdida', '')
+            motivo_venda_perdida=data.get('motivo_venda_perdida', ''),
+            pesquisa_id=int(pesquisa_origem_id) if pesquisa_origem_id else None  # Armazenar origem da pesquisa
         )
         
         db.session.add(cotacao)
         db.session.flush()  # Obter ID antes de adicionar anexos
+
+        # Salvar a observação inicial se preenchida
+        obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
+        if obs_texto:
+            from models import Observacao
+            nova_obs = Observacao(
+                cotacao_id=cotacao.id,
+                texto=obs_texto,
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                origem='cotacao'
+            )
+            db.session.add(nova_obs)
         
         # Registrar histórico de status inicial
         historico = HistoricoStatus(
@@ -398,6 +412,23 @@ def criar_cotacao():
                         )
                         db.session.add(novo_anexo)
                 
+                # Copiar observações (legada e lista estruturada) da pesquisa
+                if pesquisa_origem.observacoes:
+                    cotacao.observacoes = pesquisa_origem.observacoes
+                
+                from models import Observacao
+                if pesquisa_origem.observacoes_lista:
+                    for obs_orig in pesquisa_origem.observacoes_lista:
+                        nova_obs = Observacao(
+                            cotacao_id=cotacao.id,
+                            texto=obs_orig.texto,
+                            usuario=obs_orig.usuario,
+                            departamento=obs_orig.departamento,
+                            data_criacao=obs_orig.data_criacao,
+                            origem='cotacao'
+                        )
+                        db.session.add(nova_obs)
+                
                 # Marcar pesquisa como tendo cotação gerada (impede duplicatas)
                 pesquisa_origem.cotacao_gerada = True
                 
@@ -411,6 +442,32 @@ def criar_cotacao():
                     departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
                 )
                 db.session.add(hist_pesq)
+                
+                # NOVO: Se a cotação foi criada com status de finalização/perda, atualizar também o status da pesquisa
+                mapa_status_finalizacao = {
+                    'Cotação Finalizada': 'Pesquisa Finalizada',
+                    'Cotação Perdida': 'Pesquisa Perdida'
+                }
+                
+                if cotacao.status in mapa_status_finalizacao:
+                    novo_status_pesquisa = mapa_status_finalizacao[cotacao.status]
+                    status_pesquisa_anterior = pesquisa_origem.status
+                    
+                    # Apenas atualizar se o status for diferente
+                    if status_pesquisa_anterior != novo_status_pesquisa:
+                        pesquisa_origem.status = novo_status_pesquisa
+                        pesquisa_origem.data_entrada_status = datetime.now(TZ_SP)
+                        
+                        # Registrar histórico de mudança de status na pesquisa também
+                        historico_pesquisa = HistoricoStatus(
+                            pesquisa_id=pesquisa_origem.id,
+                            status_anterior=status_pesquisa_anterior,
+                            status_novo=novo_status_pesquisa,
+                            observacao=f'Status atualizado automaticamente por criação de cotação ID {cotacao.id}',
+                            usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                            departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+                        )
+                        db.session.add(historico_pesquisa)
 
         db.session.commit()
         
@@ -484,9 +541,9 @@ def atualizar_cotacao(id):
         usuario_depto = getattr(current_user, 'departamento', 'N/A')
         campos_editados = False
         
-        # Verificar se há edição de campos além de status
+        # Verificar se há edição de campos além de status (Observações agora são separadas, não monitoradas aqui)
         campos_verificar = ['nome_filial', 'numero_mesorregiao', 'matricula_cooperado', 'nome_cooperado',
-                           'analista_comercial', 'comprador', 'observacoes', 'forma_pagamento', 
+                           'analista_comercial', 'comprador', 'forma_pagamento', 
                            'prazo_entrega', 'cultura', 'nome_vendedor', 'motivo_venda_perdida']
         
         for campo in campos_verificar:
@@ -519,7 +576,6 @@ def atualizar_cotacao(id):
             'nome_cooperado': cotacao.nome_cooperado,
             'analista_comercial': cotacao.analista_comercial,
             'comprador': cotacao.comprador,
-            'observacoes': cotacao.observacoes,
             'forma_pagamento': cotacao.forma_pagamento,
             'prazo_entrega': cotacao.prazo_entrega,
             'cultura': cotacao.cultura,
@@ -553,8 +609,20 @@ def atualizar_cotacao(id):
         
         cotacao.analista_comercial = data.get('analista_comercial', cotacao.analista_comercial)
         cotacao.comprador = data.get('comprador', cotacao.comprador)
-        cotacao.observacoes = data.get('observacoes', cotacao.observacoes)
         cotacao.forma_pagamento = data.get('forma_pagamento', cotacao.forma_pagamento)
+
+        # Salvar nova observação se preenchida no submit
+        nova_obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
+        if nova_obs_texto:
+            from models import Observacao
+            nova_obs = Observacao(
+                cotacao_id=cotacao.id,
+                texto=nova_obs_texto,
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                origem='cotacao'
+            )
+            db.session.add(nova_obs)
         
         # Tratar prazo_entrega corretamente como data
         prazo_str = data.get('prazo_entrega', '').strip()
@@ -681,7 +749,6 @@ def atualizar_cotacao(id):
             'nome_cooperado': 'Nome Cooperado',
             'analista_comercial': 'Analista Comercial',
             'comprador': 'Comprador',
-            'observacoes': 'Observações',
             'forma_pagamento': 'Forma de Pagamento',
             'prazo_entrega': 'Prazo de Entrega',
             'cultura': 'Cultura',
@@ -700,6 +767,38 @@ def atualizar_cotacao(id):
             usuario=usuario,
             departamento=departamento
         )
+        
+        # NOVO: Atualizar status da pesquisa de origem se a cotação foi finalizada ou perdida
+        if status_anterior != novo_status and cotacao.pesquisa_id:
+            from models import PesquisaMercado
+            pesquisa_origem = PesquisaMercado.query.get(cotacao.pesquisa_id)
+            
+            if pesquisa_origem:
+                # Mapear status da cotação para status da pesquisa
+                mapa_status_finalizacao = {
+                    'Cotação Finalizada': 'Pesquisa Finalizada',
+                    'Cotação Perdida': 'Pesquisa Perdida'
+                }
+                
+                if novo_status in mapa_status_finalizacao:
+                    novo_status_pesquisa = mapa_status_finalizacao[novo_status]
+                    status_pesquisa_anterior = pesquisa_origem.status
+                    
+                    # Apenas atualizar se o status for diferente
+                    if status_pesquisa_anterior != novo_status_pesquisa:
+                        pesquisa_origem.status = novo_status_pesquisa
+                        pesquisa_origem.data_entrada_status = datetime.now(TZ_SP)
+                        
+                        # Registrar histórico de mudança de status na pesquisa também
+                        historico_pesquisa = HistoricoStatus(
+                            pesquisa_id=pesquisa_origem.id,
+                            status_anterior=status_pesquisa_anterior,
+                            status_novo=novo_status_pesquisa,
+                            observacao=f'Status atualizado automaticamente por finalização da cotação ID {cotacao.id}',
+                            usuario=usuario,
+                            departamento=departamento
+                        )
+                        db.session.add(historico_pesquisa)
         
         db.session.commit()
         
@@ -891,3 +990,51 @@ def get_historico_edicoes_cotacao(id):
         return jsonify([historico.to_dict() for historico in historicos])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@cotacao_routes.route('/api/cotacao/<int:id>/observacoes', methods=['GET'])
+@login_required
+def get_observacoes_cotacao(id):
+    try:
+        from models import Observacao
+        observacoes = Observacao.query.filter_by(cotacao_id=id).order_by(Observacao.data_criacao.desc()).all()
+        return jsonify([obs.to_dict() for obs in observacoes])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@cotacao_routes.route('/api/observacoes/<int:obs_id>', methods=['PUT'])
+@login_required
+def editar_observacao_api(obs_id):
+    try:
+        from models import Observacao
+        obs = Observacao.query.get_or_404(obs_id)
+        if obs.usuario != current_user.name:
+            return jsonify({'success': False, 'error': 'Apenas o autor pode editar esta observação.'}), 403
+        
+        data = request.get_json() or request.form
+        novo_texto = data.get('texto', '').strip()
+        if not novo_texto:
+            return jsonify({'success': False, 'error': 'O texto da observação não pode ser vazio.'}), 400
+            
+        obs.texto = novo_texto
+        obs.data_edicao = datetime.now()
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Observação atualizada com sucesso!', 'observacao': obs.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@cotacao_routes.route('/api/observacoes/<int:obs_id>', methods=['DELETE'])
+@login_required
+def excluir_observacao_api(obs_id):
+    try:
+        from models import Observacao
+        obs = Observacao.query.get_or_404(obs_id)
+        if obs.usuario != current_user.name:
+            return jsonify({'success': False, 'error': 'Apenas o autor pode excluir esta observação.'}), 403
+            
+        db.session.delete(obs)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Observação excluída com sucesso!'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

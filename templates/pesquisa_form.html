@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ 'Editar' if pesquisa else 'Criação - Nova' }} Pesquisa | Pesquisas de Mercado{% endblock %}
+{% block title %}{{ 'Visualizar Pesquisa PM-' ~ pesquisa.id if readonly is defined and readonly and pesquisa else ('Editar Pesquisa PM-' ~ pesquisa.id if pesquisa else 'Nova Pesquisa') }} | Pesquisas de Mercado{% endblock %}
 
 {% block content %}
 <style>
@@ -163,16 +163,29 @@
     .historico-card-body > div[style*="background-color: rgba(40,167,69"]:hover {
         background-color: rgba(40, 167, 69, 0.15) !important;
     }
+
+    {% if readonly is defined and readonly %}
+    #btnSalvarPesquisa,
+    .btn-remove-anexo,
+    #btnAnexo,
+    .btn-upload-anexo,
+    .observacao-nova-container,
+    .observacao-actions,
+    .observacao-action-btn,
+    input[type="file"] {
+        display: none !important;
+    }
+    {% endif %}
 </style>
 <div class="container mt-4">
     <div class="card">
         <div class="card-header">
-            <h2 class="mb-0">{{ 'Editar' if pesquisa else 'Criação - Nova' }} Pesquisa</h2>
+            <h2 class="mb-0">{% if readonly is defined and readonly and pesquisa %}<i class="fas fa-eye me-2"></i>Visualizar Pesquisa PM-{{ pesquisa.id }}{% elif pesquisa %}Editar Pesquisa PM-{{ pesquisa.id }}{% else %}Criação - Nova Pesquisa{% endif %}</h2>
         </div>
         <div class="card-body">
             {# Exibir status atual com estilização de badge #}
             <div class="mb-3">
-                <p class="mb-0">
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-0">
                     {% if pesquisa %}
                     <strong>Status atual:</strong>
                     {% set status = pesquisa.status %}
@@ -191,11 +204,17 @@
                     {% else %}
                     <strong>Fase atual:</strong>
                     <span class="badge status-criacao">Criação</span>
-                    <br>
                     <small class="text-muted">Status será definido após finalizar a criação</small>
                     {% endif %}
-                </p>
+                    
+                    {% if pesquisa and pesquisa.cotacao %}
+                    <span class="text-muted" style="font-size: 0.9em;">
+                        Gerou a <a href="/cotacao/{{ pesquisa.cotacao.id }}" class="badge text-decoration-none text-white" style="background-color: #6c757d;"><i class="fas fa-file text-white"></i> CT-{{ pesquisa.cotacao.id }}</a>
+                    </span>
+                    {% endif %}
+                </div>
             </div>
+
 
             <!-- Históricos com Abas (somente para pesquisas existentes) -->
             {% if pesquisa %}
@@ -705,6 +724,29 @@
 
         // Chamar verificação de permissões ao carregar
         verificarEAplicarPermissoesPesquisa();
+
+        // Modo Somente Leitura (Visualização)
+        if (window.modoReadonly) {
+            console.log('Modo somente leitura ativado para pesquisa - bloqueando todos os campos');
+            
+            // Bloquear TODOS os campos (inclusive status)
+            $('input, textarea, select').prop('disabled', true);
+            
+            // Esconder botões de ação (salvar, remover anexo, adicionar anexo, upload, observações)
+            $('#btnSalvarPesquisa, .btn-remove-anexo, #btnAnexo, .btn-upload-anexo, .observacao-nova-container, .observacao-actions, .observacao-action-btn').hide();
+            
+            // Esconder input de upload de anexos
+            $('input[type="file"]').hide();
+            
+            // Mostrar banner informativo
+            const alertDiv = $(`
+                <div class="alert alert-info fade show mb-4" role="alert">
+                    <i class="fas fa-eye me-2"></i>
+                    <strong>Modo Visualização</strong> — Esta pesquisa está em modo somente leitura. Nenhuma alteração pode ser realizada.
+                </div>
+            `);
+            $('#formPesquisa').prepend(alertDiv);
+        }
         
         // Função para carregar histórico de status
         function carregarHistorico() {
@@ -1012,25 +1054,12 @@
 
             let analista = '';
 
-            // Mapeamento de mesorregiões para analistas
-            switch (mesorregiao) {
-                case 'REGIONAL 7 - Joaquim':
-                    analista = 'Joaquim';
-                    break;
-                case 'REGIONAL - Ana Cássia':
-                    analista = 'Ana Cássia';
-                    break;
-                case 'REGIONAL - Leiliele':
-                    analista = 'Leiliele';
-                    break;
-                case 'REGIONAL - Rafael':
-                    analista = 'Rafael';
-                    break;
-                case 'REGIONAL - Thalles':
-                    analista = 'Thalles';
-                    break;
-                default:
-                    analista = '';
+            // Extrai dinamicamente tudo que está após o " - " (ex: "REGIONAL - Nome do Analista")
+            if (mesorregiao && mesorregiao.includes(' - ')) {
+                const partes = mesorregiao.split(' - ');
+                if (partes.length > 1) {
+                    analista = partes[1].trim();
+                }
             }
 
             analistaInput.val(analista);
@@ -1070,9 +1099,9 @@
             console.log('📋 Filial selecionada:', selected);
             console.log('🌾 Cultura selecionada:', culturaSelecionada);
 
-            // Se a cultura for Soja ou Milho, não alterar a mesorregião (manter Regional 7)
+            // Se a cultura for Soja ou Milho, não alterar a mesorregião (manter Regional)
             if (culturaSelecionada === 'Soja' || culturaSelecionada === 'Milho') {
-                console.log('🌾 Cultura Soja/Milho detectada, mantendo Regional 7');
+                console.log('🌾 Cultura Soja/Milho detectada, mantendo Regional');
                 return;
             }
 
@@ -1500,9 +1529,9 @@
             const filialSelect = $('#filial');
             const filialRequired = $('');
 
-            // Se a cultura for Soja ou Milho, alterar mesorregião para Regional 7 - Joaquim
+            // Se a cultura for Soja ou Milho, alterar mesorregião para Regional - Joaquim
             if (culturaSelecionada === 'Soja' || culturaSelecionada === 'Milho') {
-                $('#mesorregiao_geografica').val('REGIONAL 7 - Joaquim');
+                $('#mesorregiao_geografica').val('REGIONAL - Joaquim Luiz dos Santos Neto');
                 // Manter a filial selecionada, apenas remover obrigatoriedade
                 if (filialSelect.length) {
                     filialSelect.removeAttr('required');
@@ -1513,8 +1542,8 @@
                 // Remover obrigatoriedade da filial
                 filialSelect.find('option:first').removeAttr('required');
 
-                // Preencher analista Joaquim para Regional 7
-                preencherAnalistaPorMesorregiao('REGIONAL 7 - Joaquim');
+                // Preencher analista Joaquim Luiz dos Santos Neto para Regional
+                preencherAnalistaPorMesorregiao('REGIONAL - Joaquim Luiz dos Santos Neto');
             } else {
                 // Para outras culturas, restaurar a mesorregião baseada na filial selecionada
                 if (filialSelect.val()) {
@@ -2094,9 +2123,12 @@
     window.podeEditarCampos = {{ 'true' if pode_editar is not defined or pode_editar else 'false' }};
     window.usuarioDepto = '{{ usuario_depto if usuario_depto is defined else 'N/A' }}';
     window.isPesquisa = true;  // Flag para identificar formulário de pesquisa
+    window.modoReadonly = {{ 'true' if readonly is defined and readonly else 'false' }};
     console.log('Permissões de campos pesquisa:', {
         pode_editar_campos: window.podeEditarCampos,
-        usuario_depto: window.usuarioDepto
+        usuario_depto: window.usuarioDepto,
+        modo_readonly: window.modoReadonly
     });
 </script>
+
 {% endblock %}

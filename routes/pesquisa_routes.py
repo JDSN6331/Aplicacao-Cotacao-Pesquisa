@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from models import db, Cotacao, PesquisaMercado, Anexo, HistoricoStatus, HistoricoEdicaoCampo, MAX_ANEXOS
 from services.utils import exportar_para_excel, comparar_e_registrar_edicoes, comparar_e_registrar_edicoes_produtos
+from services.pdf_service import gerar_pdf_cotacao_ou_pesquisa, gerar_pdf_multiplo
 from datetime import datetime
 import os
 import pytz
@@ -112,10 +113,18 @@ def criar_pesquisa():
             try:
                 if val is None:
                     return 0.0
-                val_str = str(val).strip().lower()
-                if val_str in ('', 'null', 'nan', 'undefined', 'none'):
+                if isinstance(val, (int, float)):
+                    return float(val)
+                val_str = str(val).strip().replace('R$', '').replace(' ', '')
+                if val_str.lower() in ('', 'null', 'nan', 'undefined', 'none'):
                     return 0.0
-                return float(str(val).replace('R$', '').replace('.', '').replace(',', '.'))
+                if ',' in val_str:
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                try:
+                    return float(val_str)
+                except ValueError:
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                    return float(val_str)
             except Exception:
                 return 0.0
         
@@ -321,7 +330,7 @@ def criar_pesquisa():
                 enviar_email(
                     destinatarios=destinatarios,
                     assunto='Nova Pesquisa Criada' if is_new else 'Pesquisa Atualizada',
-                    corpo_html=f'<p>Uma pesquisa foi {"criada" if is_new else "atualizada"} para o cooperado {nome_cooperado} (ID {pid}). Status: {status}.</p>'
+                    corpo_html=f'<p>Uma pesquisa foi {"criada" if is_new else "atualizada"} para o cooperado {nome_cooperado} (PM-{pid}). Status: {status}.</p>'
                 )
             except Exception as e:
                 print('Erro ao enviar e-mail automático:', e)
@@ -402,6 +411,7 @@ def atualizar_pesquisa(id):
             'valor_concorrente': pesquisa.valor_concorrente,
             'valor_cooxupe': pesquisa.valor_cooxupe,
             'analista_comercial': pesquisa.analista_comercial,
+            'observacoes': pesquisa.observacoes,
             'cultura': pesquisa.cultura,
             'nome_vendedor': pesquisa.nome_vendedor,
             'comprador': pesquisa.comprador,
@@ -414,10 +424,18 @@ def atualizar_pesquisa(id):
             try:
                 if val is None:
                     return None
-                val_str = str(val).strip().lower()
-                if val_str in ('', 'null', 'nan', 'undefined', 'none'):
+                if isinstance(val, (int, float)):
+                    return float(val)
+                val_str = str(val).strip().replace('R$', '').replace(' ', '')
+                if val_str.lower() in ('', 'null', 'nan', 'undefined', 'none'):
                     return None
-                return float(str(val).replace('R$', '').replace('.', '').replace(',', '.'))
+                if ',' in val_str:
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                try:
+                    return float(val_str)
+                except ValueError:
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                    return float(val_str)
             except Exception:
                 return None
         
@@ -590,6 +608,13 @@ def atualizar_pesquisa(id):
             departamento=departamento
         )
         
+        # Auto-preencher campo Comprador: se o usuário logado é do departamento Suprimentos
+        # e o campo comprador está vazio, preencher com o nome do usuário
+        if current_user.is_authenticated:
+            usuario_depto_atual = getattr(current_user, 'departamento', '')
+            if usuario_depto_atual == 'Suprimentos' and not pesquisa.comprador:
+                pesquisa.comprador = current_user.name
+        
         db.session.commit()
         
         # Enviar e-mail para o departamento correto (em background para não bloquear)
@@ -607,7 +632,7 @@ def atualizar_pesquisa(id):
                     enviar_email(
                         destinatarios=destinatarios,
                         assunto='Pesquisa Atualizada - Novo Status',
-                        corpo_html=f'<p>A pesquisa de ID {pid} do cooperado {nome_cooperado} teve seu status alterado para: {status}.</p>'
+                        corpo_html=f'<p>A pesquisa PM-{pid} do cooperado {nome_cooperado} teve seu status alterado para: {status}.</p>'
                     )
                 except Exception as e:
                     print('Erro ao enviar e-mail automático:', e)
@@ -656,11 +681,14 @@ def editar_pesquisa(id):
     # Obter departamento do usuário
     usuario_depto = getattr(current_user, 'departamento', 'N/A')
     
+    # Verificar se é modo somente leitura (pesquisas finalizadas/perdidas)
+    readonly = request.args.get('readonly', '0') == '1'
+    
     # Verificar se pode editar CAMPOS
     pode_editar = pode_editar_pesquisa(usuario_depto, pesquisa.status)
     
     return render_template('pesquisa_form.html', pesquisa=pesquisa, status_options=PESQUISA_STATUS_OPTIONS,
-                          pode_editar=pode_editar, usuario_depto=usuario_depto)
+                          pode_editar=pode_editar, usuario_depto=usuario_depto, readonly=readonly)
 
 @pesquisa_routes.route('/api/pesquisa/<int:id>/exportar')
 @login_required
@@ -672,6 +700,18 @@ def exportar_pesquisa(id):
         return jsonify({'success': True, 'filepath': filepath})
     except Exception as e:
         print(f"Erro na exportação da pesquisa {id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500 
+
+@pesquisa_routes.route('/api/pesquisa/<int:id>/pdf')
+@login_required
+def exportar_pesquisa_pdf(id):
+    try:
+        pesquisa = PesquisaMercado.query.get_or_404(id)
+        filepath = gerar_pdf_cotacao_ou_pesquisa(pesquisa)
+        print(f"Exportação de pesquisa {id} para PDF bem-sucedida. Caminho: {filepath}")
+        return jsonify({'success': True, 'filepath': filepath})
+    except Exception as e:
+        print(f"Erro na exportação da pesquisa {id} para PDF: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500 
 
 @pesquisa_routes.route('/api/pesquisas/exportar', methods=['POST'])
@@ -689,6 +729,23 @@ def exportar_multiplas_pesquisas():
         return jsonify({'success': True, 'filepath': filepath})
     except Exception as e:
         print(f"Erro na exportação de múltiplas pesquisas: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@pesquisa_routes.route('/api/pesquisas/exportar-pdf', methods=['POST'])
+@login_required
+def exportar_multiplas_pesquisas_pdf():
+    try:
+        ids = request.json.get('ids', [])
+        if not isinstance(ids, list) or not ids:
+            return jsonify({'success': False, 'error': 'Nenhuma pesquisa selecionada'}), 400
+        pesquisas = [PesquisaMercado.query.get(pid) for pid in ids]
+        pesquisas = [p for p in pesquisas if p]
+        if not pesquisas:
+            return jsonify({'success': False, 'error': 'Pesquisas não encontradas'}), 404
+        filepath = gerar_pdf_multiplo(pesquisas)
+        return jsonify({'success': True, 'filepath': filepath})
+    except Exception as e:
+        print(f"Erro na exportação de múltiplas pesquisas para PDF: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @pesquisa_routes.route('/api/anexos/<int:id>', methods=['DELETE'])

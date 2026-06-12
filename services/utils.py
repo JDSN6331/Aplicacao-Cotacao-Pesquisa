@@ -15,7 +15,6 @@ _cache = {
     'produtos': None,
     'filiais': None
 }
-
 def exportar_para_excel(cotacoes, filename=None):
     """
     Exporta cotações ou pesquisas para um arquivo Excel
@@ -36,6 +35,12 @@ def exportar_para_excel(cotacoes, filename=None):
     rows = []
     for cotacao in cotacoes:
         cot_dict = cotacao.to_dict()
+        is_pesq = isinstance(cotacao, PesquisaMercado)
+        prefix = "PM-" if is_pesq else "CT-"
+        
+        # Override the id field to be formatted string like "CT-1" or "PM-1"
+        cot_dict['id'] = f"{prefix}{cotacao.id}"
+        
         produtos = cot_dict.get('produtos', [])
         if produtos:
             for produto in produtos:
@@ -90,12 +95,12 @@ def exportar_para_excel(cotacoes, filename=None):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         if len(cotacoes) == 1:
             # Verificar se é uma pesquisa ou cotação
-            prefixo = "Pesquisa" if isinstance(cotacoes[0], PesquisaMercado) else "Cotacao"
-            filename = f"{prefixo}_{cotacoes[0].id}_{timestamp}.xlsx"
+            prefixo = "PM" if isinstance(cotacoes[0], PesquisaMercado) else "CT"
+            filename = f"{prefixo}-{cotacoes[0].id}_{timestamp}.xlsx"
         else:
             # Verificar se é uma lista de pesquisas ou cotações
-            prefixo = "Pesquisas" if isinstance(cotacoes[0], PesquisaMercado) else "Cotacoes"
-            filename = f"{prefixo}_Multiplas_{timestamp}.xlsx"
+            prefixo = "PM_Multiplas" if isinstance(cotacoes[0], PesquisaMercado) else "CT_Multiplas"
+            filename = f"{prefixo}_{timestamp}.xlsx"
     
     # Caminho completo do arquivo
     filepath = os.path.join(Config.EXPORT_FOLDER, filename)
@@ -107,6 +112,7 @@ def exportar_para_excel(cotacoes, filename=None):
     df.to_excel(filepath, index=False)
     
     return filepath
+
 
 def normalizar_texto(texto):
     """

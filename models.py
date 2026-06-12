@@ -129,7 +129,8 @@ class Cotacao(db.Model):
             'valor_total': valor_total,
             'fornecedor': fornecedor,
             'anexos': [anexo.to_dict() for anexo in self.anexos],
-            'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista]
+            'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista],
+            'pesquisa_id': self.pesquisa_id
         }
 
 
@@ -215,6 +216,9 @@ class PesquisaMercado(db.Model):
                                          cascade='all, delete-orphan',
                                          order_by='Observacao.data_criacao.desc()',
                                          foreign_keys='Observacao.pesquisa_id')
+    # Relacionamento com a cotação gerada a partir desta pesquisa
+    cotacao = db.relationship('Cotacao', backref='pesquisa_origem', uselist=False,
+                              foreign_keys='Cotacao.pesquisa_id')
 
     
     def to_dict(self):
@@ -251,7 +255,8 @@ class PesquisaMercado(db.Model):
             'motivo_venda_perdida': self.motivo_venda_perdida,
             'prazo_entrega': self.prazo_entrega.strftime('%Y-%m-%d') if self.prazo_entrega else None,
             'fornecedor': self.fornecedor,
-            'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista]
+            'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista],
+            'cotacao_id': self.cotacao.id if self.cotacao else None
         }
 
 

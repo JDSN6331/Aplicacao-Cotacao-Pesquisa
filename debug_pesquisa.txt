@@ -1,5 +1,5 @@
-Pesquisa (ID 1):
+Pesquisa (ID 2):
 matricula_cooperado do DB = ''
 nome_cooperado do DB = ''
 Prefilled montado:
-{'nome_filial': '', 'numero_mesorregiao': '', 'matricula_cooperado': '', 'nome_cooperado': '', 'analista_comercial': '', 'comprador': '', 'observacoes': '', 'forma_pagamento': '', 'prazo_entrega': '', 'cultura': '', 'nome_vendedor': '', 'motivo_venda_perdida': ''}
+{'nome_filial': '300:Unidade Avançada Muzambinho', 'numero_mesorregiao': 'REGIONAL - Ana Cássia', 'matricula_cooperado': '', 'nome_cooperado': '', 'analista_comercial': 'Ana Cássia', 'comprador': '', 'observacoes': '', 'forma_pagamento': '', 'prazo_entrega': '', 'cultura': '', 'nome_vendedor': '', 'motivo_venda_perdida': ''}

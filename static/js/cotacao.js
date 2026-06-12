@@ -78,6 +78,39 @@ document.addEventListener('DOMContentLoaded', function () {
     // Chamar verificação de permissões ao carregar
     verificarEAplicarPermissoes();
 
+    // Modo Somente Leitura (Visualização)
+    if (window.modoReadonly) {
+        console.log('Modo somente leitura ativado - bloqueando todos os campos');
+        
+        // Bloquear TODOS os campos (inclusive status)
+        document.querySelectorAll('input, textarea, select').forEach(el => {
+            el.disabled = true;
+        });
+        
+        // Esconder botões de ação (salvar, adicionar produto, remover, anexos, observações)
+        document.querySelectorAll('#nextButton, #addProdutoButton, .btn-remove-produto, .btn-remove-anexo, #btnAnexo, .btn-upload-anexo, .observacao-nova-container, .observacao-actions, .observacao-action-btn').forEach(el => {
+            el.style.display = 'none';
+        });
+        
+        // Esconder input de upload de anexos
+        document.querySelectorAll('input[type="file"]').forEach(el => {
+            el.style.display = 'none';
+        });
+        
+        // Mostrar banner informativo
+        const form = document.getElementById('cotacaoForm');
+        if (form) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-info fade show mb-4';
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                <i class="fas fa-eye me-2"></i>
+                <strong>Modo Visualização</strong> — Esta cotação está em modo somente leitura. Nenhuma alteração pode ser realizada.
+            `;
+            form.insertBefore(alertDiv, form.firstChild);
+        }
+    }
+
     // Carregar histórico de status se estiver editando uma cotação
     function carregarHistorico() {
         const cotacaoIdInput = document.querySelector('input[name="id"]');
@@ -389,10 +422,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const nextButton = document.getElementById('nextButton');
         const statusEl = document.getElementById('statusAtual');
 
-        if (statusEl && (statusEl.value === 'Cotação Finalizada' || statusEl.value === 'Cotação Perdida')) {
-            if (nextButton) nextButton.style.display = 'none';
-        } else if (nextButton) {
-            nextButton.style.display = 'inline-block';
+        if (window.modoReadonly) {
+            if (nextButton) {
+                if (currentStep === 3) {
+                    nextButton.style.display = 'none';
+                } else {
+                    nextButton.style.display = 'inline-block';
+                }
+            }
+        } else {
+            if (statusEl && (statusEl.value === 'Cotação Finalizada' || statusEl.value === 'Cotação Perdida')) {
+                if (nextButton) nextButton.style.display = 'none';
+            } else if (nextButton) {
+                nextButton.style.display = 'inline-block';
+            }
         }
     }
 
@@ -494,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                     </div>
                 </div>
-                ${produtoIndex > 0 ? `
+                ${(produtoIndex > 0 && !window.modoReadonly) ? `
                     <div class="mt-3">
                         <button type="button" class="btn btn-danger btn-remove-produto" onclick="removeProduto(${produtoIndex})">
                             <i class="fas fa-trash me-2"></i>Remover Produto
@@ -506,6 +549,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         produtosContainer.insertAdjacentHTML('beforeend', produtoHtml);
         produtos.push(produtoIndex);
+
+        if (window.modoReadonly) {
+            setTimeout(() => {
+                const prodDiv = document.getElementById(`produto-${produtoIndex}`);
+                if (prodDiv) {
+                    prodDiv.querySelectorAll('input, select, textarea').forEach(el => {
+                        el.disabled = true;
+                    });
+                }
+            }, 0);
+        }
 
         // Preencher campos se produtoData fornecido
         if (produtoData) {
@@ -969,8 +1023,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Prioridade para restaurar valores: 1) Valor atual, 2) Valor inicial da edição
                 if (filialAtual && filialAtual !== '') {
                     filialSelect.value = filialAtual;
-                    // Restaurar mesorregião correspondente (exceto se for Regional 7)
-                    if (mesoregiaoAtual !== 'REGIONAL 7 - Joaquim') {
+                    // Restaurar mesorregião correspondente (exceto se for Regional)
+                    if (mesoregiaoAtual !== 'REGIONAL - Joaquim Luiz dos Santos Neto') {
                         const found = filiaisData.find(f => f.FILIAL === filialAtual);
                         if (found) {
                             mesoregiaoInput.value = found['MESOREGIÃO GEOGRÁFICA'];
@@ -978,8 +1032,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             preencherAnalistaPorMesorregiao(found['MESOREGIÃO GEOGRÁFICA']);
                         }
                     } else {
-                        // Se for Regional 7, preencher analista Joaquim
-                        preencherAnalistaPorMesorregiao('REGIONAL 7 - Joaquim');
+                        // Se for Regional, preencher analista Joaquim Luiz dos Santos Neto
+                        preencherAnalistaPorMesorregiao('REGIONAL - Joaquim Luiz dos Santos Neto');
                     }
                 } else if (cotacaoFilialInicial) {
                     filialSelect.value = cotacaoFilialInicial;
@@ -997,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const selected = this.value;
             const culturaSelecionada = culturaSelect ? culturaSelect.value : '';
 
-            // Se a cultura for Soja ou Milho, não alterar a mesorregião (manter Regional 7)
+            // Se a cultura for Soja ou Milho, não alterar a mesorregião (manter Regional)
             if (culturaSelecionada === 'Soja' || culturaSelect.value === 'Milho') {
                 return;
             }
@@ -1055,9 +1109,9 @@ document.addEventListener('DOMContentLoaded', function () {
             culturaSelect.addEventListener('change', function () {
                 const culturaSelecionada = this.value;
 
-                // Se a cultura for Soja ou Milho, alterar mesorregião para Regional 7 - Joaquim
+                // Se a cultura for Soja ou Milho, alterar mesorregião para Regional - Joaquim
                 if (culturaSelecionada === 'Soja' || culturaSelecionada === 'Milho') {
-                    mesoregiaoInput.value = 'REGIONAL 7 - Joaquim';
+                    mesoregiaoInput.value = 'REGIONAL - Joaquim Luiz dos Santos Neto';
                     // Manter a filial selecionada, apenas remover obrigatoriedade
                     if (nomeFilialSelect) {
                         nomeFilialSelect.removeAttribute('required');
@@ -1068,8 +1122,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Mostrar mensagem de ajuda e remover obrigatoriedade
                     if (filialRequired) filialRequired.style.display = 'none';
 
-                    // Preencher analista Joaquim para Regional 7
-                    preencherAnalistaPorMesorregiao('REGIONAL 7 - Joaquim');
+                    // Preencher analista Joaquim Luiz dos Santos Neto para Regional
+                    preencherAnalistaPorMesorregiao('REGIONAL - Joaquim Luiz dos Santos Neto');
                 } else {
                     // Para outras culturas, restaurar a mesorregião baseada na filial selecionada
                     if (nomeFilialSelect && nomeFilialSelect.value) {
@@ -1104,25 +1158,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let analista = '';
 
-        // Mapeamento de mesorregiões para analistas
-        switch (mesorregiao) {
-            case 'REGIONAL 7 - Joaquim':
-                analista = 'Joaquim';
-                break;
-            case 'REGIONAL - Ana Cássia':
-                analista = 'Ana Cássia';
-                break;
-            case 'REGIONAL - Leiliele':
-                analista = 'Leiliele';
-                break;
-            case 'REGIONAL - Rafael':
-                analista = 'Rafael';
-                break;
-            case 'REGIONAL - Thalles':
-                analista = 'Thalles';
-                break;
-            default:
-                analista = '';
+        // Extrai dinamicamente tudo que está após o " - " (ex: "REGIONAL - Nome do Analista")
+        if (mesorregiao && mesorregiao.includes(' - ')) {
+            const partes = mesorregiao.split(' - ');
+            if (partes.length > 1) {
+                analista = partes[1].trim();
+            }
         }
 
         analistaInput.value = analista;

@@ -3204,6 +3204,27 @@ footer p {
     color: #666;
 }
 
+/* Dark mode overrides para Timeline do Modal de Histórico */
+[data-theme="dark"] .timeline-icon {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .timeline-content {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .timeline-content strong {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .timeline-content small {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .timeline-item .d-flex[style*="border-top"] {
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 /* Responsividade para históricos */
 @media (max-width: 768px) {
     .historico-card-body .row {

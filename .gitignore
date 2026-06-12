@@ -70,3 +70,7 @@ Thumbs.db
 *.bat
 !service/*.bat
 *.url
+
+# Backup folder
+backup_seguranca/
+

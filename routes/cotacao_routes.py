@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, send_file, abort
 from flask_login import login_required, current_user
 from models import db, Cotacao, ProdutoCotacao, Anexo, HistoricoStatus, HistoricoEdicaoCampo, MAX_ANEXOS
 from services.utils import exportar_para_excel, comparar_e_registrar_edicoes, comparar_e_registrar_edicoes_produtos
+from services.pdf_service import gerar_pdf_cotacao_ou_pesquisa, gerar_pdf_multiplo
 from datetime import datetime
 import os
 import pytz
@@ -174,9 +175,12 @@ def nova_cotacao():
             print(f"DEBUG: prefilled={prefilled}", file=sys.stderr)
             # cotacao=None garante que o formulário fica em modo CRIAÇÃO (não edição)
             anexos_herdados = pesquisa.anexos if pesquisa.anexos else []
+            # Passar observações estruturadas da pesquisa para exibição imediata na cotação
+            pesquisa_observacoes = pesquisa.observacoes_lista if pesquisa.observacoes_lista else []
             return render_template('form.html', cotacao=None, status_options=STATUS_OPTIONS, 
                                    produtos_json=produtos_json, pesquisa_origem_id=pesquisa_origem_id,
                                    prefilled=prefilled, anexos_herdados=anexos_herdados,
+                                   pesquisa_observacoes=pesquisa_observacoes,
                                    pode_editar=True, usuario_depto=usuario_depto)
 
     return render_template('form.html', cotacao=None, status_options=STATUS_OPTIONS, pesquisa_origem_id=None,
@@ -191,12 +195,15 @@ def editar_cotacao(id):
     # Obter departamento do usuário
     usuario_depto = getattr(current_user, 'departamento', 'N/A')
     
+    # Verificar se é modo somente leitura (cotações finalizadas/perdidas)
+    readonly = request.args.get('readonly', '0') == '1'
+    
     # Verificar se pode editar CAMPOS
     pode_editar = pode_editar_cotacao(usuario_depto, cotacao.status)
     
     return render_template('form.html', cotacao=cotacao, status_options=STATUS_OPTIONS, 
                           produtos_json=produtos_json, pode_editar=pode_editar,
-                          usuario_depto=usuario_depto)
+                          usuario_depto=usuario_depto, readonly=readonly)
 
 @cotacao_routes.route('/api/cotacao', methods=['POST'])
 @login_required
@@ -492,7 +499,7 @@ def criar_cotacao():
                     resultado = enviar_email(
                         destinatarios=destinatarios,
                         assunto='Nova Cotação Criada',
-                        corpo_html=f'<p>Uma nova cotação foi criada para o cooperado <strong>{nome_cooperado}</strong> (ID {cid}). Status: <strong>{status}</strong>.</p>'
+                        corpo_html=f'<p>Uma nova cotação foi criada para o cooperado <strong>{nome_cooperado}</strong> (CT-{cid}). Status: <strong>{status}</strong>.</p>'
                     )
                     
                     if resultado:
@@ -800,6 +807,13 @@ def atualizar_cotacao(id):
                         )
                         db.session.add(historico_pesquisa)
         
+        # Auto-preencher campo Comprador: se o usuário logado é do departamento Suprimentos
+        # e o campo comprador está vazio, preencher com o nome do usuário
+        if current_user.is_authenticated:
+            usuario_depto_atual = getattr(current_user, 'departamento', '')
+            if usuario_depto_atual == 'Suprimentos' and not cotacao.comprador:
+                cotacao.comprador = current_user.name
+        
         db.session.commit()
         
         # Enviar e-mail para o departamento correto (em background para não bloquear)
@@ -825,7 +839,7 @@ def atualizar_cotacao(id):
                         resultado = enviar_email(
                             destinatarios=destinatarios,
                             assunto='Cotação Atualizada - Novo Status',
-                            corpo_html=f'<p>A cotação de ID {cid} do cooperado {nome_cooperado} teve seu status alterado para: <strong>{status}</strong>.</p>'
+                            corpo_html=f'<p>A cotação CT-{cid} do cooperado {nome_cooperado} teve seu status alterado para: <strong>{status}</strong>.</p>'
                         )
                         
                         if resultado:
@@ -894,6 +908,18 @@ def exportar_cotacao(id):
         print(f"Erro na exportação da cotação {id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@cotacao_routes.route('/api/cotacao/<int:id>/pdf')
+@login_required
+def exportar_cotacao_pdf(id):
+    try:
+        cotacao = Cotacao.query.get_or_404(id)
+        filepath = gerar_pdf_cotacao_ou_pesquisa(cotacao)
+        print(f"Exportação de cotação {id} para PDF bem-sucedida. Caminho: {filepath}")
+        return jsonify({'success': True, 'filepath': filepath})
+    except Exception as e:
+        print(f"Erro na exportação da cotação {id} para PDF: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @cotacao_routes.route('/api/cotacoes/exportar', methods=['POST'])
 @login_required
 def exportar_multiplas():
@@ -907,6 +933,21 @@ def exportar_multiplas():
         return jsonify({'success': True, 'filepath': filepath})
     except Exception as e:
         print(f"Erro na exportação de múltiplas cotações: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@cotacao_routes.route('/api/cotacoes/exportar-pdf', methods=['POST'])
+@login_required
+def exportar_multiplas_pdf():
+    try:
+        ids = request.json.get('ids', [])
+        cotacoes = [Cotacao.query.get(id) for id in ids if Cotacao.query.get(id)]
+        if not cotacoes:
+            return jsonify({'success': False, 'error': 'Nenhuma cotação selecionada'}), 400
+        filepath = gerar_pdf_multiplo(cotacoes)
+        print(f"Exportação de múltiplas cotações para PDF ({len(ids)} itens) bem-sucedida. Caminho: {filepath}")
+        return jsonify({'success': True, 'filepath': filepath})
+    except Exception as e:
+        print(f"Erro na exportação de múltiplas cotações para PDF: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @cotacao_routes.route('/api/cotacao/<int:id>', methods=['GET'])

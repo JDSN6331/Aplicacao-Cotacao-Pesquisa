@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ 'Editar' if cotacao else 'Nova' }} Cotação | Cotações Específicas de Fertilizantes{% endblock %}
+{% block title %}{{ 'Visualizar Cotação CT-' ~ cotacao.id if readonly is defined and readonly and cotacao else ('Editar Cotação CT-' ~ cotacao.id if cotacao else 'Nova Cotação') }} | Cotações Específicas de Fertilizantes{% endblock %}
 
 {% block content %}
 <style>
@@ -236,17 +236,35 @@
     .historico-card-body > div[style*="background-color: rgba(40,167,69"]:hover {
         background-color: rgba(40, 167, 69, 0.15) !important;
     }
+
+    {% if readonly is defined and readonly %}
+    #addProdutoButton,
+    .btn-add-produto,
+    .btn-remove-produto,
+    .btn-remove-anexo,
+    #btnAnexo,
+    .btn-upload-anexo,
+    .observacao-nova-container,
+    .observacao-actions,
+    .observacao-action-btn,
+    input[type="file"] {
+        display: none !important;
+    }
+    #cotacaoForm[data-current-step="3"] #nextButton {
+        display: none !important;
+    }
+    {% endif %}
 </style>
 
 <div class="container mt-4">
     <div class="card">
         <div class="card-header">
-            <h2 class="mb-0">{{ 'Editar' if cotacao else 'Criação - Nova' }} Cotação</h2>
+            <h2 class="mb-0">{% if readonly is defined and readonly and cotacao %}<i class="fas fa-eye me-2"></i>Visualizar Cotação CT-{{ cotacao.id }}{% elif cotacao %}Editar Cotação CT-{{ cotacao.id }}{% else %}Criação - Nova Cotação{% endif %}</h2>
         </div>
         <div class="card-body">
             {# Exibir status atual com estilização de badge #}
             <div class="mb-3">
-                <p class="mb-0">
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-0">
                     {% if cotacao %}
                     <strong>Status atual:</strong>
                     {% set status = cotacao.status %}
@@ -272,11 +290,21 @@
                     {% else %}
                     <strong>Fase atual:</strong>
                     <span class="badge status-criacao">Criação</span>
-                    <br>
                     <small class="text-muted">Status será definido após finalizar a criação</small>
                     {% endif %}
-                </p>
+                    
+                    {% if cotacao and cotacao.pesquisa_id %}
+                    <span class="text-muted" style="font-size: 0.9em;">
+                        Originada da <a href="/pesquisa/{{ cotacao.pesquisa_id }}" class="badge text-decoration-none text-white" style="background-color: #6c757d;"><i class="fas fa-magnifying-glass"></i> PM-{{ cotacao.pesquisa_id }}</a>
+                    </span>
+                    {% elif pesquisa_origem_id %}
+                    <span class="text-muted" style="font-size: 0.9em;">
+                        Originada da <a href="/pesquisa/{{ pesquisa_origem_id }}" class="badge text-decoration-none text-white" style="background-color: #6c757d;"><i class="fas fa-magnifying-glass"></i> PM-{{ pesquisa_origem_id }}</a>
+                    </span>
+                    {% endif %}
+                </div>
             </div>
+
 
             <!-- Históricos com Abas (somente para cotações existentes) -->
             {% if cotacao %}
@@ -517,6 +545,20 @@
                                                     {% endif %}
                                                 </div>
                                                 <div class="observacao-texto" id="obs-texto-{{ obs.id }}">{{ obs.texto }}</div>
+                                            </div>
+                                            {% endfor %}
+                                        {% elif pesquisa_observacoes is defined and pesquisa_observacoes %}
+                                            {% for obs in pesquisa_observacoes %}
+                                            <div class="observacao-card">
+                                                <div class="observacao-header">
+                                                    <div class="observacao-meta">
+                                                        <span class="observacao-autor"><i class="fas fa-user me-1 text-muted"></i>{{ obs.usuario }}</span>
+                                                        <span class="observacao-depto">{{ obs.departamento }}</span>
+                                                        <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ obs.data_criacao.strftime('%d/%m/%Y %H:%M:%S') if obs.data_criacao else '' }}</span>
+                                                        <span class="badge bg-info text-dark ms-2">Vindo da Pesquisa</span>
+                                                    </div>
+                                                </div>
+                                                <div class="observacao-texto">{{ obs.texto }}</div>
                                             </div>
                                             {% endfor %}
                                         {% else %}
@@ -901,11 +943,13 @@
     // @ts-nocheck
     window.podeEditarCampos = {{ 'true' if pode_editar is not defined or pode_editar else 'false' }};
     window.usuarioDepto = '{{ usuario_depto if usuario_depto is defined else 'N/A' }}';
+    window.modoReadonly = {{ 'true' if readonly is defined and readonly else 'false' }};
     console.log('Permissões de campos:', {
         pode_editar_campos: window.podeEditarCampos,
-        usuario_depto: window.usuarioDepto
+        usuario_depto: window.usuarioDepto,
+        modo_readonly: window.modoReadonly
     });
 </script>
 
-<script src="{{ url_for('static', filename='js/cotacao.js') }}?v=18"></script>
+<script src="{{ url_for('static', filename='js/cotacao.js') }}?v=19"></script>
 {% endblock %}

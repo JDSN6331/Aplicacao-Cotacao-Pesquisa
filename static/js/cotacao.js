@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="prazo_pagamento_fornecedor_${produtoIndex}" class="form-label">Prazo de Pagamento Fornecedor</label>
-                            <input type="date" class="form-control" id="prazo_pagamento_fornecedor_${produtoIndex}" name="produtos[${produtoIndex}][prazo_pagamento_fornecedor]">
+                            <input type="text" class="form-control" id="prazo_pagamento_fornecedor_${produtoIndex}" name="produtos[${produtoIndex}][prazo_pagamento_fornecedor]" placeholder="dd/mm/aaaa ou texto livre">
                         </div>
                     </div>
                 </div>

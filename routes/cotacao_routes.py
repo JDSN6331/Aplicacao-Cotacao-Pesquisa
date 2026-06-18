@@ -379,15 +379,9 @@ def criar_cotacao():
                 return 0.0
         
         for produto_data in produtos_data:
-            # Tratar campo prazo_pagamento_fornecedor corretamente
+            # Obter campo prazo_pagamento_fornecedor como texto livre
             prazo_pagamento_fornecedor = produto_data.get('prazo_pagamento_fornecedor', '')
-            if prazo_pagamento_fornecedor == 'null' or prazo_pagamento_fornecedor == '' or prazo_pagamento_fornecedor is None:
-                prazo_pagamento_fornecedor = None
-            else:
-                try:
-                    prazo_pagamento_fornecedor = datetime.strptime(prazo_pagamento_fornecedor, '%Y-%m-%d').date()
-                except (ValueError, TypeError):
-                    prazo_pagamento_fornecedor = None
+            prazo_pagamento_fornecedor = prazo_pagamento_fornecedor if prazo_pagamento_fornecedor and prazo_pagamento_fornecedor != 'null' else None
             
             produto = ProdutoCotacao(
                 cotacao_id=cotacao.id,
@@ -708,15 +702,9 @@ def atualizar_cotacao(id):
                 return 0.0
         
         for produto_data in produtos_data:
-            # Tratar campo prazo_pagamento_fornecedor corretamente
+            # Obter campo prazo_pagamento_fornecedor como texto livre
             prazo_pagamento_fornecedor = produto_data.get('prazo_pagamento_fornecedor', '')
-            if prazo_pagamento_fornecedor == 'null' or prazo_pagamento_fornecedor == '' or prazo_pagamento_fornecedor is None:
-                prazo_pagamento_fornecedor = None
-            else:
-                try:
-                    prazo_pagamento_fornecedor = datetime.strptime(prazo_pagamento_fornecedor, '%Y-%m-%d').date()
-                except (ValueError, TypeError):
-                    prazo_pagamento_fornecedor = None
+            prazo_pagamento_fornecedor = prazo_pagamento_fornecedor if prazo_pagamento_fornecedor and prazo_pagamento_fornecedor != 'null' else None
             
             produto = ProdutoCotacao(
                 cotacao_id=cotacao.id,

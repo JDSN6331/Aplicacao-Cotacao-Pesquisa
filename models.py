@@ -149,7 +149,7 @@ class ProdutoCotacao(db.Model):
     preco_custo = db.Column(db.Float, nullable=True)
     custo_alvo = db.Column(db.Float, nullable=True)  # Novo campo: Custo Alvo
     tipo_frete = db.Column(db.String(10), nullable=True)  # CIF ou FOB
-    prazo_pagamento_fornecedor = db.Column(db.Date, nullable=True)
+    prazo_pagamento_fornecedor = db.Column(db.String(100), nullable=True)
     
     def to_dict(self):
         return {
@@ -164,7 +164,7 @@ class ProdutoCotacao(db.Model):
             'preco_custo': self.preco_custo,
             'custo_alvo': self.custo_alvo,
             'tipo_frete': self.tipo_frete,
-            'prazo_pagamento_fornecedor': self.prazo_pagamento_fornecedor.strftime('%Y-%m-%d') if self.prazo_pagamento_fornecedor else None
+            'prazo_pagamento_fornecedor': self.prazo_pagamento_fornecedor
         }
 
 

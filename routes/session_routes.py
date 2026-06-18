@@ -54,11 +54,17 @@ def extend_session():
     Chamado quando usuário interia com a página (para evitar logout enquanto está usando).
     """
     try:
-        # Simples: apenas marcar como permanente
-        # Flask automaticamente renova a sessão com base em SESSION_REFRESH_EACH_REQUEST
+        # Marcar como permanente E forçar renovação do timer de expiração
         session.permanent = True
+        session.modified = True  # CRÍTICO: Força Flask a renovar a expiração da sessão
+        
+        # IMPORTANTE: Resetar o tempo de criação para que o servidor também conte novo timer
+        from datetime import datetime
+        session['_session_created_at'] = datetime.now().isoformat()
         
         session_lifetime = current_app.config.get('PERMANENT_SESSION_LIFETIME', 30 * 60)
+        
+        print(f'[SESSION] Sessão estendida para usuário ID {current_user.id}. Nova expiração em {session_lifetime // 60} minutos')
         
         return jsonify({
             'success': True,
@@ -91,13 +97,16 @@ def logout_session():
         
         print(f'[SESSION] Logout realizado para usuário ID {user_id} ({username})')
         
+        # Destruir a sessão de forma agressiva
         logout_user()
+        session.clear()  # Limpar todos os dados da sessão
+        session.modified = True  # Forçar renovação
         
         return jsonify({
             'success': True,
             'message': f'Logout realizado. Até logo, {username}!',
             'timestamp': datetime.now().isoformat()
-        })
+        }), 200
     except Exception as e:
         print(f'[SESSION] Erro ao fazer logout: {str(e)}')
         import traceback

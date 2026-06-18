@@ -1,6 +1,9 @@
 import smtplib
 from email.mime.text import MIMEText
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # CONTROLE DE ENVIO DE E-MAILS
@@ -51,15 +54,24 @@ def obter_email_por_status(status):
         return EMAIL_COMERCIAL + [ADMIN_EMAIL, SUPERVISOR_EMAIL]
 
 def enviar_email(destinatarios, assunto, corpo_html):
-    """Envia e-mail usando SMTP com STARTTLS."""
+    """Envia e-mail usando SMTP com STARTTLS.
+    
+    Credenciais são obtidas de variáveis de ambiente por segurança.
+    """
     if EMAILS_DESATIVADOS or os.environ.get('DESATIVAR_EMAILS', '').lower() in ['true', 'yes', '1']:
-        print(f'[EMAIL] [DESATIVADO] Envio de e-mail desativado. Destinatários: {destinatarios} | Assunto: {assunto}')
+        logger.info(f'Envio de e-mail desativado. Destinatários: {destinatarios} | Assunto: {assunto}')
         return True
 
-    smtp_server = 'mail.cooxupe.com.br'
-    smtp_port = 587  # Porta STARTTLS
-    usuario = 'joseduque@cooxupe.com.br'
-    senha = 'Tricolor*01'  # Substitua pela sua senha real
+    # Obter credenciais de variáveis de ambiente (NUNCA hardcode!)
+    smtp_server = os.environ.get('MAIL_SERVER', 'mail.cooxupe.com.br')
+    smtp_port = int(os.environ.get('MAIL_PORT', 587))
+    usuario = os.environ.get('MAIL_USERNAME')
+    senha = os.environ.get('MAIL_PASSWORD')
+    
+    # Validar credenciais
+    if not usuario or not senha:
+        logger.error('MAIL_USERNAME ou MAIL_PASSWORD não configurados em variáveis de ambiente!')
+        return False
 
     msg = MIMEText(corpo_html, 'html')
     msg['Subject'] = assunto
@@ -67,16 +79,16 @@ def enviar_email(destinatarios, assunto, corpo_html):
     msg['To'] = ', '.join(destinatarios) if isinstance(destinatarios, list) else destinatarios
 
     try:
-        print(f'[EMAIL] Tentando conectar ao servidor SMTP: {smtp_server}:{smtp_port}')
+        logger.debug(f'Conectando ao servidor SMTP: {smtp_server}:{smtp_port}')
         with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
-            server.set_debuglevel(0)  # Definir para 1 para debug detalhado
+            server.set_debuglevel(0)
             server.starttls()
             server.login(usuario, senha)
             server.sendmail(usuario, destinatarios if isinstance(destinatarios, list) else [destinatarios], msg.as_string())
-        print(f'[EMAIL] E-mail enviado com sucesso para: {destinatarios}')
+        logger.info(f'E-mail enviado com sucesso para: {destinatarios}')
         return True
     except smtplib.SMTPAuthenticationError as e:
-        print(f'[EMAIL] Erro de autenticação SMTP: {e}')
+        logger.error(f'Erro de autenticação SMTP: {e}')
         return False
     except smtplib.SMTPConnectError as e:
         print(f'[EMAIL] Erro de conexão SMTP: {e}')

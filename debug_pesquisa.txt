@@ -1,5 +1,5 @@
-Pesquisa (ID 2):
-matricula_cooperado do DB = ''
-nome_cooperado do DB = ''
+Pesquisa (ID 4):
+matricula_cooperado do DB = '17696'
+nome_cooperado do DB = 'Osival Joaquim Ruela e Outro'
 Prefilled montado:
-{'nome_filial': '300:Unidade Avançada Muzambinho', 'numero_mesorregiao': 'REGIONAL - Ana Cássia', 'matricula_cooperado': '', 'nome_cooperado': '', 'analista_comercial': 'Ana Cássia', 'comprador': '', 'observacoes': '', 'forma_pagamento': '', 'prazo_entrega': '', 'cultura': '', 'nome_vendedor': '', 'motivo_venda_perdida': ''}
+{'nome_filial': 'L27:Loja Conceição Aparecida', 'numero_mesorregiao': 'REGIONAL - Ana Cassia Moreira Reis', 'matricula_cooperado': '17696', 'nome_cooperado': 'Osival Joaquim Ruela e Outro', 'analista_comercial': 'Ana Cassia Moreira Reis', 'comprador': '', 'observacoes': '', 'forma_pagamento': '25/07/2026', 'prazo_entrega': '', 'cultura': 'Café', 'nome_vendedor': 'Mario Borba', 'motivo_venda_perdida': ''}

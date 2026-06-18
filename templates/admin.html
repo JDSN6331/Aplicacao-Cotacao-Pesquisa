@@ -240,7 +240,10 @@
 
         fetch(`/api/admin/users/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
             body: JSON.stringify({ name, email, departamento, is_admin })
         })
         .then(res => res.json())
@@ -268,7 +271,10 @@
 
         fetch(`/api/admin/users/${id}/send-reset-password`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
         })
         .then(res => res.json())
         .then(data => {
@@ -327,7 +333,12 @@
     document.getElementById('confirmDeleteUserBtn').addEventListener('click', function () {
         if (!deleteUserId) return;
 
-        fetch(`/api/admin/users/${deleteUserId}`, { method: 'DELETE' })
+        fetch(`/api/admin/users/${deleteUserId}`, { 
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
         .then(res => res.json())
         .then(data => {
             if (data.success) {

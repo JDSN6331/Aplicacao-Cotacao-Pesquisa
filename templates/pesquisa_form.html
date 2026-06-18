@@ -482,10 +482,13 @@
                             return;
                         }
                         
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        
                         fetch(`/api/observacoes/${id}`, {
                             method: 'PUT',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
                             },
                             body: JSON.stringify({ texto: novoTexto })
                         })
@@ -509,8 +512,13 @@
                             return;
                         }
                         
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        
                         fetch(`/api/observacoes/${id}`, {
-                            method: 'DELETE'
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRFToken': csrfToken
+                            }
                         })
                         .then(response => response.json())
                         .then(data => {
@@ -593,8 +601,13 @@
                 <script>
                     function removerAnexo(id) {
                         if (confirm('Tem certeza que deseja remover este anexo?')) {
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                            
                             fetch(`/api/anexos/${id}`, {
                                 method: 'DELETE',
+                                headers: {
+                                    'X-CSRFToken': csrfToken
+                                }
                             })
                                 .then(response => {
                                     if (response.ok) {
@@ -1470,6 +1483,11 @@
                 }
             };
 
+            // Função para obter token CSRF
+            function getCsrfToken() {
+                return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            }
+
             // Verificar se há arquivos (do input ou acumulados)
             const totalFiles = files.length + (typeof selectedFilesForUpload !== 'undefined' ? selectedFilesForUpload.length : 0);
             
@@ -1495,6 +1513,9 @@
                     data: uploadData,
                     processData: false,
                     contentType: false,
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     success: handleSuccess,
                     error: handleError
                 });
@@ -1505,6 +1526,9 @@
                     method: method,
                     contentType: 'application/json',
                     data: JSON.stringify(formData),
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     success: handleSuccess,
                     error: handleError
                 });

@@ -77,7 +77,7 @@
     /* KPI Cards */
     .kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
@@ -96,6 +96,7 @@
         transition: transform 0.18s ease, box-shadow 0.18s ease;
         position: relative;
         overflow: hidden;
+        min-height: 140px;
     }
 
     .kpi-card::before {
@@ -137,6 +138,14 @@
         font-weight: 800;
         color: var(--text-primary);
         line-height: 1;
+    }
+
+    .kpi-value.long {
+        font-size: 1.4rem;
+        letter-spacing: -0.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .kpi-label {
@@ -334,7 +343,7 @@
         }
 
         .kpi-grid {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
         }
     }
 
@@ -377,16 +386,17 @@
     <!-- KPIs Cotações -->
     <div class="kpi-grid" id="kpiCotacoes">
         <!-- gerado via JS -->
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
     </div>
 
     <div class="charts-grid three-cols">
         <div class="chart-card">
-            <div class="chart-card-title"><i class="fas fa-chart-pie"></i> Distribuição por Status</div>
+            <div class="chart-card-title"><i class="fas fa-chart-bar"></i> Cotações por Status</div>
             <div class="chart-wrapper"><canvas id="chartCotacoesStatus"></canvas></div>
         </div>
         <div class="chart-card">
@@ -401,6 +411,14 @@
         </div>
     </div>
 
+    <!-- Gráfico de valores — Cotações Finalizadas -->
+    <div class="charts-grid" style="grid-template-columns: 1fr;">
+        <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-line"></i> Valores Finalizados (Últimos 12 Meses)</div>
+            <div class="chart-wrapper" style="height:300px;"><canvas id="chartValoresCotacoesMes"></canvas></div>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════════════════ -->
     <!-- SEÇÃO 2 — PESQUISAS                                     -->
     <!-- ═══════════════════════════════════════════════════════ -->
@@ -411,16 +429,17 @@
 
     <!-- KPIs Pesquisas -->
     <div class="kpi-grid" id="kpiPesquisas">
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
-        <div class="kpi-card skeleton" style="height:110px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
+        <div class="kpi-card skeleton" style="height:150px;"></div>
     </div>
 
     <!-- Gráficos Pesquisas -->
     <div class="charts-grid three-cols">
         <div class="chart-card">
-            <div class="chart-card-title"><i class="fas fa-chart-pie"></i> Pesquisas por Status</div>
+            <div class="chart-card-title"><i class="fas fa-chart-bar"></i> Pesquisas por Status</div>
             <div class="chart-wrapper"><canvas id="chartPesquisasStatus"></canvas></div>
         </div>
         <div class="chart-card">
@@ -486,7 +505,7 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- SEÇÃO 4 — USUÁRIOS                                      -->
+    <!-- SEÇÃO 4 — USUÁRIOS & ATIVIDADE                           -->
     <!-- ═══════════════════════════════════════════════════════ -->
     <div class="section-divider"></div>
     <div class="section-title">
@@ -499,6 +518,21 @@
         <div class="kpi-card skeleton" style="height:110px;"></div>
         <div class="kpi-card skeleton" style="height:110px;"></div>
         <div class="kpi-card skeleton" style="height:110px;"></div>
+    </div>
+
+    <!-- KPIs Destaques: Analista -->
+    <div class="kpi-grid">
+        <!-- Card: Analista Destaque -->
+        <div class="kpi-card" style="--kpi-accent: #4CAF50;">
+            <div class="kpi-icon">
+                <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="kpi-value long" id="analista-destaque-nome" title="Carregando...">-</div>
+            <div class="kpi-label">Analista com mais cotações fechadas</div>
+            <div style="margin-top: auto; width: 100%; text-align: right;">
+                <span class="kpi-badge info" id="analista-destaque-total">0 cotações</span>
+            </div>
+        </div>
     </div>
 
     <!-- Gráfico Departamentos -->
@@ -605,7 +639,7 @@
             <div class="kpi-icon" style="background:${(c.color || '#2E7D32')}22;color:${c.color || 'var(--primary)'}">
                 <i class="fas ${c.icon}"></i>
             </div>
-            <div class="kpi-value">${c.value}</div>
+            <div class="kpi-value ${c.value.length > 15 ? 'long' : ''}">${c.value}</div>
             <div class="kpi-label">${c.label}</div>
             ${c.badge ? `<span class="kpi-badge ${c.badge.type}">${c.badge.text}</span>` : ''}
             ${c.sub ? `<div class="kpi-sub">${c.sub}</div>` : ''}
@@ -668,22 +702,32 @@
                 icon: 'fa-trophy', label: 'Taxa de Sucesso', value: c.taxa_sucesso + '%', color: '#F9A825',
                 sub: 'Finalizadas / (Fin. + Perdidas)', badge: { type: c.taxa_sucesso >= 50 ? 'success' : 'warning', text: c.taxa_sucesso + '%' }
             },
+            {
+                icon: 'fa-coins', label: 'Valor Total Finalizado', 
+                value: 'R$ ' + (c.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 
+                color: '#7B1FA2',
+                sub: 'Cotações finalizadas'
+            },
         ]);
 
-        // Gráfico pizza — status
+        // Gráfico barras horizontais — status cotações
         const statusLabels = c.dist_status.map(s => s.status);
         const statusData = c.dist_status.map(s => s.total);
         const statusColors = statusLabels.map(l => PALETTE.status[l] || '#9E9E9E');
 
-        makeChart('chartCotacoesStatus', 'doughnut', statusLabels, [{
+        makeChart('chartCotacoesStatus', 'bar', statusLabels, [{
+            label: 'Quantidade',
             data: statusData,
             backgroundColor: statusColors,
-            borderWidth: 2,
-            borderColor: isDark() ? '#1e1e1e' : '#fff',
-            hoverOffset: 8
+            borderRadius: 6,
+            borderSkipped: false
         }], {
-            plugins: { legend: { position: 'bottom', labels: { color: themeLabel(), font: { size: 11 }, padding: 10 } } },
-            cutout: '55%'
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { color: themeLabel() } }
+            }
         });
 
         // Gráfico barras — meses
@@ -728,6 +772,9 @@
                 }
             });
         }
+
+        // Gráfico de valores por mês
+        renderValoresCotacoes(window._painelData?.valores);
     }
 
     // ── PESQUISAS ─────────────────────────────────────────────────────────────────
@@ -743,22 +790,32 @@
                 icon: 'fa-percent', label: 'Taxa de Conversão', value: p.taxa_conversao + '%', color: '#E65100',
                 badge: { type: p.taxa_conversao >= 50 ? 'success' : 'warning', text: p.taxa_conversao + '%' }
             },
+            {
+                icon: 'fa-dollar-sign', label: 'Valor Total Finalizado', 
+                value: 'R$ ' + (p.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 
+                color: '#C62828',
+                sub: 'Pesquisas finalizadas'
+            },
         ]);
 
-        // Gráfico pizza — status pesquisas
+        // Gráfico barras horizontais — status pesquisas
         const sLabels = p.dist_status.map(s => s.status);
         const sData = p.dist_status.map(s => s.total);
         const sColors = sLabels.map(l => PALETTE.status[l] || '#9E9E9E');
 
-        makeChart('chartPesquisasStatus', 'doughnut', sLabels, [{
+        makeChart('chartPesquisasStatus', 'bar', sLabels, [{
+            label: 'Quantidade',
             data: sData,
             backgroundColor: sColors,
-            borderWidth: 2,
-            borderColor: isDark() ? '#1e1e1e' : '#fff',
-            hoverOffset: 8
+            borderRadius: 6,
+            borderSkipped: false
         }], {
-            plugins: { legend: { position: 'bottom', labels: { color: themeLabel(), font: { size: 11 }, padding: 10 } } },
-            cutout: '55%'
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: themeLabel(), precision: 0 }, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { color: themeLabel() } }
+            }
         });
 
         // Gráfico barras — meses pesquisas
@@ -807,6 +864,80 @@
                 }
             });
         }
+    }
+
+    // ── VALORES COTAÇÕES ──────────────────────────────────────────────────────────
+    function renderValoresCotacoes(v) {
+        if (!v || !v.por_mes) return;
+        
+        const labels = v.por_mes.map(m => m.label);
+        const dados = v.por_mes.map(m => m.valor);
+
+        makeChart('chartValoresCotacoesMes', 'line', labels, [{
+            label: 'Valor Finalizado (R$)',
+            data: dados,
+            borderColor: '#7B1FA2',
+            backgroundColor: 'rgba(123, 31, 162, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3,
+            pointBackgroundColor: '#7B1FA2',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }], {
+            plugins: { legend: { display: true, position: 'top' } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: themeLabel() } },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: {
+                        color: themeLabel(),
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── VALORES ────────────────────────────────────────────────────────────────────
+    function renderValores(v) {
+        if (!v || !v.por_mes) return;
+        
+        const labels = v.por_mes.map(m => m.label);
+        const dados = v.por_mes.map(m => m.valor);
+
+        makeChart('chartValoresPorMes', 'line', labels, [{
+            label: 'Valor Fechado (R$)',
+            data: dados,
+            borderColor: '#7B1FA2',
+            backgroundColor: 'rgba(123, 31, 162, 0.1)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3,
+            pointBackgroundColor: '#7B1FA2',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }], {
+            plugins: { legend: { display: true, position: 'top' } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: themeLabel() } },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: {
+                        color: themeLabel(),
+                        callback: function(value) {
+                            return 'R$ ' + (value / 1000000).toFixed(1) + 'M';
+                        }
+                    }
+                }
+            }
+        });
     }
 
     // ── LOCALIDADE ────────────────────────────────────────────────────────────────
@@ -873,6 +1004,26 @@
                 color: '#E65100', sub: u.usuario_mais_ativo_count > 0 ? u.usuario_mais_ativo_count + ' cotações registradas' : ''
             },
         ]);
+
+        // Adicionar card de Loja Destaque ao fim do grid
+        const kpiContainer = document.getElementById('kpiUsuarios');
+        const lojaCard = document.createElement('div');
+        lojaCard.className = 'kpi-card';
+        lojaCard.style.setProperty('--kpi-accent', '#2E7D32');
+        lojaCard.innerHTML = `
+            <div class="kpi-icon">
+                <i class="fas fa-store"></i>
+            </div>
+            <div class="kpi-value long" id="loja-destaque-nome" title="Carregando...">-</div>
+            <div class="kpi-label">Loja com mais cotações fechadas</div>
+            <div style="margin-top: auto; width: 100%; text-align: right;">
+                <span class="kpi-badge success" id="loja-destaque-total">0 cotações</span>
+            </div>
+        `;
+        kpiContainer.appendChild(lojaCard);
+        
+        // Carregar dados dos destaques (Loja e Analista)
+        carregarEstatisticasAtividade();
 
         // Gráfico rosca — departamentos
         const dLabels = u.dist_departamentos.map(d => d.departamento);
@@ -947,6 +1098,38 @@
             registeredCharts.forEach(c => c.resize());
         }, 250);
     });
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Carregar Estatísticas de Atividade (Loja e Analista com mais cotações fechadas)
+    // ──────────────────────────────────────────────────────────────────────────────
+    function carregarEstatisticasAtividade() {
+        fetch('/api/painel/activity-stats')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Atualizar card de Loja Destaque
+                    const lojaNome = data.loja_destaque.nome || 'N/A';
+                    const lojaTotal = data.loja_destaque.total || 0;
+                    document.getElementById('loja-destaque-nome').textContent = lojaNome;
+                    document.getElementById('loja-destaque-nome').title = lojaNome;
+                    document.getElementById('loja-destaque-total').textContent = lojaTotal + ' cotação' + (lojaTotal !== 1 ? 's' : '');
+                    
+                    // Atualizar card de Analista Destaque
+                    const analistaNome = data.analista_destaque.nome || 'N/A';
+                    const anistaTotal = data.analista_destaque.total || 0;
+                    document.getElementById('analista-destaque-nome').textContent = analistaNome;
+                    document.getElementById('analista-destaque-nome').title = analistaNome;
+                    document.getElementById('analista-destaque-total').textContent = anistaTotal + ' cotação' + (anistaTotal !== 1 ? 's' : '');
+                    
+                    console.log('[PAINEL] Estatísticas de atividade carregadas com sucesso');
+                } else {
+                    console.error('[PAINEL] Erro ao carregar estatísticas:', data.error);
+                }
+            })
+            .catch(err => {
+                console.error('[PAINEL] Erro ao buscar estatísticas de atividade:', err);
+            });
+    }
 
     // Inicializar
     carregarPainel();

@@ -156,8 +156,11 @@ class SessionTimeoutManager {
         
         // Configurar modal com SweetAlert
         const timerInterval = setInterval(() => {
-            const minutes = Math.floor(remainingSeconds / 60);
-            const seconds = remainingSeconds % 60;
+            remainingSeconds--;
+
+            const safeSeconds = Math.max(remainingSeconds, 0);
+            const minutes = Math.floor(safeSeconds / 60);
+            const seconds = safeSeconds % 60;
             const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
             
             // Atualizar conteúdo do alerta com verificação
@@ -166,12 +169,14 @@ class SessionTimeoutManager {
                 timerElement.textContent = timeString;
             }
             
-            remainingSeconds--;
-            
-            if (remainingSeconds < 0) {
+            if (remainingSeconds <= 0) {
                 clearInterval(timerInterval);
+                this.performLogout();
+                return;
             }
         }, 1000);
+
+        this.countdownInterval = timerInterval;
         
         // Mostrar alerta usando SweetAlert
         Swal.fire({

@@ -4,25 +4,25 @@
 <style>
     /* Estilo para destacar linhas que possuem vínculo */
     tr.linha-vinculada td {
-        background-color: rgba(46, 125, 50, 0.05) !important; /* Soft green tint using the main theme forest green color (#2E7D32) */
+        background-color: rgba(76, 175, 80, 0.15) !important; /* Verde claro mais visível (#4CAF50) - 15% opacidade */
         transition: background-color 0.2s ease;
     }
     tr.linha-vinculada td:first-child {
         border-left: 4.5px solid #2e7d32 !important;
     }
     tr.linha-vinculada:hover td {
-        background-color: rgba(46, 125, 50, 0.08) !important;
+        background-color: rgba(76, 175, 80, 0.22) !important; /* Verde claro mais intenso no hover - 22% opacidade */
     }
     
     /* Versão tema escuro se aplicável */
     [data-theme="dark"] tr.linha-vinculada td {
-        background-color: rgba(76, 175, 80, 0.15) !important;
+        background-color: rgba(76, 175, 80, 0.20) !important; /* Verde claro tema escuro - 20% opacidade */
     }
     [data-theme="dark"] tr.linha-vinculada td:first-child {
         border-left: 4.5px solid #4caf50 !important;
     }
     [data-theme="dark"] tr.linha-vinculada:hover td {
-        background-color: rgba(76, 175, 80, 0.22) !important;
+        background-color: rgba(76, 175, 80, 0.28) !important; /* Verde claro tema escuro no hover - 28% opacidade */
     }
     
     .legend-vinculo {
@@ -1255,6 +1255,9 @@
         const status = formatarStatus(cotacao.status);
         const tempoStatus = cotacao.dias_no_status + 'd';
         const ultimaMod = cotacao.data_ultima_modificacao;
+        
+        // DEBUG: Log for ID mismatch diagnosis
+        console.log(`🔍 criarLinhaCotacao - ID: ${id}, Cooperado: ${cooperado}, Tipo: ${tipo}`);
 
         let acoes = '';
         const statusBloqueados = ['Cotação Finalizada', 'Cotação Perdida'];
@@ -1369,6 +1372,9 @@
         const statusText = formatarStatus(pesquisa.status);
         const tempoStatus = pesquisa.dias_no_status + 'd';
         const ultimaMod = pesquisa.data_ultima_modificacao;
+        
+        // DEBUG: Log for ID mismatch diagnosis
+        console.log(`🔍 criarLinhaPesquisa - ID: ${id}, Cooperado: ${cooperado}, Status: ${status}`);
 
         let acoes = '';
         // Verificar se o status permite edição
@@ -1603,67 +1609,8 @@
     }
 
     // Funções de exclusão
-    function excluirCotacao(id) {
-        if (confirm('Tem certeza que deseja excluir esta cotação?')) {
-            $.ajax({
-                url: '/api/cotacao/' + id,
-                method: 'DELETE',
-                success: function (response) {
-                    console.log('Cotação excluída com sucesso:', response);
-                    const cardAtivo = $('.overview-card.active').data('type');
-                    carregarDadosPorTipo(cardAtivo);
-                    carregarContadores();
-                    // Mostrar mensagem de sucesso
-                    mostrarMensagem('Cotação excluída com sucesso!', 'success');
-                },
-                error: function (xhr, status, error) {
-                    console.error('Erro ao excluir cotação:', { xhr, status, error });
-                    let mensagemErro = 'Erro ao excluir cotação.';
-
-                    if (xhr.responseJSON && xhr.responseJSON.error) {
-                        mensagemErro += ' ' + xhr.responseJSON.error;
-                    } else if (xhr.status === 404) {
-                        mensagemErro = 'Cotação não encontrada.';
-                    } else if (xhr.status === 403) {
-                        mensagemErro = 'Você não tem permissão para excluir esta cotação.';
-                    }
-
-                    mostrarMensagem(mensagemErro, 'error');
-                }
-            });
-        }
-    }
-
-    function excluirPesquisa(id) {
-        if (confirm('Tem certeza que deseja excluir esta pesquisa?')) {
-            $.ajax({
-                url: '/api/pesquisas/' + id, // Corrigido: usar 'pesquisas' no plural
-                method: 'DELETE',
-                success: function (response) {
-                    console.log('Pesquisa excluída com sucesso:', response);
-                    const cardAtivo = $('.overview-card.active').data('type');
-                    carregarDadosPorTipo(cardAtivo);
-                    carregarContadores();
-                    // Mostrar mensagem de sucesso
-                    mostrarMensagem('Pesquisa excluída com sucesso!', 'success');
-                },
-                error: function (xhr, status, error) {
-                    console.error('Erro ao excluir pesquisa:', { xhr, status, error });
-                    let mensagemErro = 'Erro ao excluir pesquisa.';
-
-                    if (xhr.responseJSON && xhr.responseJSON.error) {
-                        mensagemErro += ' ' + xhr.responseJSON.error;
-                    } else if (xhr.status === 404) {
-                        mensagemErro = 'Pesquisa não encontrada.';
-                    } else if (xhr.status === 403) {
-                        mensagemErro = 'Você não tem permissão para excluir esta pesquisa.';
-                    }
-
-                    mostrarMensagem(mensagemErro, 'error');
-                }
-            });
-        }
-    }
+    // Removed old excluirCotacao/excluirPesquisa functions
+    // See window.excluirCotacao and window.excluirPesquisa below (SweetAlert2 versions)
 
     // Event listeners para botões de ação
     $(document).on('click', '.btn-exportar', function () {
@@ -1866,6 +1813,9 @@
             url: '/api/cotacoes/exportar',
             method: 'POST',
             contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
             data: JSON.stringify({ ids: ids }),
             success: function (response) {
                 if (response.success) {
@@ -1897,6 +1847,9 @@
             url: '/api/pesquisas/exportar',
             method: 'POST',
             contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
             data: JSON.stringify({ ids: ids }),
             success: function (response) {
                 if (response.success) {
@@ -1926,6 +1879,9 @@
             url: '/api/cotacoes/exportar-pdf',
             method: 'POST',
             contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
             data: JSON.stringify({ ids: ids }),
             success: function (response) {
                 if (response.success) {
@@ -1956,6 +1912,9 @@
             url: '/api/pesquisas/exportar-pdf',
             method: 'POST',
             contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
             data: JSON.stringify({ ids: ids }),
             success: function (response) {
                 if (response.success) {
@@ -2042,9 +2001,10 @@
     }
     // Função para excluir uma cotação individual
     window.excluirCotacao = function (id) {
+        console.log(`🗑️ excluirCotacao called - ID parameter: ${id}, Type: ${typeof id}`);
         Swal.fire({
             title: 'Excluir Cotação?',
-            text: `Deseja realmente excluir a cotação ID ${id}? Esta ação não pode ser desfeita.`,
+            text: `Deseja realmente excluir a cotação CT-${id}? Esta ação não pode ser desfeita.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -2053,9 +2013,13 @@
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
+                console.log(`🗑️ Confirming deletion of cotacao ID: ${id}`);
                 $.ajax({
                     url: `/api/cotacao/${id}`,
                     type: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
                     success: function () {
                         Swal.fire('Excluído!', 'A cotação foi excluída com sucesso.', 'success');
                         const activeCard = $('.overview-card.active').data('type') || 'andamento';
@@ -2073,9 +2037,10 @@
 
     // Função para excluir uma pesquisa individual
     window.excluirPesquisa = function (id) {
+        console.log(`🗑️ excluirPesquisa called - ID parameter: ${id}, Type: ${typeof id}`);
         Swal.fire({
             title: 'Excluir Pesquisa?',
-            text: `Deseja realmente excluir a pesquisa ID ${id}? Esta ação não pode ser desfeita.`,
+            text: `Deseja realmente excluir a pesquisa PM-${id}? Esta ação não pode ser desfeita.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -2084,9 +2049,13 @@
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
+                console.log(`🗑️ Confirming deletion of pesquisa ID: ${id}`);
                 $.ajax({
                     url: `/api/pesquisas/${id}`,
                     type: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
                     success: function () {
                         Swal.fire('Excluído!', 'A pesquisa foi excluída com sucesso.', 'success');
                         const activeCard = $('.overview-card.active').data('type') || 'pesquisas';

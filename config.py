@@ -1,8 +1,22 @@
 import os
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'chave-secreta-padrao-dev-2024'
-
+    """Configuração base da aplicação com padrões de segurança."""
+    
+    # ============================================================
+    # SEGURANÇA - Gere com: python -c "import secrets; print(secrets.token_hex(32))"
+    # ============================================================
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        raise RuntimeError(
+            'SECRET_KEY não está definida! '
+            'Configure a variável de ambiente SECRET_KEY. '
+            'Gere uma chave com: python -c "import secrets; print(secrets.token_hex(32))"'
+        )
+    
+    # ============================================================
+    # BANCO DE DADOS
+    # ============================================================
     db_url = os.environ.get('DATABASE_URL')
     
     if db_url:
@@ -27,7 +41,6 @@ class Config:
     }
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 280,
@@ -49,6 +62,12 @@ class Config:
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    
+    # ============================================================
+    # RATE LIMITING
+    # ============================================================
+    RATELIMIT_STORAGE_URL = os.environ.get('RATELIMIT_STORAGE_URL', 'memory://')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
 
     # Configurações de Segurança - Session Timeout
@@ -56,8 +75,9 @@ class Config:
     PERMANENT_SESSION_LIFETIME = int(os.environ.get('SESSION_TIMEOUT_MINUTES', 30)) * 60  # Padrão: 30 minutos
     # Tempo para alertar usuário antes de expirar (em segundos)
     SESSION_WARNING_TIME = int(os.environ.get('SESSION_WARNING_SECONDS', 300))  # Padrão: 5 minutos
-    # Se False, session expira ao fechar o navegador mesmo que esteja marcada como permanente
-    SESSION_REFRESH_EACH_REQUEST = True
+    # CRÍTICO: Set to False para que timeout NÃO seja renovado automaticamente a cada requisição
+    # Permite que o cliente controle o logout por inatividade, sincronizando com SESSION_TIMEOUT_HANDLER
+    SESSION_REFRESH_EACH_REQUEST = False
     
     # Detectar se está em produção ou desenvolvimento
     _is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('ENV') == 'production'

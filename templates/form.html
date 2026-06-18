@@ -350,6 +350,7 @@
             <form id="cotacaoForm" method="POST"
                 action="{{ url_for('cotacao_routes.criar_cotacao') if not cotacao else url_for('cotacao_routes.atualizar_cotacao', id=cotacao.id) }}"
                 enctype="multipart/form-data" data-current-step="1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="id" value="{{ cotacao.id if cotacao }}">
                 <input type="hidden" id="statusAtual" value="{{ cotacao.status if cotacao else 'Criação' }}">
                 <input type="hidden" name="pesquisa_origem_id" id="pesquisa_origem_id"
@@ -613,10 +614,13 @@
                                 return;
                             }
                             
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                            
                             fetch(`/api/observacoes/${id}`, {
                                 method: 'PUT',
                                 headers: {
-                                    'Content-Type': 'application/json'
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': csrfToken
                                 },
                                 body: JSON.stringify({ texto: novoTexto })
                             })
@@ -640,8 +644,13 @@
                                 return;
                             }
                             
+                            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                            
                             fetch(`/api/observacoes/${id}`, {
-                                method: 'DELETE'
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRFToken': csrfToken
+                                }
                             })
                             .then(response => response.json())
                             .then(data => {
@@ -719,8 +728,13 @@
                         <script>
                             function removerAnexo(id) {
                                 if (confirm('Tem certeza que deseja remover este anexo?')) {
+                                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                                    
                                     fetch(`/api/anexos/${id}`, {
                                         method: 'DELETE',
+                                        headers: {
+                                            'X-CSRFToken': csrfToken
+                                        }
                                     })
                                         .then(response => {
                                             if (response.ok) {

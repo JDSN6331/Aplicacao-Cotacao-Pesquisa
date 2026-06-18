@@ -5,6 +5,7 @@ from urllib.parse import unquote
 import os
 import pandas as pd
 from models import db, Cotacao, PesquisaMercado, HistoricoStatus, Anexo
+from sqlalchemy import func
 
 # Blueprint com nome 'routes' para manter compatibilidade com templates
 main_routes = Blueprint('routes', __name__)
@@ -100,6 +101,51 @@ def dashboard_stats():
             'perdidas': 0,
             'pesquisas_perdidas': 0
         })
+
+@main_routes.route('/api/painel/activity-stats')
+@login_required
+def painel_activity_stats():
+    """Retorna estatísticas de atividade - loja e analista com mais cotações fechadas"""
+    try:
+        # Loja com mais cotações FINALIZADAS
+        loja_top_row = db.session.query(
+            Cotacao.nome_filial, func.count(Cotacao.id).label('total')
+        ).filter(Cotacao.status == 'Cotação Finalizada')\
+         .group_by(Cotacao.nome_filial)\
+         .order_by(func.count(Cotacao.id).desc()).first()
+        
+        loja_top = {
+            'nome': loja_top_row[0] if loja_top_row else 'N/A',
+            'total': loja_top_row[1] if loja_top_row else 0
+        }
+        
+        # Analista com mais cotações FINALIZADAS
+        analista_top_row = db.session.query(
+            Cotacao.analista_comercial, func.count(Cotacao.id).label('total')
+        ).filter(
+            Cotacao.status == 'Cotação Finalizada',
+            Cotacao.analista_comercial != None,
+            Cotacao.analista_comercial != ''
+        ).group_by(Cotacao.analista_comercial)\
+         .order_by(func.count(Cotacao.id).desc()).first()
+        
+        analista_top = {
+            'nome': analista_top_row[0] if analista_top_row else 'N/A',
+            'total': analista_top_row[1] if analista_top_row else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'loja_destaque': loja_top,
+            'analista_destaque': analista_top
+        }), 200
+        
+    except Exception as e:
+        print(f'[PAINEL] Erro ao buscar activity-stats: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @main_routes.route('/download/<path:filename>')
 @login_required

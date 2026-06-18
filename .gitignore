@@ -32,19 +32,27 @@ env/
 *.swp
 *.swo
 *.sublime-*
+*.iml
 
-# Database
+# Database (NUNCA commit credentials!)
 instance/*.db
 *.sqlite
+*.sqlite3
+cotacoes.db
+users.db
+migrations/*.db
 
-# Environment variables
+# Environment variables (CRITICAL - NEVER COMMIT!)
 .env
 .env.local
 .env.*.local
+!.env.example
 
-# Logs
+# Logs e debugging
 *.log
 logs/
+debug_logs/
+*.ldf
 
 # Uploads and exports (user data)
 uploads/*
@@ -58,19 +66,54 @@ exports/*
 .DS_Store
 Thumbs.db
 
+# OS files
+.AppleDouble
+.LSOverride
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
 # Build artifacts
 *.exe
 *.spec
+dist/
+build/
 
 # Agent/Development files
 .gemini/
 .agent/
+scratch/
 
-# Atalhos locais
+# Atalhos locais e arquivos system
 *.bat
 !service/*.bat
 *.url
 
-# Backup folder
+# Backup folder (local development)
 backup_seguranca/
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Performance profiling
+*.prof
+
+# IDE cache
+.vscode/extensions
+.vscode/settings.json
+!.vscode/settings.json.example
+
+# Secrets (PEM, KEY, etc)
+*.pem
+*.key
+*.pub
+*.asc
+
+# Arquivos temporários do VS Code
+.vscode/.INSTALL_EXTENSION_IDENTIFIERS.json
 

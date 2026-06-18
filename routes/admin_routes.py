@@ -39,6 +39,53 @@ def painel_analytics():
     return render_template('painel.html')
 
 
+@admin_routes.route('/api/admin/activity-stats')
+@login_required
+@admin_required
+def activity_stats():
+    """Retorna estatísticas de atividade - loja e analista com mais cotações fechadas"""
+    try:
+        # Loja com mais cotações FINALIZADAS
+        loja_top_row = db.session.query(
+            Cotacao.nome_filial, func.count(Cotacao.id).label('total')
+        ).filter(Cotacao.status == 'Cotação Finalizada')\
+         .group_by(Cotacao.nome_filial)\
+         .order_by(func.count(Cotacao.id).desc()).first()
+        
+        loja_top = {
+            'nome': loja_top_row[0] if loja_top_row else 'N/A',
+            'total': loja_top_row[1] if loja_top_row else 0
+        }
+        
+        # Analista com mais cotações FINALIZADAS
+        analista_top_row = db.session.query(
+            Cotacao.analista_comercial, func.count(Cotacao.id).label('total')
+        ).filter(
+            Cotacao.status == 'Cotação Finalizada',
+            Cotacao.analista_comercial != None,
+            Cotacao.analista_comercial != ''
+        ).group_by(Cotacao.analista_comercial)\
+         .order_by(func.count(Cotacao.id).desc()).first()
+        
+        analista_top = {
+            'nome': analista_top_row[0] if analista_top_row else 'N/A',
+            'total': analista_top_row[1] if analista_top_row else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'loja_destaque': loja_top,
+            'analista_destaque': analista_top
+        }), 200
+        
+    except Exception as e:
+        print(f'[ADMIN] Erro ao buscar activity-stats: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @admin_routes.route('/api/painel/dados')
 @login_required
 def painel_dados():
@@ -221,6 +268,44 @@ def painel_dados():
     por_regional = list(reg_map.values())
     por_regional.sort(key=lambda x: (x['cotacoes'] + x['pesquisas']), reverse=True)
 
+    # ── VALORES (Cotações e Pesquisas Finalizadas) ────────────────────────────
+    # Valor total de cotações finalizadas
+    valor_cotacoes_finalizadas = 0
+    cotacoes_fin = Cotacao.query.filter_by(status='Cotação Finalizada').all()
+    for cotacao in cotacoes_fin:
+        valor_total = sum([prod.valor_total or 0 for prod in cotacao.produtos]) if cotacao.produtos else 0
+        valor_cotacoes_finalizadas += valor_total
+    
+    # Valor total de pesquisas finalizadas
+    valor_pesquisas_finalizadas = db.session.query(
+        func.sum(PesquisaMercado.valor_cooxupe)
+    ).filter(PesquisaMercado.status == 'Pesquisa Finalizada').scalar() or 0
+    
+    # Valores por mês (últimos 12 meses) - APENAS COTAÇÕES FINALIZADAS
+    meses_valores = []
+    hoje = datetime.now()
+    for i in range(11, -1, -1):
+        data_inicio = (hoje.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+        if i > 0:
+            data_fim = (hoje.replace(day=1) - timedelta(days=(i-1)*30)).replace(day=1) - timedelta(days=1)
+        else:
+            data_fim = hoje
+        
+        # Somar cotações finalizadas neste mês
+        valor_mes = 0
+        cotacoes = Cotacao.query.filter(
+            Cotacao.status == 'Cotação Finalizada',
+            Cotacao.data >= data_inicio.date(),
+            Cotacao.data <= data_fim.date()
+        ).all()
+        
+        for cotacao in cotacoes:
+            valor_total = sum([prod.valor_total or 0 for prod in cotacao.produtos]) if cotacao.produtos else 0
+            valor_mes += valor_total
+        
+        mes_nome = data_inicio.strftime('%b/%y')
+        meses_valores.append({'label': mes_nome, 'valor': round(float(valor_mes), 2)})
+
 
     return jsonify({
         'cotacoes': {
@@ -229,6 +314,7 @@ def painel_dados():
             'finalizadas': finalizadas,
             'perdidas': perdidas,
             'taxa_sucesso': taxa_sucesso,
+            'valor_total': valor_cotacoes_finalizadas,
             'dist_status': dist_status_cotacoes,
             'por_mes': cotacoes_por_mes,
         },
@@ -237,6 +323,7 @@ def painel_dados():
             'convertidas': pesquisas_convertidas,
             'em_andamento': em_andamento_p,
             'taxa_conversao': taxa_conversao,
+            'valor_total': valor_pesquisas_finalizadas,
             'top_produtos': top_produtos,
             'top_concorrentes': top_concorrentes,
             'dist_status': dist_status_pesquisas,
@@ -255,6 +342,11 @@ def painel_dados():
             'tempo_status_pesquisas': tempo_medio_pesquisas,
             'por_loja': por_loja,
             'por_regional': por_regional
+        },
+        'valores': {
+            'valor_cotacoes_finalizadas': valor_cotacoes_finalizadas,
+            'valor_pesquisas_finalizadas': valor_pesquisas_finalizadas,
+            'por_mes': meses_valores
         }
     })
 

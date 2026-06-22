@@ -49,7 +49,7 @@ STATUS_DEPARTAMENTO_MAP = {
 
 TZ_SP = pytz.timezone('America/Sao_Paulo')
 
-def pode_editar_cotacao(usuario_departamento, status_cotacao):
+def pode_editar_cotacao(usuario_departamento, status_cotacao, is_admin=False):
     """
     Verifica se um usuário do departamento especificado pode editar uma cotação com o status fornecido.
     
@@ -60,10 +60,16 @@ def pode_editar_cotacao(usuario_departamento, status_cotacao):
     Returns:
         bool: True se pode editar, False caso contrário
     """
+    if status_cotacao in ['Cotação Finalizada', 'Cotação Perdida']:
+        return False
+
+    if is_admin:
+        return True
+
     status_permitido = STATUS_DEPARTAMENTO_MAP.get(status_cotacao)
     return status_permitido == usuario_departamento
 
-def obter_status_permitidos(usuario_departamento):
+def obter_status_permitidos(usuario_departamento, is_admin=False):
     """
     Retorna lista de status que o usuário pode transicionar para.
     
@@ -73,6 +79,9 @@ def obter_status_permitidos(usuario_departamento):
     Returns:
         list: Status permitidos para o departamento
     """
+    if is_admin:
+        return STATUS_OPTIONS[:]
+
     return [status for status, depto in STATUS_DEPARTAMENTO_MAP.items() if depto == usuario_departamento]
 
 # Extensões de arquivo permitidas
@@ -149,17 +158,31 @@ def nova_cotacao():
                 'motivo_venda_perdida': pesquisa.motivo_venda_perdida or ''
             }
             
-            # Mapear produto da pesquisa → produto da cotação
-            # Apenas campos que existem na pesquisa são preenchidos; os demais ficam em branco
-            produto = {
-                'sku_produto': pesquisa.codigo_produto or '',
-                'nome_produto': pesquisa.nome_produto or '',
-                'volume': float(pesquisa.quantidade_cotada) if pesquisa.quantidade_cotada else 0.0,
-                'unidade_medida': 'TN',
-                'fornecedor': pesquisa.fornecedor or ''
-                # preco_custo NÃO é mapeado — a pesquisa não possui este campo
-            }
-            produtos_json = [produto]
+            # Mapear produtos da pesquisa → produtos da cotação
+            # Suportar múltiplos produtos
+            produtos_json = []
+            
+            # Se houver produtos estruturados (novo), usar isso
+            if pesquisa.produtos and len(pesquisa.produtos) > 0:
+                for prod_pesquisa in pesquisa.produtos:
+                    produto = {
+                        'sku_produto': prod_pesquisa.codigo_produto or '',
+                        'nome_produto': prod_pesquisa.nome_produto or '',
+                        'volume': float(prod_pesquisa.quantidade_cotada) if prod_pesquisa.quantidade_cotada else 0.0,
+                        'unidade_medida': 'TN',
+                        'fornecedor': prod_pesquisa.fornecedor or ''
+                    }
+                    produtos_json.append(produto)
+            else:
+                # Fallback para compatibilidade com pesquisas legadas (campos simples)
+                produto = {
+                    'sku_produto': pesquisa.codigo_produto or '',
+                    'nome_produto': pesquisa.nome_produto or '',
+                    'volume': float(pesquisa.quantidade_cotada) if pesquisa.quantidade_cotada else 0.0,
+                    'unidade_medida': 'TN',
+                    'fornecedor': pesquisa.fornecedor or ''
+                }
+                produtos_json = [produto]
             pesquisa_origem_id = pesquisa.id
             import sys
             import os
@@ -194,12 +217,15 @@ def editar_cotacao(id):
     
     # Obter departamento do usuário
     usuario_depto = getattr(current_user, 'departamento', 'N/A')
-    
-    # Verificar se é modo somente leitura (cotações finalizadas/perdidas)
-    readonly = request.args.get('readonly', '0') == '1'
+    usuario_eh_admin = getattr(current_user, 'is_admin', False)
     
     # Verificar se pode editar CAMPOS
-    pode_editar = pode_editar_cotacao(usuario_depto, cotacao.status)
+    pode_editar = pode_editar_cotacao(usuario_depto, cotacao.status, usuario_eh_admin)
+    
+    # Verificar se é modo somente leitura (cotações finalizadas/perdidas ou sem permissão)
+    readonly = request.args.get('readonly', '0') == '1'
+    if cotacao.status in ['Cotação Finalizada', 'Cotação Perdida'] or not pode_editar:
+        readonly = True
     
     return render_template('form.html', cotacao=cotacao, status_options=STATUS_OPTIONS, 
                           produtos_json=produtos_json, pode_editar=pode_editar,
@@ -533,6 +559,8 @@ def criar_cotacao():
 def atualizar_cotacao(id):
     try:
         cotacao = Cotacao.query.get_or_404(id)
+        usuario_eh_admin = getattr(current_user, 'is_admin', False)
+
         if cotacao.status in ['Cotação Finalizada', 'Cotação Perdida']:
             return jsonify({'success': False, 'error': 'Não é possível editar uma cotação finalizada ou perdida.'}), 400
         
@@ -565,7 +593,7 @@ def atualizar_cotacao(id):
                 pass
         
         # Se há edição de campos, validar permissão por departamento
-        if campos_editados and not pode_editar_cotacao(usuario_depto, cotacao.status):
+        if campos_editados and not pode_editar_cotacao(usuario_depto, cotacao.status, usuario_eh_admin):
             depto_responsavel = STATUS_DEPARTAMENTO_MAP.get(cotacao.status, "Desconhecido")
             return jsonify({'success': False, 'error': f'Esta cotação com status "{cotacao.status}" é de responsabilidade do departamento {depto_responsavel}. Você não pode editar os campos desta cotação.'}), 403
         
@@ -951,6 +979,7 @@ def excluir_anexo(id):
     try:
         anexo = Anexo.query.get_or_404(id)
         usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        usuario_eh_admin = getattr(current_user, 'is_admin', False)
         
         # Verificar se o anexo pertence a uma cotação ou pesquisa
         if anexo.cotacao_id:
@@ -958,14 +987,16 @@ def excluir_anexo(id):
             if not cotacao:
                 return jsonify({'error': 'Cotação não encontrada'}), 404
             # Verificar se o usuário tem permissão para editar essa cotação
-            if not pode_editar_cotacao(usuario_depto, cotacao.status):
+            if not pode_editar_cotacao(usuario_depto, cotacao.status, usuario_eh_admin):
                 return jsonify({'error': 'Você não tem permissão para editar esta cotação'}), 403
         elif anexo.pesquisa_id:
-            pesquisa = Pesquisa.query.get(anexo.pesquisa_id)
+            from models import PesquisaMercado
+            pesquisa = PesquisaMercado.query.get(anexo.pesquisa_id)
             if not pesquisa:
                 return jsonify({'error': 'Pesquisa não encontrada'}), 404
             # Verificar se o usuário tem permissão para editar essa pesquisa
-            if not pode_editar_pesquisa(usuario_depto, pesquisa.status):
+            from routes.pesquisa_routes import pode_editar_pesquisa
+            if not pode_editar_pesquisa(usuario_depto, pesquisa.status, usuario_eh_admin):
                 return jsonify({'error': 'Você não tem permissão para editar esta pesquisa'}), 403
         
         # Remover arquivo físico se existir
@@ -990,9 +1021,10 @@ def get_permissoes_cotacao(id):
     try:
         cotacao = Cotacao.query.get_or_404(id)
         usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        usuario_eh_admin = getattr(current_user, 'is_admin', False)
         
         # Verificar se pode editar CAMPOS (não é sobre status)
-        pode_editar_campos = pode_editar_cotacao(usuario_depto, cotacao.status)
+        pode_editar_campos = pode_editar_cotacao(usuario_depto, cotacao.status, usuario_eh_admin)
         status_depto_cotacao = STATUS_DEPARTAMENTO_MAP.get(cotacao.status, 'Desconhecido')
         
         return jsonify({

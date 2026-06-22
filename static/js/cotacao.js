@@ -36,12 +36,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Função para aplicar restrições de edição APENAS DE CAMPOS (não status)
     function aplicarRestricoesCampos(podeEditarCampos, statusCotacao, statusDeptoCotacao) {
+        if (window.modoReadonly) {
+            return;
+        }
         if (!podeEditarCampos && statusCotacao) {
-            // Bloquear todos os campos EXCETO status
+            // Bloquear todos os campos inclusive status
             const todosInputs = document.querySelectorAll('input, textarea, select');
             todosInputs.forEach(input => {
-                // Deixar status e navegação habilitados
-                if (input.id !== 'status' && !input.classList.contains('btn-close')) {
+                if (!input.classList.contains('btn-close')) {
                     input.disabled = true;
                 }
             });
@@ -72,6 +74,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
                 form.insertBefore(alertDiv, form.firstChild);
             }
+
+            // Atualizar botões de navegação
+            updateNavigationButtons();
         }
     }
 
@@ -422,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const nextButton = document.getElementById('nextButton');
         const statusEl = document.getElementById('statusAtual');
 
-        if (window.modoReadonly) {
+        if (window.modoReadonly || window.podeEditarCampos === false) {
             if (nextButton) {
                 if (currentStep === 3) {
                     nextButton.style.display = 'none';
@@ -475,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="form-group">
                             <label for="volume_${produtoIndex}" class="form-label">Volume <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" class="form-control" id="volume_${produtoIndex}" name="produtos[${produtoIndex}][volume]" required>
-                            <div class="invalid-feedback d-block" id="erro_volume_${produtoIndex}" style="display: none;"></div>
+                            <div class="invalid-feedback" id="erro_volume_${produtoIndex}" style="display: none;"></div>
                         </div>
                     </div>
                 </div>

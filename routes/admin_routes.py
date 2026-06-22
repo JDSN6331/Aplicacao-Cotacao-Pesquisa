@@ -9,6 +9,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from sqlalchemy import func, extract
+from services.email_service import enviar_email
+import logging
+
+logger = logging.getLogger(__name__)
 
 admin_routes = Blueprint('admin', __name__)
 
@@ -423,28 +427,99 @@ def delete_user(user_id):
 @login_required
 @admin_required
 def send_reset_password(user_id):
-    """Gerar link para redefinição de senha (exibido apenas no console/painel por enquanto)"""
+    """Envia e-mail com link para redefinição de senha do usuário"""
     try:
         user = User.query.get_or_404(user_id)
         
-        # Gerar token seguro
+        # Gerar token seguro para reset de senha
         serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         token = serializer.dumps(user.email, salt='password-reset-salt')
         
         # Obter URL do link de reset (frontend)
         reset_url = url_for('auth.reset_password', token=token, _external=True)
         
-        print(f"\n--- LINK DE REDEFINIÇÃO DE SENHA ---")
-        print(f"Para: {user.email}")
-        print(f"Link: {reset_url}")
-        print(f"------------------------------------\n")
-
-        return jsonify({
-            'success': True, 
-            'message': 'Link de redefinição gerado! Verifique o console do backend.',
-            'reset_url': reset_url
-        })
+        # Construir corpo do e-mail
+        corpo_html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ color: #0066cc; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }}
+                .content {{ padding: 20px 0; }}
+                .button {{ 
+                    display: inline-block; 
+                    background-color: #0066cc; 
+                    color: white; 
+                    padding: 12px 24px; 
+                    text-decoration: none; 
+                    border-radius: 4px;
+                    margin: 20px 0;
+                }}
+                .footer {{ 
+                    color: #666; 
+                    font-size: 12px; 
+                    border-top: 1px solid #ddd; 
+                    padding-top: 10px; 
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1 class="header">Redefinição de Senha</h1>
+                
+                <div class="content">
+                    <p>Olá {user.username},</p>
+                    
+                    <p>Você solicitou a redefinição de sua senha. Clique no botão abaixo para criar uma nova senha:</p>
+                    
+                    <center>
+                        <a href="{reset_url}" class="button">Redefinir Senha</a>
+                    </center>
+                    
+                    <p>Ou copie e cole este link no seu navegador:</p>
+                    <p style="word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 4px;">
+                        {reset_url}
+                    </p>
+                    
+                    <p><strong>⏰ Este link expira em 1 hora.</strong></p>
+                    
+                    <p>Se você não solicitou essa mudança, ignore este e-mail. Sua senha permanecerá a mesma.</p>
+                </div>
+                
+                <div class="footer">
+                    <p>Este é um e-mail automático. Não responda a este e-mail.</p>
+                    <p>Sistema de Cotações - Cooxupé</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Enviar e-mail com link de reset
+        resultado = enviar_email(
+            destinatarios=[user.email],
+            assunto='Redefinição de Senha - Sistema de Cotações',
+            corpo_html=corpo_html
+        )
+        
+        if resultado:
+            logger.info(f'E-mail de redefinição de senha enviado para usuário: {user.email}')
+            return jsonify({
+                'success': True,
+                'message': f'E-mail de redefinição foi enviado para {user.email}'
+            })
+        else:
+            logger.warning(f'Falha ao enviar e-mail de redefinição para: {user.email}')
+            return jsonify({
+                'success': False,
+                'error': 'Falha ao enviar e-mail. Tente novamente mais tarde.'
+            }), 500
         
     except Exception as e:
-        print(f"Erro ao gerar redefinição de senha: {e}")
-        return jsonify({'success': False, 'error': f'Erro ao processar solicitação: {str(e)}'}), 500
+        logger.error(f'Erro ao processar redefinição de senha para usuário {user_id}: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao processar solicitação: {str(e)}'
+        }), 500

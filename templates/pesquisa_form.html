@@ -327,44 +327,20 @@
                 </div>
 
                 <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="codigo_produto" class="form-label">Código do Produto <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="codigo_produto" name="codigo_produto"
-                            value="{{ pesquisa.codigo_produto if pesquisa else '' }}">
-                        <div id="loading_codigo_produto" class="text-muted small" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Buscando produto...
+                    <div class="col-12">
+                        <h5 class="mb-3"><i class="fas fa-boxes text-primary me-2"></i>Produtos da Pesquisa</h5>
+                        <div id="produtosPesquisaContainer"></div>
+                        {% if not readonly %}
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary btn-add-produto-pesquisa" id="addProdutoPesquisaButton">
+                                <i class="fas fa-plus me-2"></i>Adicionar Produto
+                            </button>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="nome_produto" class="form-label">Nome do Produto <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nome_produto" name="nome_produto"
-                            value="{{ pesquisa.nome_produto if pesquisa else '' }}">
-                        <div id="loading_nome_produto" class="text-muted small" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Buscando produto...
-                        </div>
-                        <div id="sugestoes_produto" class="mt-2" style="display: none;">
-                            <div class="list-group">
-                                <!-- Sugestões serão inseridas aqui -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="fornecedor" class="form-label">Fornecedor</label>
-                        <input type="text" class="form-control" id="fornecedor" name="fornecedor"
-                            value="{{ pesquisa.fornecedor if pesquisa and pesquisa.fornecedor else '' }}">
+                        {% endif %}
                     </div>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="quantidade_cotada" class="form-label">Qtd. Cotada <span
-                                class="text-danger">*</span></label>
-                        <input type="number" step="0.01" class="form-control" id="quantidade_cotada"
-                            name="quantidade_cotada" value="{{ pesquisa.quantidade_cotada if pesquisa else '' }}">
-                        <div class="invalid-feedback d-block" id="erro_quantidade_cotada" style="display: none;"></div>
-                    </div>
+                <div class="row mb-3 mt-3">
                     <div class="col-md-4">
                         <label for="forma_pagamento" class="form-label">Forma de Pagamento <span
                                 class="text-danger">*</span></label>
@@ -420,7 +396,7 @@
                                         <div class="observacao-meta">
                                             <span class="observacao-autor"><i class="fas fa-user me-1 text-muted"></i>{{ obs.usuario }}</span>
                                             <span class="observacao-depto">{{ obs.departamento }}</span>
-                                            <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ obs.data_criacao }}</span>
+                                            <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ obs.data_criacao.strftime('%d/%m/%Y %H:%M') }}</span>
                                         </div>
                                         {% if obs.usuario == current_user.name %}
                                         <div class="observacao-actions">
@@ -542,27 +518,7 @@
                     }
                 </script>
 
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="nome_concorrente" class="form-label">Nome do Concorrente <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nome_concorrente" name="nome_concorrente"
-                            value="{{ pesquisa.nome_concorrente if pesquisa else '' }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="valor_concorrente" class="form-label">Valor no Concorrente (R$) <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control money-input" id="valor_concorrente"
-                            name="valor_concorrente"
-                            value="{% if pesquisa and pesquisa.valor_concorrente %}{{ 'R$ {:,.2f}'.format(pesquisa.valor_concorrente).replace(',', 'X').replace('.', ',').replace('X', '.') }}{% else %}R$ 0,00{% endif %}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="valor_cooxupe" class="form-label">Valor na Cooxupé (R$) <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control money-input" id="valor_cooxupe" name="valor_cooxupe"
-                            value="{% if pesquisa and pesquisa.valor_cooxupe %}{{ 'R$ {:,.2f}'.format(pesquisa.valor_cooxupe).replace(',', 'X').replace('.', ',').replace('X', '.') }}{% else %}R$ 0,00{% endif %}">
-                    </div>
-                </div>
+                <!-- Nome do concorrente duplicado removido (campo agora fica dentro dos produtos) -->
                 <div class="mb-3">
                     <label for="anexos" class="form-label">Anexar Arquivos (Máx. 5)</label>
                     <input type="file" class="form-control" id="anexo" name="anexos[]" multiple
@@ -680,6 +636,67 @@
 {% block extra_js %}
 <script>
     $(document).ready(function () {
+        window.currentFilialMultiplo = 14;
+
+        window.formatarMoeda = function(valor) {
+            if (valor === null || valor === undefined || valor === '') return '';
+            if (typeof valor === 'string') {
+                valor = valor.replace(/[^0-9,.]/g, '');
+                valor = valor.replace(',', '.');
+                valor = parseFloat(valor);
+            }
+            return valor.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        };
+
+        window.parseMoeda = function(valor) {
+            if (!valor) return 0;
+            if (typeof valor === 'number') return valor;
+            valor = valor.toString().replace(/[^0-9,]/g, '');
+            var partes = valor.split(',');
+            var inteiro = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '');
+            var decimal = partes[1] ? partes[1] : '00';
+            var resultado = parseFloat(inteiro + '.' + decimal);
+            return isNaN(resultado) ? 0 : resultado;
+        };
+
+        window.validarQuantidadeCampo = function(inputElement) {
+            const index = inputElement.getAttribute('data-index');
+            const quantidade = parseFloat(inputElement.value);
+            const multiplo = window.currentFilialMultiplo || 14;
+            const errorDiv = document.getElementById(`erro_quantidade_cotada_${index}`);
+            
+            if (!quantidade || isNaN(quantidade)) {
+                inputElement.classList.remove('is-warning', 'is-invalid');
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
+                return true;
+            }
+            
+            if (multiplo) {
+                if (quantidade % multiplo !== 0) {
+                    inputElement.classList.add('is-warning');
+                    inputElement.classList.remove('is-invalid');
+                    if (errorDiv) {
+                        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> A quantidade deve ser múltiplo de ${multiplo} TN. O valor informado (${quantidade} TN) não segue esta regra.`;
+                        errorDiv.style.display = 'block';
+                    }
+                    return false;
+                } else {
+                    inputElement.classList.remove('is-warning', 'is-invalid');
+                    if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                    }
+                    return true;
+                }
+            }
+            return true;
+        };
         // Função para verificar e aplicar permissões de edição (pesquisa)
         function verificarEAplicarPermissoesPesquisa() {
             const pesquisaId = $('#pesquisaId').val();
@@ -713,9 +730,12 @@
 
         // Função para aplicar restrições de edição em pesquisa (APENAS CAMPOS, não status)
         function aplicarRestricoesPesquisaCampos(podeEditarCampos, statusPesquisa, statusDeptoPesquisa) {
+            if (window.modoReadonly) {
+                return;
+            }
             if (!podeEditarCampos && statusPesquisa) {
-                // Bloquear todos os campos EXCETO status
-                $('input, textarea, select').not('#status').prop('disabled', true);
+                // Bloquear todos os campos inclusive status
+                $('input, textarea, select').prop('disabled', true);
                 
                 // Desabilitar botões de adicionar/remover anexos
                 $('.btn-remove-anexo').prop('disabled', true).css({'opacity': '0.5', 'cursor': 'not-allowed'});
@@ -731,7 +751,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 `);
-                $('#formPesquisa').prepend(alertDiv);
+                $('#pesquisaForm').prepend(alertDiv);
             }
         }
 
@@ -758,7 +778,7 @@
                     <strong>Modo Visualização</strong> — Esta pesquisa está em modo somente leitura. Nenhuma alteração pode ser realizada.
                 </div>
             `);
-            $('#formPesquisa').prepend(alertDiv);
+            $('#pesquisaForm').prepend(alertDiv);
         }
         
         // Função para carregar histórico de status
@@ -1140,17 +1160,18 @@
                     .then(data => {
                         if (data.success) {
                             console.log('✅ Múltiplo obtido:', data.multiplo, 'para região:', data.regiao);
-                            // Mostrar informação do múltiplo no label ou placeholder
                             const multiplo = data.multiplo;
-                            const label = $('label[for="quantidade_cotada"]');
-                            if (label) {
-                                label.html(`Qtd. Cotada <span class="text-danger">*</span> <small class="text-muted" style="font-weight: normal;">(Múltiplo: ${multiplo} TN)</small>`);
-                            }
-                            // Armazenar múltiplo para validação posterior
-                            $('#quantidade_cotada').data('multiplo', multiplo);
-                            // Limpar erro se houver
-                            $('#quantidade_cotada').removeClass('is-invalid');
-                            $('#erro_quantidade_cotada').hide();
+                            window.currentFilialMultiplo = multiplo;
+                            
+                            // Atualizar os labels de todos os produtos dinâmicos
+                            document.querySelectorAll('[id^="label_quantidade_cotada_"]').forEach(label => {
+                                label.innerHTML = `Qtd. Cotada (tn) <span class="text-danger">*</span> <small class="text-muted" style="font-weight: normal;">(Múltiplo: ${multiplo} TN)</small>`;
+                            });
+                            
+                            // Re-validar todas as quantidades com o novo múltiplo
+                            document.querySelectorAll('.produto-quantidade-input').forEach(input => {
+                                window.validarQuantidadeCampo(input);
+                            });
                         } else {
                             console.warn('⚠️ Não foi possível obter múltiplo:', data.error);
                         }
@@ -1161,47 +1182,17 @@
             }
         });
 
-        // Formatação de valores monetários
-        function formatarMoeda(valor) {
-            if (valor === null || valor === undefined || valor === '') return '';
-
-            if (typeof valor === 'string') {
-                valor = valor.replace(/[^0-9,.]/g, '');
-                valor = valor.replace(',', '.');
-                valor = parseFloat(valor);
-            }
-
-            return valor.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function parseMoeda(valor) {
-            if (!valor) return 0;
-            if (typeof valor === 'number') return valor;
-            valor = valor.toString().replace(/[^0-9,]/g, '');
-            var partes = valor.split(',');
-            var inteiro = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '');
-            var decimal = partes[1] ? partes[1] : '00';
-            var resultado = parseFloat(inteiro + '.' + decimal);
-            return isNaN(resultado) ? 0 : resultado;
-        }
-
-        // Limpar campo monetário ao focar se o valor for "R$ 0,00" (valor padrão)
-        $('.money-input').on('focus', function () {
+        // Limpar campo monetário ao focar se o valor for "R$ 0,00" (valor padrão) - Usando delegação para elementos dinâmicos
+        $(document).on('focus', '.money-input', function () {
             const valorAtual = $(this).val().trim();
-            // Limpar se o valor for o padrão "R$ 0,00" ou vazio
             if (valorAtual === 'R$ 0,00' || valorAtual === 'R$0,00') {
                 $(this).val('');
             }
         });
 
-        $('.money-input').on('blur', function () {
-            const valor = parseMoeda($(this).val());
-            $(this).val(formatarMoeda(valor));
+        $(document).on('blur', '.money-input', function () {
+            const valor = window.parseMoeda($(this).val());
+            $(this).val(window.formatarMoeda(valor));
         });
 
         // Mostrar indicador de carregamento ao clicar para selecionar arquivo
@@ -1349,23 +1340,28 @@
                 $('#motivo_venda_perdida').removeClass('is-invalid');
             }
 
-            // Validar múltiplo da quantidade cotada - APENAS AVISO, NÃO BLOQUEIA
-            const quantidadeInput = $('#quantidade_cotada');
-            const multiplo = quantidadeInput.data('multiplo');
-            const quantidade = parseFloat(quantidadeInput.val());
-
-            if (multiplo && quantidade) {
-                if (quantidade % multiplo !== 0) {
-                    avisos.push('Qtd. Cotada: ' + quantidade + ' TN não é múltiplo de ' + multiplo + ' TN');
-                    quantidadeInput.addClass('is-warning');
-                    quantidadeInput.removeClass('is-invalid');
-                    $('#erro_quantidade_cotada').html('<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> O volume deve ser múltiplo de ' + multiplo + ' TN. O valor informado (' + quantidade + ' TN) não segue esta regra.').show();
-                } else {
-                    quantidadeInput.removeClass('is-warning');
-                    quantidadeInput.removeClass('is-invalid');
-                    $('#erro_quantidade_cotada').hide();
+            // Validar múltiplos de quantidade para todos os produtos adicionados - APENAS AVISO, NÃO BLOQUEIA
+            const multiplo = window.currentFilialMultiplo || 14;
+            document.querySelectorAll('.produto-quantidade-input').forEach((input, idx) => {
+                const quantidade = parseFloat(input.value);
+                if (quantidade && multiplo) {
+                    if (quantidade % multiplo !== 0) {
+                        avisos.push(`Produto ${idx + 1}: Qtd. Cotada (${quantidade} TN) não é múltiplo de ${multiplo} TN`);
+                        input.classList.add('is-warning');
+                        const errorDiv = document.getElementById(`erro_quantidade_cotada_${input.getAttribute('data-index')}`);
+                        if (errorDiv) {
+                            errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> A quantidade deve ser múltiplo de ${multiplo} TN. O valor informado (${quantidade} TN) não segue esta regra.`;
+                            errorDiv.style.display = 'block';
+                        }
+                    } else {
+                        input.classList.remove('is-warning');
+                        const errorDiv = document.getElementById(`erro_quantidade_cotada_${input.getAttribute('data-index')}`);
+                        if (errorDiv) {
+                            errorDiv.style.display = 'none';
+                        }
+                    }
                 }
-            }
+            });
 
             // Adicione outras validações aqui se necessário
             // Exemplo:
@@ -1406,6 +1402,37 @@
                 btnSalvar.prop('disabled', true).css({'opacity': '0.6', 'cursor': 'not-allowed'});
             }
 
+            // Coletar múltiplos produtos
+            const produtosArray = [];
+            document.querySelectorAll('[id^="produto-pesquisa-"]').forEach((produtoDiv) => {
+                const codInput = produtoDiv.querySelector('.produto-codigo-input');
+                const nomeInput = produtoDiv.querySelector('.produto-nome-input');
+                const concInput = produtoDiv.querySelector('[name$="[nome_concorrente]"]');
+                const qtdInput = produtoDiv.querySelector('.produto-quantidade-input');
+                const valConcInput = produtoDiv.querySelector('[name$="[valor_concorrente]"]');
+                const valCooxInput = produtoDiv.querySelector('[name$="[valor_cooxupe]"]');
+                const fornInput = produtoDiv.querySelector('.produto-fornecedor-input');
+                
+                const produto = {
+                    codigo_produto: codInput ? codInput.value : '',
+                    nome_produto: nomeInput ? nomeInput.value : '',
+                    nome_concorrente: concInput ? concInput.value : '',
+                    quantidade_cotada: (qtdInput && qtdInput.value) ? parseFloat(qtdInput.value) : 0,
+                    valor_concorrente: (valConcInput && valConcInput.value) ? window.parseMoeda(valConcInput.value) : 0,
+                    valor_cooxupe: (valCooxInput && valCooxInput.value) ? window.parseMoeda(valCooxInput.value) : null,
+                    fornecedor: fornInput ? fornInput.value : ''
+                };
+                
+                // Apenas adicionar se houver nome do produto
+                if (produto.nome_produto.trim()) {
+                    produtosArray.push(produto);
+                }
+            });
+
+            // Usar o concorrente do primeiro produto no campo de compatibilidade raiz
+            const primeiroProduto = produtosArray[0];
+            const concorrenteRaiz = primeiroProduto ? primeiroProduto.nome_concorrente : '';
+
             // Coletar dados do formulário em um objeto JS
             const formData = {
                 data: $('#data').val(),
@@ -1414,22 +1441,21 @@
                 matricula_cooperado: $('#matricula_cooperado').val(),
                 nome_cooperado: $('#nome_cooperado').val(),
                 cultura: $('#cultura').val(),
-                codigo_produto: $('#codigo_produto').val(),
-                nome_produto: $('#nome_produto').val(),
-                quantidade_cotada: $('#quantidade_cotada').val() ? parseFloat($('#quantidade_cotada').val()) : null,
                 forma_pagamento: $('#forma_pagamento').val(),
                 prazo_entrega: $('#prazo_entrega').val(),
                 nome_vendedor: $('#nome_vendedor').val(),
-                nome_concorrente: $('#nome_concorrente').val(),
-                valor_concorrente: parseMoeda($('#valor_concorrente').val()),
-                valor_cooxupe: parseMoeda($('#valor_cooxupe').val()),
+                nome_concorrente: concorrenteRaiz,
                 analista_comercial: $('#analista_comercial').val(),
                 comprador: $('#comprador').val(),
                 observacoes: $('#nova_observacao_input').val(),
                 status: $('#status').val(),
-                fornecedor: $('#fornecedor').val(),
-                motivo_venda_perdida: $('#motivo_venda_perdida').val() // Adicionado
+                motivo_venda_perdida: $('#motivo_venda_perdida').val()
             };
+            
+            // Adicionar produtos como JSON se houver múltiplos
+            if (produtosArray.length > 0) {
+                formData.produtos_json = JSON.stringify(produtosArray);
+            }
 
             // Adicionar ID se estiver editando
             const pesquisaId = $('#pesquisaId').val();
@@ -2096,48 +2122,12 @@
             }
         }
 
-        // Event listener para validação de quantidade APENAS ao sair do campo (blur)
-        $('#quantidade_cotada').on('blur', function() {
-            const quantidade = parseFloat($(this).val());
-            const multiplo = $(this).data('multiplo') || 14;
-            const errorDiv = document.getElementById('erro_quantidade_cotada');
-            
-            if (quantidade && multiplo) {
-                if (quantidade % multiplo !== 0) {
-                    $(this).addClass('is-warning');
-                    $(this).removeClass('is-invalid');
-                    if (errorDiv) {
-                        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> A quantidade deve ser múltiplo de ${multiplo}. O valor informado (${quantidade}) não segue esta regra.`;
-                        errorDiv.style.display = 'block';
-                    }
-                } else {
-                    $(this).removeClass('is-warning');
-                    $(this).removeClass('is-invalid');
-                    if (errorDiv) {
-                        errorDiv.style.display = 'none';
-                    }
-                }
-            }
-        });
-
-        // Validar quantidade ao carregar o formulário (para mostrar alertas em pesquisas existentes)
+        // Validar quantidades existentes após o carregamento
         setTimeout(function() {
-            const quantidadeInput = $('#quantidade_cotada');
-            if (quantidadeInput.length && quantidadeInput.val()) {
-                const quantidade = parseFloat(quantidadeInput.val());
-                const multiplo = quantidadeInput.data('multiplo') || 14; // Obter múltiplo armazenado ou usar padrão de 14
-                const errorDiv = document.getElementById('erro_quantidade_cotada');
-                
-                if (quantidade && multiplo && quantidade % multiplo !== 0) {
-                    quantidadeInput.addClass('is-warning');
-                    quantidadeInput.removeClass('is-invalid');
-                    if (errorDiv) {
-                        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Atenção:</strong> A quantidade deve ser múltiplo de ${multiplo}. O valor informado (${quantidade}) não segue esta regra.`;
-                        errorDiv.style.display = 'block';
-                    }
-                }
-            }
-        }, 100);
+            document.querySelectorAll('.produto-quantidade-input').forEach(input => {
+                window.validarQuantidadeCampo(input);
+            });
+        }, 200);
     });
 </script>
 
@@ -2152,6 +2142,339 @@
         pode_editar_campos: window.podeEditarCampos,
         usuario_depto: window.usuarioDepto,
         modo_readonly: window.modoReadonly
+    });
+    
+    // Gerenciamento de múltiplos produtos para pesquisas
+    window.produtosPesquisa = [];
+    
+    function adicionarProdutoPesquisa(produtoData) {
+        const container = document.getElementById('produtosPesquisaContainer');
+        const index = window.produtosPesquisa.length;
+        
+        const produtoHtml = `
+            <div class="produto-pesquisa-item card mb-3" id="produto-pesquisa-${index}">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Produto ${index + 1}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Código do Produto <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control produto-codigo-input" 
+                                   id="produto_codigo_${index}"
+                                   name="produtos_pesquisa[${index}][codigo_produto]" 
+                                   value="${produtoData && produtoData.codigo_produto ? produtoData.codigo_produto : ''}"
+                                   data-index="${index}"
+                                   ${window.modoReadonly ? 'disabled' : ''}>
+                            <div id="loading_codigo_produto_${index}" class="mt-1" style="display: none;">
+                                <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> Buscando produto...</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nome do Produto <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control produto-nome-input" 
+                                   id="produto_nome_${index}"
+                                   name="produtos_pesquisa[${index}][nome_produto]" 
+                                   value="${produtoData && produtoData.nome_produto ? produtoData.nome_produto : ''}"
+                                   data-index="${index}"
+                                   ${window.modoReadonly ? 'disabled' : ''} required>
+                            <div id="loading_nome_produto_${index}" class="mt-1" style="display: none;">
+                                <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> Buscando produto...</small>
+                            </div>
+                            <div id="sugestoes_produto_${index}" class="mt-1" style="display: none; position: relative; z-index: 1000;">
+                                <div class="list-group" style="position: absolute; width: 100%; max-height: 200px; overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nome do Concorrente</label>
+                            <input type="text" class="form-control" name="produtos_pesquisa[${index}][nome_concorrente]" 
+                                   value="${produtoData && produtoData.nome_concorrente ? produtoData.nome_concorrente : ''}"
+                                   ${window.modoReadonly ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label" id="label_quantidade_cotada_${index}">Qtd. Cotada (tn) <span class="text-danger">*</span> <small class="text-muted" style="font-weight: normal;">(Múltiplo: ${window.currentFilialMultiplo || 14} TN)</small></label>
+                            <input type="number" step="0.01" class="form-control produto-quantidade-input" 
+                                   id="produto_quantidade_${index}"
+                                   name="produtos_pesquisa[${index}][quantidade_cotada]" 
+                                   value="${produtoData && produtoData.quantidade_cotada ? produtoData.quantidade_cotada : ''}"
+                                   data-index="${index}"
+                                   ${window.modoReadonly ? 'disabled' : ''} required>
+                            <div class="invalid-feedback" id="erro_quantidade_cotada_${index}" style="display: none;"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Valor Concorrente (R$)</label>
+                            <input type="text" class="form-control money-input" name="produtos_pesquisa[${index}][valor_concorrente]" 
+                                   value="${produtoData && produtoData.valor_concorrente ? window.formatarMoeda(produtoData.valor_concorrente) : ''}"
+                                   ${window.modoReadonly ? 'disabled' : ''} required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Valor Cooxupe (R$)</label>
+                            <input type="text" class="form-control money-input" name="produtos_pesquisa[${index}][valor_cooxupe]" 
+                                   value="${produtoData && produtoData.valor_cooxupe ? window.formatarMoeda(produtoData.valor_cooxupe) : ''}"
+                                   ${window.modoReadonly ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Fornecedor</label>
+                            <input type="text" class="form-control produto-fornecedor-input" 
+                                   id="produto_fornecedor_${index}"
+                                   name="produtos_pesquisa[${index}][fornecedor]" 
+                                   value="${produtoData && produtoData.fornecedor ? produtoData.fornecedor : ''}"
+                                   ${window.modoReadonly ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                    ${(index > 0 && !window.modoReadonly) ? `
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-danger btn-remove-produto" onclick="removerProdutoPesquisa(${index})">
+                                <i class="fas fa-trash me-2"></i>Remover Produto
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', produtoHtml);
+        window.produtosPesquisa.push(index);
+        
+        // Vincular busca dinâmica nos campos de código e nome (somente se não for readonly)
+        if (!window.modoReadonly) {
+            vincularBuscaProdutoMulti(index);
+            
+            // Vincular validação de múltiplos
+            const inputQtd = document.getElementById(`produto_quantidade_${index}`);
+            if (inputQtd) {
+                inputQtd.addEventListener('blur', function() {
+                    window.validarQuantidadeCampo(this);
+                });
+            }
+        }
+    }
+    
+    function removerProdutoPesquisa(index) {
+        if (confirm('Tem certeza que deseja remover este produto?')) {
+            const element = document.getElementById(`produto-pesquisa-${index}`);
+            if (element) {
+                element.remove();
+            }
+        }
+    }
+    
+    // ===== BUSCA DINÂMICA DE PRODUTOS PARA MULTI-PRODUTO =====
+    // Timers de debounce por índice de produto
+    window._produtoBuscaTimers = {};
+    
+    function vincularBuscaProdutoMulti(index) {
+        const codigoInput = document.getElementById(`produto_codigo_${index}`);
+        const nomeInput = document.getElementById(`produto_nome_${index}`);
+        
+        if (!codigoInput || !nomeInput) {
+            console.warn(`[Produto ${index}] Inputs não encontrados para vincular busca`);
+            return;
+        }
+        
+        // Busca por código (debounce 400ms)
+        codigoInput.addEventListener('input', function() {
+            const codigo = this.value.trim();
+            
+            clearTimeout(window._produtoBuscaTimers[`codigo_${index}`]);
+            
+            if (!codigo || codigo.length < 2) {
+                nomeInput.value = '';
+                nomeInput.disabled = false;
+                nomeInput.classList.remove('is-valid', 'is-invalid');
+                document.getElementById(`loading_codigo_produto_${index}`).style.display = 'none';
+                return;
+            }
+            
+            window._produtoBuscaTimers[`codigo_${index}`] = setTimeout(async function() {
+                try {
+                    document.getElementById(`loading_codigo_produto_${index}`).style.display = 'block';
+                    nomeInput.value = 'Buscando...';
+                    nomeInput.disabled = true;
+                    
+                    const response = await fetch(`/api/produtos/buscar?codigo=${encodeURIComponent(codigo)}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        nomeInput.value = data.nome;
+                        nomeInput.classList.add('is-valid');
+                        nomeInput.classList.remove('is-invalid');
+                        nomeInput.disabled = true;
+                        // Preencher fornecedor se disponível
+                        const fornecedorInput = document.getElementById(`produto_fornecedor_${index}`);
+                        if (fornecedorInput && data.fornecedor) {
+                            fornecedorInput.value = data.fornecedor;
+                        }
+                        setTimeout(() => nomeInput.classList.remove('is-valid'), 2000);
+                        console.log(`[Produto ${index}] ✅ Produto encontrado por código:`, data.nome);
+                    } else {
+                        nomeInput.value = '';
+                        nomeInput.disabled = false;
+                        nomeInput.classList.add('is-invalid');
+                        nomeInput.classList.remove('is-valid');
+                        setTimeout(() => nomeInput.classList.remove('is-invalid'), 3000);
+                        console.log(`[Produto ${index}] ❌ Produto não encontrado por código`);
+                    }
+                } catch (error) {
+                    console.error(`[Produto ${index}] 🚨 Erro na busca por código:`, error);
+                    nomeInput.value = '';
+                    nomeInput.disabled = false;
+                } finally {
+                    document.getElementById(`loading_codigo_produto_${index}`).style.display = 'none';
+                }
+            }, 400);
+        });
+        
+        // Busca por nome (debounce 400ms, com sugestões)
+        nomeInput.addEventListener('input', function() {
+            const nome = this.value.trim();
+            
+            clearTimeout(window._produtoBuscaTimers[`nome_${index}`]);
+            
+            const sugestoesContainer = document.getElementById(`sugestoes_produto_${index}`);
+            
+            if (!nome || nome.length < 3) {
+                codigoInput.value = '';
+                codigoInput.disabled = false;
+                codigoInput.classList.remove('is-valid', 'is-invalid');
+                if (sugestoesContainer) sugestoesContainer.style.display = 'none';
+                document.getElementById(`loading_nome_produto_${index}`).style.display = 'none';
+                return;
+            }
+            
+            window._produtoBuscaTimers[`nome_${index}`] = setTimeout(async function() {
+                try {
+                    document.getElementById(`loading_nome_produto_${index}`).style.display = 'block';
+                    
+                    const response = await fetch(`/api/produtos/buscar?nome=${encodeURIComponent(nome)}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.tipo_busca === 'nome' && data.resultados && data.resultados.length > 0) {
+                            // Mostrar sugestões
+                            const listGroup = sugestoesContainer.querySelector('.list-group');
+                            listGroup.innerHTML = '';
+                            
+                            data.resultados.forEach(resultado => {
+                                const item = document.createElement('a');
+                                item.href = '#';
+                                item.className = 'list-group-item list-group-item-action';
+                                item.textContent = `${resultado.codigo} - ${resultado.nome}`;
+                                item.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    nomeInput.value = resultado.nome;
+                                    codigoInput.value = resultado.codigo;
+                                    nomeInput.classList.add('is-valid');
+                                    codigoInput.classList.add('is-valid');
+                                    codigoInput.disabled = true;
+                                    sugestoesContainer.style.display = 'none';
+                                    // Preencher fornecedor
+                                    const fornecedorInput = document.getElementById(`produto_fornecedor_${index}`);
+                                    if (fornecedorInput && resultado.fornecedor) {
+                                        fornecedorInput.value = resultado.fornecedor;
+                                    }
+                                    setTimeout(() => {
+                                        nomeInput.classList.remove('is-valid');
+                                        codigoInput.classList.remove('is-valid');
+                                    }, 2000);
+                                    console.log(`[Produto ${index}] ✅ Selecionado:`, resultado.nome);
+                                });
+                                listGroup.appendChild(item);
+                            });
+                            
+                            sugestoesContainer.style.display = 'block';
+                            console.log(`[Produto ${index}] 🔍 ${data.resultados.length} sugestões encontradas`);
+                        } else {
+                            // Nome exato encontrado
+                            codigoInput.value = data.codigo;
+                            codigoInput.classList.add('is-valid');
+                            codigoInput.disabled = true;
+                            if (sugestoesContainer) sugestoesContainer.style.display = 'none';
+                            const fornecedorInput = document.getElementById(`produto_fornecedor_${index}`);
+                            if (fornecedorInput && data.fornecedor) {
+                                fornecedorInput.value = data.fornecedor;
+                            }
+                            setTimeout(() => codigoInput.classList.remove('is-valid'), 2000);
+                        }
+                    } else {
+                        codigoInput.classList.add('is-invalid');
+                        setTimeout(() => codigoInput.classList.remove('is-invalid'), 3000);
+                        if (sugestoesContainer) sugestoesContainer.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error(`[Produto ${index}] 🚨 Erro na busca por nome:`, error);
+                    if (sugestoesContainer) sugestoesContainer.style.display = 'none';
+                } finally {
+                    document.getElementById(`loading_nome_produto_${index}`).style.display = 'none';
+                }
+            }, 400);
+        });
+        
+        // Fechar sugestões ao clicar fora
+        document.addEventListener('click', function(e) {
+            const sugestoesContainer = document.getElementById(`sugestoes_produto_${index}`);
+            if (sugestoesContainer && !sugestoesContainer.contains(e.target) && e.target !== nomeInput) {
+                sugestoesContainer.style.display = 'none';
+            }
+        });
+        
+        // Permitir limpar campo travado ao double-click
+        codigoInput.addEventListener('dblclick', function() {
+            this.disabled = false;
+            this.value = '';
+            this.classList.remove('is-valid', 'is-invalid');
+            nomeInput.disabled = false;
+            nomeInput.value = '';
+            nomeInput.classList.remove('is-valid', 'is-invalid');
+            const fornecedorInput = document.getElementById(`produto_fornecedor_${index}`);
+            if (fornecedorInput) fornecedorInput.value = '';
+        });
+        
+        nomeInput.addEventListener('dblclick', function() {
+            this.disabled = false;
+            this.value = '';
+            this.classList.remove('is-valid', 'is-invalid');
+            codigoInput.disabled = false;
+            codigoInput.value = '';
+            codigoInput.classList.remove('is-valid', 'is-invalid');
+            const fornecedorInput = document.getElementById(`produto_fornecedor_${index}`);
+            if (fornecedorInput) fornecedorInput.value = '';
+        });
+        
+        console.log(`[Produto ${index}] 🔗 Busca dinâmica vinculada com sucesso`);
+    }
+    
+    // Inicializar produtos existentes quando o formulário carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('produtosPesquisaContainer');
+        if (!container) {
+            console.warn('Contêiner de produtos não encontrado');
+            return;
+        }
+        
+        // Se há produtos no template (edição)
+        const produtosExistentes = {{ pesquisa.to_dict()['produtos'] | tojson if pesquisa else '[]' }};
+        
+        if (produtosExistentes && produtosExistentes.length > 0) {
+            produtosExistentes.forEach(prod => {
+                adicionarProdutoPesquisa(prod);
+            });
+        } else if (!{{ 'true' if readonly else 'false' }}) {
+            // Se for novo, adicionar um produto vazio por padrão
+            adicionarProdutoPesquisa({});
+        }
+        
+        // Adicionar event listener ao botão
+        const btnAdicionar = document.getElementById('addProdutoPesquisaButton');
+        if (btnAdicionar) {
+            btnAdicionar.addEventListener('click', function() {
+                adicionarProdutoPesquisa({});
+            });
+        }
     });
 </script>
 

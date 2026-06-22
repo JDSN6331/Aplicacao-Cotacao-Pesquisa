@@ -320,30 +320,52 @@ def gerar_pdf_cotacao_ou_pesquisa(objeto, filename=None):
         pdf.cell(col_widths[5] + col_widths[6], 7, limpar_texto_pdf(formatar_moeda(total_geral)), border=1, align='R')
         pdf.ln(10)
     else:
-        # Detalhes do Produto para Pesquisa
+        # Tabela de Produtos para Pesquisa
         pdf.set_font('Arial', 'B', 11)
         pdf.set_text_color(46, 125, 50)
-        pdf.cell(0, 6, limpar_texto_pdf("2. DETALHES DO PRODUTO E CONCORRÊNCIA"), ln=True)
+        pdf.cell(0, 6, limpar_texto_pdf("2. PRODUTOS DA PESQUISA E CONCORRÊNCIA"), ln=True)
         pdf.ln(2)
         
-        pdf.set_fill_color(245, 245, 245)
-        pdf.set_text_color(30, 30, 30)
+        headers = ["SKU", "PRODUTO", "QTD", "FORNECEDOR", "CONCORRENTE", "VALOR CONC.", "VALOR COOXUPÉ"]
+        col_widths = [22, 68, 20, 45, 45, 33, 33]  # Total: 266mm
+        rows = []
+        total_concorrente = 0
+        total_cooxupe = 0
         
-        def draw_grid_row(label1, val1, label2, val2):
-            pdf.set_font('Arial', 'B', 8)
-            pdf.cell(35, 6, limpar_texto_pdf(label1), border=1, fill=True)
-            pdf.set_font('Arial', '', 8)
-            pdf.cell(60, 6, limpar_texto_pdf(val1), border=1)
-            pdf.set_font('Arial', 'B', 8)
-            pdf.cell(35, 6, limpar_texto_pdf(label2), border=1, fill=True)
-            pdf.set_font('Arial', '', 8)
-            pdf.cell(60, 6, limpar_texto_pdf(val2), border=1)
-            pdf.ln()
+        for prod in objeto.produtos:
+            sku = limpar_texto_pdf(prod.codigo_produto or '-')
+            nome = limpar_texto_pdf(prod.nome_produto)
+            qtd = f"{prod.quantidade_cotada:,.2f}"
+            fornecedor = limpar_texto_pdf(prod.fornecedor or '-')
+            concorrente = limpar_texto_pdf(prod.nome_concorrente or '-')
             
-        draw_grid_row("Código SKU:", objeto.codigo_produto or '-', "Nome Produto:", objeto.nome_produto)
-        draw_grid_row("Qtd Cotada:", f"{objeto.quantidade_cotada:,.2f}", "Concorrente:", objeto.nome_concorrente)
-        draw_grid_row("Valor Concorrente:", formatar_moeda(objeto.valor_concorrente), "Valor Cooxupé:", formatar_moeda(objeto.valor_cooxupe))
-        pdf.ln(8)
+            # Valores diretamente
+            item_total_conc = prod.valor_concorrente or 0.0
+            item_total_coox = prod.valor_cooxupe if prod.valor_cooxupe is not None else 0.0
+            
+            val_conc = limpar_texto_pdf(formatar_moeda(item_total_conc))
+            val_coox = limpar_texto_pdf(formatar_moeda(item_total_coox)) if prod.valor_cooxupe is not None else '-'
+            
+            rows.append([sku, nome, qtd, fornecedor, concorrente, val_conc, val_coox])
+            
+            total_concorrente += item_total_conc
+            if prod.valor_cooxupe is not None:
+                total_cooxupe += item_total_coox
+        
+        # Desenhar tabela com suporte a múltiplas linhas
+        table = TablePDFMultiline(pdf)
+        table.draw_table(headers, rows, col_widths, header_height=7, row_height=5)
+        
+        # Total
+        pdf.set_font('Arial', 'B', 8)
+        pdf.set_text_color(30, 30, 30)
+        pdf.cell(col_widths[0] + col_widths[1] + col_widths[2] + col_widths[3] + col_widths[4], 7, "TOTAL GERAL CONSOLIDADO:", border=1, align='R')
+        pdf.cell(col_widths[5], 7, limpar_texto_pdf(formatar_moeda(total_concorrente)), border=1, align='R')
+        
+        valores_coox = [p.valor_cooxupe for p in objeto.produtos if p.valor_cooxupe is not None]
+        val_coox_total_str = formatar_moeda(total_cooxupe) if valores_coox else '-'
+        pdf.cell(col_widths[6], 7, limpar_texto_pdf(val_coox_total_str), border=1, align='R')
+        pdf.ln(10)
         
     # ---- INFORMAÇÕES COMERCIAIS ----
     pdf.set_font('Arial', 'B', 11)
@@ -524,30 +546,52 @@ def gerar_pdf_multiplo(objetos, filename=None):
             pdf.cell(col_widths[5] + col_widths[6], 7, limpar_texto_pdf(formatar_moeda(total_geral)), border=1, align='R')
             pdf.ln(10)
         else:
-            # Detalhes do Produto para Pesquisa
+            # Tabela de Produtos para Pesquisa
             pdf.set_font('Arial', 'B', 11)
             pdf.set_text_color(46, 125, 50)
-            pdf.cell(0, 6, limpar_texto_pdf("2. DETALHES DO PRODUTO E CONCORRÊNCIA"), ln=True)
+            pdf.cell(0, 6, limpar_texto_pdf("2. PRODUTOS DA PESQUISA E CONCORRÊNCIA"), ln=True)
             pdf.ln(2)
             
-            pdf.set_fill_color(245, 245, 245)
-            pdf.set_text_color(30, 30, 30)
+            headers = ["SKU", "PRODUTO", "QTD", "FORNECEDOR", "CONCORRENTE", "VALOR CONC.", "VALOR COOXUPÉ"]
+            col_widths = [22, 68, 20, 45, 45, 33, 33]  # Total: 266mm
+            rows = []
+            total_concorrente = 0
+            total_cooxupe = 0
             
-            def draw_grid_row(label1, val1, label2, val2):
-                pdf.set_font('Arial', 'B', 8)
-                pdf.cell(35, 6, limpar_texto_pdf(label1), border=1, fill=True)
-                pdf.set_font('Arial', '', 8)
-                pdf.cell(60, 6, limpar_texto_pdf(val1), border=1)
-                pdf.set_font('Arial', 'B', 8)
-                pdf.cell(35, 6, limpar_texto_pdf(label2), border=1, fill=True)
-                pdf.set_font('Arial', '', 8)
-                pdf.cell(60, 6, limpar_texto_pdf(val2), border=1)
-                pdf.ln()
+            for prod in objeto.produtos:
+                sku = limpar_texto_pdf(prod.codigo_produto or '-')
+                nome = limpar_texto_pdf(prod.nome_produto)
+                qtd = f"{prod.quantidade_cotada:,.2f}"
+                fornecedor = limpar_texto_pdf(prod.fornecedor or '-')
+                concorrente = limpar_texto_pdf(prod.nome_concorrente or '-')
                 
-            draw_grid_row("Código SKU:", objeto.codigo_produto or '-', "Nome Produto:", objeto.nome_produto)
-            draw_grid_row("Qtd Cotada:", f"{objeto.quantidade_cotada:,.2f}", "Concorrente:", objeto.nome_concorrente)
-            draw_grid_row("Valor Concorrente:", formatar_moeda(objeto.valor_concorrente), "Valor Cooxupé:", formatar_moeda(objeto.valor_cooxupe))
-            pdf.ln(8)
+                # Valores diretamente
+                item_total_conc = prod.valor_concorrente or 0.0
+                item_total_coox = prod.valor_cooxupe if prod.valor_cooxupe is not None else 0.0
+                
+                val_conc = limpar_texto_pdf(formatar_moeda(item_total_conc))
+                val_coox = limpar_texto_pdf(formatar_moeda(item_total_coox)) if prod.valor_cooxupe is not None else '-'
+                
+                rows.append([sku, nome, qtd, fornecedor, concorrente, val_conc, val_coox])
+                
+                total_concorrente += item_total_conc
+                if prod.valor_cooxupe is not None:
+                    total_cooxupe += item_total_coox
+            
+            # Desenhar tabela com suporte a múltiplas linhas
+            table = TablePDFMultiline(pdf)
+            table.draw_table(headers, rows, col_widths, header_height=7, row_height=5)
+            
+            # Total
+            pdf.set_font('Arial', 'B', 8)
+            pdf.set_text_color(30, 30, 30)
+            pdf.cell(col_widths[0] + col_widths[1] + col_widths[2] + col_widths[3] + col_widths[4], 7, "TOTAL GERAL CONSOLIDADO:", border=1, align='R')
+            pdf.cell(col_widths[5], 7, limpar_texto_pdf(formatar_moeda(total_concorrente)), border=1, align='R')
+            
+            valores_coox = [p.valor_cooxupe for p in objeto.produtos if p.valor_cooxupe is not None]
+            val_coox_total_str = formatar_moeda(total_cooxupe) if valores_coox else '-'
+            pdf.cell(col_widths[6], 7, limpar_texto_pdf(val_coox_total_str), border=1, align='R')
+            pdf.ln(10)
             
         # ---- INFORMAÇÕES COMERCIAIS ----
         pdf.set_font('Arial', 'B', 11)

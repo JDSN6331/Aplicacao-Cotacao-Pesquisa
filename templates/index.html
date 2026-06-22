@@ -729,6 +729,7 @@
 <script>
     // Variável global de permissão de admin (injetada pelo servidor)
     const IS_ADMIN = {{ 'true' if current_user.is_admin else 'false' }};
+    const USUARIO_DEPTO = '{{ current_user.departamento }}';
     $(document).ready(function () {
         // Injetar a legenda de vínculo em cada painel de filtros
         $('.panel-filters').each(function() {
@@ -1261,14 +1262,27 @@
 
         let acoes = '';
         const statusBloqueados = ['Cotação Finalizada', 'Cotação Perdida'];
-        const podeEditar = !statusBloqueados.includes(cotacao.status);
+        let podeEditar = false;
+        if (!statusBloqueados.includes(cotacao.status)) {
+            if (IS_ADMIN) {
+                podeEditar = true;
+            } else {
+                const statusComercial = ['Análise Comercial', 'Avaliação Comercial', 'Aguardando Cooperado', 'Revisão Comercial'];
+                const statusSuprimentos = ['Análise Suprimentos', 'Revisão Suprimentos'];
+                if (USUARIO_DEPTO === 'Comercial' && statusComercial.includes(cotacao.status)) {
+                    podeEditar = true;
+                } else if (USUARIO_DEPTO === 'Suprimentos' && statusSuprimentos.includes(cotacao.status)) {
+                    podeEditar = true;
+                }
+            }
+        }
 
         // Montar string de exclusão (apenas admin)
         const deleteItem = IS_ADMIN ? `
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="#" onclick="excluirCotacao(${id})"><i class="fas fa-trash"></i> Excluir</a></li>` : '';
 
-        if (tipo === 'finalizadas') {
+        if (tipo === 'finalizadas' && !IS_ADMIN) {
             // Cotações Finalizadas: Exportar, Ir para Vendas, e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
@@ -1284,7 +1298,7 @@
                             ${deleteItem}
                         </ul>
                     </div>`;
-        } else if (tipo === 'perdidas' || !podeEditar) {
+        } else if ((tipo === 'perdidas' && !IS_ADMIN) || !podeEditar) {
             // Cotações Perdidas ou com status bloqueado: Exportar e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
@@ -1367,8 +1381,19 @@
         const filial = pesquisa.nome_filial;
         const matricula = pesquisa.matricula_cooperado || '-';
         const cooperado = pesquisa.nome_cooperado;
-        // Calcular valor total da pesquisa (usar valor_cooxupe ou valor_concorrente como referência)
-        const valorTotal = pesquisa.valor_cooxupe !== null && pesquisa.valor_cooxupe !== undefined ? formatarMoeda(pesquisa.valor_cooxupe) : (pesquisa.valor_concorrente !== null && pesquisa.valor_concorrente !== undefined ? formatarMoeda(pesquisa.valor_concorrente) : '-');
+        // Calcular valor total da pesquisa somando os produtos (usar valor_cooxupe ou valor_concorrente como referência)
+        let valorTotalNum = 0;
+        if (pesquisa.produtos && pesquisa.produtos.length > 0) {
+            pesquisa.produtos.forEach(function (p) {
+                const valorItem = p.valor_cooxupe !== null && p.valor_cooxupe !== undefined ? p.valor_cooxupe : (p.valor_concorrente !== null && p.valor_concorrente !== undefined ? p.valor_concorrente : 0);
+                valorTotalNum += valorItem;
+            });
+        } else {
+            // Fallback para campos raiz se não houver produtos
+            const valorItem = pesquisa.valor_cooxupe !== null && pesquisa.valor_cooxupe !== undefined ? pesquisa.valor_cooxupe : (pesquisa.valor_concorrente !== null && pesquisa.valor_concorrente !== undefined ? pesquisa.valor_concorrente : 0);
+            valorTotalNum = valorItem;
+        }
+        const valorTotal = valorTotalNum > 0 ? formatarMoeda(valorTotalNum) : '-';
         const statusText = formatarStatus(pesquisa.status);
         const tempoStatus = pesquisa.dias_no_status + 'd';
         const ultimaMod = pesquisa.data_ultima_modificacao;
@@ -1379,14 +1404,27 @@
         let acoes = '';
         // Verificar se o status permite edição
         const statusBloqueados = ['Pesquisa Finalizada', 'Pesquisa Perdida', 'Cotação Perdida'];
-        const podeEditar = !statusBloqueados.includes(pesquisa.status);
+        let podeEditar = false;
+        if (!statusBloqueados.includes(pesquisa.status)) {
+            if (IS_ADMIN) {
+                podeEditar = true;
+            } else {
+                const statusComercial = ['Avaliação Comercial'];
+                const statusSuprimentos = []; // Sem status de Suprimentos no mapeamento
+                if (USUARIO_DEPTO === 'Comercial' && statusComercial.includes(pesquisa.status)) {
+                    podeEditar = true;
+                } else if (USUARIO_DEPTO === 'Suprimentos' && statusSuprimentos.includes(pesquisa.status)) {
+                    podeEditar = true;
+                }
+            }
+        }
 
         // Montar string de exclusão (apenas admin)
         const deleteItem = IS_ADMIN ? `
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="#" onclick="excluirPesquisa(${id})"><i class="fas fa-trash"></i> Excluir</a></li>` : '';
 
-        if (status === 'finalizadas') {
+        if (status === 'finalizadas' && !IS_ADMIN) {
             // Pesquisas Finalizadas: Exportar, Ir para Vendas, e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
@@ -1402,7 +1440,7 @@
                             ${deleteItem}
                         </ul>
                     </div>`;
-        } else if (status === 'perdidas' || !podeEditar) {
+        } else if ((status === 'perdidas' && !IS_ADMIN) || !podeEditar) {
             // Pesquisas Perdidas ou com status bloqueado: Exportar e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">

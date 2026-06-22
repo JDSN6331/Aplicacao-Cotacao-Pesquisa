@@ -164,6 +164,33 @@ with app.app_context():
             print("Cache de produtos inicializado com sucesso!")
     except Exception as e:
         print(f"Aviso: Erro ao inicializar cache de produtos: {e}")
+    
+    # Sincronização e Migração Automática de Pesquisas Legadas
+    try:
+        from models import PesquisaMercado, ProdutoPesquisa
+        pesquisas = PesquisaMercado.query.all()
+        migrados = 0
+        for pesq in pesquisas:
+            # Se não tem produtos cadastrados no relacionamento mas tem produto legado na raiz
+            if not pesq.produtos and (pesq.nome_produto or pesq.codigo_produto):
+                produto = ProdutoPesquisa(
+                    pesquisa_id=pesq.id,
+                    codigo_produto=pesq.codigo_produto or '',
+                    nome_produto=pesq.nome_produto or '',
+                    quantidade_cotada=pesq.quantidade_cotada or 0.0,
+                    valor_concorrente=pesq.valor_concorrente or 0.0,
+                    valor_cooxupe=pesq.valor_cooxupe,
+                    fornecedor=pesq.fornecedor or '',
+                    nome_concorrente=pesq.nome_concorrente or ''
+                )
+                db.session.add(produto)
+                migrados += 1
+        if migrados > 0:
+            db.session.commit()
+            print(f"✅ Migração de banco: {migrados} produtos de pesquisas legadas foram sincronizados!")
+    except Exception as e:
+        db.session.rollback()
+        print(f"⚠️ Erro ao executar migração de pesquisas legadas: {e}")
 
 @app.route('/debug-env')
 def debug_env():

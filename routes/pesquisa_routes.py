@@ -43,12 +43,17 @@ COTACAO_STATUS_DEPARTAMENTO_MAP = {
 
 TZ_SP = pytz.timezone('America/Sao_Paulo')
 
-def pode_editar_cotacao(usuario_departamento, status_cotacao):
+def pode_editar_cotacao(usuario_departamento, status_cotacao, is_admin=False):
     """Verifica se um usuário pode editar uma cotação com o status fornecido."""
+    if status_cotacao in ['Cotação Finalizada', 'Cotação Perdida']:
+        return False
+    if is_admin:
+        return True
+
     status_permitido = COTACAO_STATUS_DEPARTAMENTO_MAP.get(status_cotacao)
     return status_permitido == usuario_departamento
 
-def pode_editar_pesquisa(usuario_departamento, status_pesquisa):
+def pode_editar_pesquisa(usuario_departamento, status_pesquisa, is_admin=False):
     """
     Verifica se um usuário do departamento especificado pode editar uma pesquisa com o status fornecido.
     
@@ -59,10 +64,15 @@ def pode_editar_pesquisa(usuario_departamento, status_pesquisa):
     Returns:
         bool: True se pode editar, False caso contrário
     """
+    if status_pesquisa in ['Pesquisa Finalizada', 'Pesquisa Perdida']:
+        return False
+    if is_admin:
+        return True
+
     status_permitido = PESQUISA_STATUS_DEPARTAMENTO_MAP.get(status_pesquisa)
     return status_permitido == usuario_departamento
 
-def obter_status_permitidos_pesquisa(usuario_departamento):
+def obter_status_permitidos_pesquisa(usuario_departamento, is_admin=False):
     """
     Retorna lista de status que o usuário pode transicionar para em pesquisas.
     
@@ -72,6 +82,9 @@ def obter_status_permitidos_pesquisa(usuario_departamento):
     Returns:
         list: Status permitidos para o departamento
     """
+    if is_admin:
+        return PESQUISA_STATUS_OPTIONS[:]
+
     return [status for status, depto in PESQUISA_STATUS_DEPARTAMENTO_MAP.items() if depto == usuario_departamento]
 
 # Extensões de arquivo permitidas
@@ -79,6 +92,31 @@ ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'jpg', 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def sincronizar_campos_raiz_pesquisa(pesquisa):
+    """
+    Sincroniza os campos raiz de compatibilidade (codigo_produto, nome_produto,
+    quantidade_cotada, valor_concorrente, valor_cooxupe, nome_concorrente, fornecedor)
+    com base nos produtos do relacionamento `produtos_pesquisa`.
+    """
+    from models import ProdutoPesquisa
+    produtos = ProdutoPesquisa.query.filter_by(pesquisa_id=pesquisa.id).all()
+    if produtos:
+        primeiro = produtos[0]
+        pesquisa.codigo_produto = primeiro.codigo_produto or ''
+        pesquisa.nome_produto = primeiro.nome_produto or ''
+        pesquisa.nome_concorrente = primeiro.nome_concorrente or ''
+        pesquisa.fornecedor = primeiro.fornecedor or ''
+        
+        # Totais consolidados
+        pesquisa.quantidade_cotada = sum(p.quantidade_cotada or 0.0 for p in produtos)
+        pesquisa.valor_concorrente = sum(p.valor_concorrente or 0.0 for p in produtos)
+        
+        valores_cooxupe = [p.valor_cooxupe for p in produtos if p.valor_cooxupe is not None]
+        if valores_cooxupe:
+            pesquisa.valor_cooxupe = sum(p.valor_cooxupe or 0.0 for p in produtos if p.valor_cooxupe is not None)
+        else:
+            pesquisa.valor_cooxupe = None
 
 def generate_unique_filename(original_filename):
     """
@@ -257,8 +295,76 @@ def criar_pesquisa():
                     pesquisa.prazo_entrega = None
             
             db.session.add(pesquisa)
+            db.session.flush()  # Obter ID antes de adicionar produtos
+        
+        # Processar múltiplos produtos
+        from models import ProdutoPesquisa
+        
+        # Se é atualização e não é criação, limpar produtos antigos para substituir
+        if pesquisa_id:
+            ProdutoPesquisa.query.filter_by(pesquisa_id=pesquisa.id).delete()
+        
+        # Processar produtos do JSON ou do formulário legado
+        produtos_json = data.get('produtos_json')
+        produtos_data = []
+        
+        if produtos_json and produtos_json != '[]':
+            try:
+                produtos_data = json.loads(produtos_json) if isinstance(produtos_json, str) else produtos_json
+            except (json.JSONDecodeError, TypeError):
+                produtos_data = []
+        
+        # Se não houver produtos_json, tentar compatibilidade com campos legados (um único produto)
+        if not produtos_data:
+            # Verificar se há dados legados de um único produto
+            if data.get('nome_produto') or data.get('codigo_produto'):
+                produtos_data = [{
+                    'codigo_produto': data.get('codigo_produto', ''),
+                    'nome_produto': data.get('nome_produto', ''),
+                    'quantidade_cotada': quantidade_cotada_parsed,
+                    'valor_concorrente': valor_concorrente_parsed,
+                    'valor_cooxupe': valor_cooxupe_parsed,
+                    'fornecedor': data.get('fornecedor', ''),
+                    'nome_concorrente': data.get('nome_concorrente', '')
+                }]
+        
+        # Salvar cada produto
+        def parse_float_produto(val):
+            try:
+                if val is None:
+                    return 0.0
+                if isinstance(val, (int, float)):
+                    return float(val)
+                val_str = str(val).strip().replace('R$', '').replace(' ', '')
+                if val_str.lower() in ('', 'null', 'nan', 'undefined', 'none'):
+                    return 0.0
+                if ',' in val_str:
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                try:
+                    return float(val_str)
+                except ValueError:
+                    val_str = val_str.replace('.', '').replace(',', '.')
+                    return float(val_str)
+            except Exception:
+                return 0.0
+        
+        for produto_data in produtos_data:
+            produto = ProdutoPesquisa(
+                pesquisa_id=pesquisa.id,
+                codigo_produto=produto_data.get('codigo_produto', ''),
+                nome_produto=produto_data.get('nome_produto', ''),
+                quantidade_cotada=parse_float_produto(produto_data.get('quantidade_cotada', 0)),
+                valor_concorrente=parse_float_produto(produto_data.get('valor_concorrente', 0)),
+                valor_cooxupe=parse_float_produto(produto_data.get('valor_cooxupe', 0)) if produto_data.get('valor_cooxupe') else None,
+                fornecedor=produto_data.get('fornecedor', ''),
+                nome_concorrente=produto_data.get('nome_concorrente', '')
+            )
+            db.session.add(produto)
         
         db.session.flush()  # Obter ID da pesquisa antes de adicionar anexos
+        
+        # Sincronizar campos de compatibilidade com a raiz a partir dos produtos
+        sincronizar_campos_raiz_pesquisa(pesquisa)
 
         # Salvar a observação inicial se preenchida
         obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
@@ -370,6 +476,8 @@ def listar_pesquisas(tipo):
 def atualizar_pesquisa(id):
     try:
         pesquisa = PesquisaMercado.query.get_or_404(id)
+        usuario_eh_admin = getattr(current_user, 'is_admin', False)
+
         if pesquisa.status in ['Pesquisa Finalizada', 'Pesquisa Perdida']:
             return jsonify({'error': 'Não é possível editar uma pesquisa finalizada ou perdida.'}), 400
         
@@ -392,7 +500,7 @@ def atualizar_pesquisa(id):
                 break
         
         # Se há edição de campos, validar permissão por departamento
-        if campos_editados and not pode_editar_pesquisa(usuario_depto, pesquisa.status):
+        if campos_editados and not pode_editar_pesquisa(usuario_depto, pesquisa.status, usuario_eh_admin):
             return jsonify({'error': f'Sua permissão não permite editar campos de pesquisas com status "{pesquisa.status}". Este status é de responsabilidade do departamento de "{PESQUISA_STATUS_DEPARTAMENTO_MAP.get(pesquisa.status, "Desconhecido")}". Você pode alterar apenas o status.'}), 403
         
         
@@ -521,6 +629,55 @@ def atualizar_pesquisa(id):
             # Se o valor for vazio mas foi enviado, limpar
             else:
                 pesquisa.prazo_entrega = None
+        
+        # Processar múltiplos produtos (se fornecidos)
+        from models import ProdutoPesquisa
+        produtos_json = data.get('produtos_json')
+        if produtos_json and produtos_json != '[]':
+            try:
+                # Limpar produtos antigos
+                ProdutoPesquisa.query.filter_by(pesquisa_id=pesquisa.id).delete()
+                
+                # Parsear e salvar novos produtos
+                produtos_data = json.loads(produtos_json) if isinstance(produtos_json, str) else produtos_json
+                
+                def parse_float_upd(val):
+                    try:
+                        if val is None:
+                            return 0.0
+                        if isinstance(val, (int, float)):
+                            return float(val)
+                        val_str = str(val).strip().replace('R$', '').replace(' ', '')
+                        if val_str.lower() in ('', 'null', 'nan', 'undefined', 'none'):
+                            return 0.0
+                        if ',' in val_str:
+                            val_str = val_str.replace('.', '').replace(',', '.')
+                        try:
+                            return float(val_str)
+                        except ValueError:
+                            val_str = val_str.replace('.', '').replace(',', '.')
+                            return float(val_str)
+                    except Exception:
+                        return 0.0
+                
+                for produto_data in produtos_data:
+                    produto = ProdutoPesquisa(
+                        pesquisa_id=pesquisa.id,
+                        codigo_produto=produto_data.get('codigo_produto', ''),
+                        nome_produto=produto_data.get('nome_produto', ''),
+                        quantidade_cotada=parse_float_upd(produto_data.get('quantidade_cotada', 0)),
+                        valor_concorrente=parse_float_upd(produto_data.get('valor_concorrente', 0)),
+                        valor_cooxupe=parse_float_upd(produto_data.get('valor_cooxupe', 0)) if produto_data.get('valor_cooxupe') else None,
+                        fornecedor=produto_data.get('fornecedor', ''),
+                        nome_concorrente=produto_data.get('nome_concorrente', '')
+                    )
+                    db.session.add(produto)
+                
+                db.session.flush()
+                sincronizar_campos_raiz_pesquisa(pesquisa)
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                # Se houver erro no parsing de produtos, apenas continuar sem atualizar produtos
+                print(f"Aviso: Erro ao processar produtos JSON: {e}")
         
         # Atualizar status
         novo_status = data.get('status')
@@ -680,12 +837,15 @@ def editar_pesquisa(id):
     
     # Obter departamento do usuário
     usuario_depto = getattr(current_user, 'departamento', 'N/A')
-    
-    # Verificar se é modo somente leitura (pesquisas finalizadas/perdidas)
-    readonly = request.args.get('readonly', '0') == '1'
+    usuario_eh_admin = getattr(current_user, 'is_admin', False)
     
     # Verificar se pode editar CAMPOS
-    pode_editar = pode_editar_pesquisa(usuario_depto, pesquisa.status)
+    pode_editar = pode_editar_pesquisa(usuario_depto, pesquisa.status, usuario_eh_admin)
+    
+    # Verificar se é modo somente leitura (pesquisas finalizadas/perdidas ou sem permissão)
+    readonly = request.args.get('readonly', '0') == '1'
+    if pesquisa.status in ['Pesquisa Finalizada', 'Pesquisa Perdida'] or not pode_editar:
+        readonly = True
     
     return render_template('pesquisa_form.html', pesquisa=pesquisa, status_options=PESQUISA_STATUS_OPTIONS,
                           pode_editar=pode_editar, usuario_depto=usuario_depto, readonly=readonly)
@@ -755,6 +915,7 @@ def excluir_anexo(id):
     try:
         anexo = Anexo.query.get_or_404(id)
         usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        usuario_eh_admin = getattr(current_user, 'is_admin', False)
         
         # Verificar se o anexo pertence a uma cotação ou pesquisa
         if anexo.cotacao_id:
@@ -762,14 +923,14 @@ def excluir_anexo(id):
             if not cotacao:
                 return jsonify({'error': 'Cotação não encontrada'}), 404
             # Verificar se o usuário tem permissão para editar essa cotação
-            if not pode_editar_cotacao(usuario_depto, cotacao.status):
+            if not pode_editar_cotacao(usuario_depto, cotacao.status, usuario_eh_admin):
                 return jsonify({'error': 'Você não tem permissão para editar esta cotação'}), 403
         elif anexo.pesquisa_id:
             pesquisa = PesquisaMercado.query.get(anexo.pesquisa_id)
             if not pesquisa:
                 return jsonify({'error': 'Pesquisa não encontrada'}), 404
             # Verificar se o usuário tem permissão para editar essa pesquisa
-            if not pode_editar_pesquisa(usuario_depto, pesquisa.status):
+            if not pode_editar_pesquisa(usuario_depto, pesquisa.status, usuario_eh_admin):
                 return jsonify({'error': 'Você não tem permissão para editar esta pesquisa'}), 403
         
         # Remover arquivo físico se existir
@@ -794,9 +955,10 @@ def get_permissoes_pesquisa(id):
     try:
         pesquisa = PesquisaMercado.query.get_or_404(id)
         usuario_depto = getattr(current_user, 'departamento', 'N/A')
+        usuario_eh_admin = getattr(current_user, 'is_admin', False)
         
         # Verificar se pode editar CAMPOS (não é sobre status)
-        pode_editar_campos = pode_editar_pesquisa(usuario_depto, pesquisa.status)
+        pode_editar_campos = pode_editar_pesquisa(usuario_depto, pesquisa.status, usuario_eh_admin)
         status_depto_pesquisa = PESQUISA_STATUS_DEPARTAMENTO_MAP.get(pesquisa.status, 'Desconhecido')
         
         return jsonify({

@@ -58,7 +58,7 @@ def enviar_email(destinatarios, assunto, corpo_html):
     
     Credenciais são obtidas de variáveis de ambiente por segurança.
     """
-    if EMAILS_DESATIVADOS or os.environ.get('DESATIVAR_EMAILS', '').lower() in ['true', 'yes', '1']:
+    if EMAILS_DESATIVADOS or os.environ.get('EMAILS_DESATIVADOS', '').lower() in ['true', 'yes', '1']:
         logger.info(f'Envio de e-mail desativado. Destinatários: {destinatarios} | Assunto: {assunto}')
         return True
 
@@ -82,7 +82,9 @@ def enviar_email(destinatarios, assunto, corpo_html):
         logger.debug(f'Conectando ao servidor SMTP: {smtp_server}:{smtp_port}')
         with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
             server.set_debuglevel(0)
+            server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(usuario, senha)
             server.sendmail(usuario, destinatarios if isinstance(destinatarios, list) else [destinatarios], msg.as_string())
         logger.info(f'E-mail enviado com sucesso para: {destinatarios}')
@@ -91,24 +93,27 @@ def enviar_email(destinatarios, assunto, corpo_html):
         logger.error(f'Erro de autenticação SMTP: {e}')
         return False
     except smtplib.SMTPConnectError as e:
-        print(f'[EMAIL] Erro de conexão SMTP: {e}')
+        logger.error(f'Erro de conexão SMTP: {e}')
         return False
     except smtplib.SMTPException as e:
-        print(f'[EMAIL] Erro SMTP: {e}')
+        logger.error(f'Erro SMTP: {e}')
         return False
     except Exception as e:
-        print(f'[EMAIL] Erro geral ao enviar e-mail: {e}')
+        logger.error(f'Erro geral ao enviar e-mail: {e}')
         return False
 
 def enviar_notificacao_mudanca_status(cotacao):
-    """Envia e-mail de notificação quando há mudança de status na cotação"""
-    if EMAILS_DESATIVADOS or os.environ.get('DESATIVAR_EMAILS', '').lower() in ['true', 'yes', '1']:
-        print(f'[EMAIL] [DESATIVADO] Notificação desativada. Cotação #{cotacao.id} -> Novo Status: {cotacao.status}')
+    """Envia e-mail de notificação quando há mudança de status na cotação.
+    
+    Reutiliza a função enviar_email() com variáveis de ambiente para maior segurança.
+    """
+    if EMAILS_DESATIVADOS or os.environ.get('EMAILS_DESATIVADOS', '').lower() in ['true', 'yes', '1']:
+        logger.info(f'Notificação de status desativada. Cotação #{cotacao.id} -> Status: {cotacao.status}')
         return True
 
     try:
-        # Determinar destinatário baseado no status
-        destinatario = obter_email_por_status(cotacao.status)
+        # Determinar destinatários baseado no status
+        destinatarios = obter_email_por_status(cotacao.status)
         
         # Obter informações de produto
         nome_produto = '-'
@@ -117,9 +122,10 @@ def enviar_notificacao_mudanca_status(cotacao):
             nome_produto = cotacao.produtos[0].nome_produto or '-'
             volume = cotacao.produtos[0].volume or '-'
         
-        msg = MIMEText(f"""
+        # Construir corpo do e-mail
+        corpo_html = f"""
         <html>
-        <body>
+        <body style="font-family: Arial, sans-serif;">
         <h2>Mudança de Status - Cotação #{cotacao.id}</h2>
         
         <p>A cotação teve seu status alterado.</p>
@@ -129,32 +135,28 @@ def enviar_notificacao_mudanca_status(cotacao):
             <li><strong>Cooperado:</strong> {cotacao.nome_cooperado}</li>
             <li><strong>Produto:</strong> {nome_produto}</li>
             <li><strong>Volume:</strong> {volume}</li>
-            <li><strong>Novo Status:</strong> {cotacao.status}</li>
+            <li><strong>Novo Status:</strong> <span style="color: #0066cc;"><strong>{cotacao.status}</strong></span></li>
             <li><strong>Data da mudança:</strong> {cotacao.data_ultima_modificacao.strftime('%d/%m/%Y %H:%M') if cotacao.data_ultima_modificacao else 'N/A'}</li>
         </ul>
         
-        <p>Acesse o sistema para mais detalhes.</p>
+        <p>Acesse o sistema para mais detalhes sobre esta cotação.</p>
         </body>
         </html>
-        """, 'html')
+        """
         
-        msg['Subject'] = f'Mudança de Status - Cotação #{cotacao.id}'
-        msg['From'] = 'joseduque@cooxupe.com.br'
-        msg['To'] = destinatario
-
-        smtp_server = 'mail.cooxupe.com.br'
-        smtp_port = 465
-        usuario = 'joseduque@cooxupe.com.br'
-        senha = 'Tricolor*01'
-
-        try:
-            with smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=5) as server:
-                server.login(usuario, senha)
-                server.sendmail(usuario, [destinatario], msg.as_string())
-            print(f'E-mail de notificação enviado para: {destinatario}')
-        except Exception as e:
-            print('Erro ao enviar e-mail:', e)
-        return True
+        # Usar enviar_email() para garantir consistência e segurança
+        resultado = enviar_email(
+            destinatarios=destinatarios,
+            assunto=f'Mudança de Status - Cotação #{cotacao.id}',
+            corpo_html=corpo_html
+        )
+        
+        if resultado:
+            logger.info(f'Notificação de status enviada para Cotação #{cotacao.id}')
+        else:
+            logger.warning(f'Falha ao enviar notificação para Cotação #{cotacao.id}')
+            
+        return resultado
     except Exception as e:
-        print(f"Erro ao enviar e-mail: {str(e)}")
+        logger.error(f'Erro ao processar notificação de status para Cotação: {str(e)}')
         return False

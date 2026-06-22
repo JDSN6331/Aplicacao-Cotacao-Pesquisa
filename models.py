@@ -168,6 +168,33 @@ class ProdutoCotacao(db.Model):
         }
 
 
+class ProdutoPesquisa(db.Model):
+    """Modelo para armazenar múltiplos produtos em uma pesquisa de mercado"""
+    __tablename__ = 'produtos_pesquisa'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    pesquisa_id = db.Column(db.Integer, db.ForeignKey('pesquisas_mercado.id'), nullable=False)
+    codigo_produto = db.Column(db.String(100), nullable=True)
+    nome_produto = db.Column(db.String(100), nullable=False)
+    quantidade_cotada = db.Column(db.Float, nullable=False)
+    valor_concorrente = db.Column(db.Float, nullable=False)
+    valor_cooxupe = db.Column(db.Float, nullable=True)
+    fornecedor = db.Column(db.String(100), nullable=True)
+    nome_concorrente = db.Column(db.String(100), nullable=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'codigo_produto': self.codigo_produto,
+            'nome_produto': self.nome_produto,
+            'quantidade_cotada': self.quantidade_cotada,
+            'valor_concorrente': self.valor_concorrente,
+            'valor_cooxupe': self.valor_cooxupe,
+            'fornecedor': self.fornecedor,
+            'nome_concorrente': self.nome_concorrente
+        }
+
+
 class PesquisaMercado(db.Model):
     __tablename__ = 'pesquisas_mercado'
     
@@ -198,6 +225,8 @@ class PesquisaMercado(db.Model):
     fornecedor = db.Column(db.String(100), nullable=True)
     # Controle: indica se já foi gerada uma cotação a partir desta pesquisa
     cotacao_gerada = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
+    # Relacionamento com produtos (múltiplos)
+    produtos = db.relationship('ProdutoPesquisa', backref='pesquisa', lazy=True, cascade='all, delete-orphan')
     # Relacionamento com anexos
     anexos = db.relationship('Anexo', backref='pesquisa', lazy=True, cascade='all, delete-orphan')
     
@@ -245,9 +274,10 @@ class PesquisaMercado(db.Model):
             'observacoes': self.observacoes,
             'status': self.status,
             'dias_no_status': dias_no_status,
-            'data_entrada_status': self.data_entrada_status.strftime('%Y-%m-%d %H:%M:%S'),
+            'data_entrada_status': self.data_entrada_status.strftime('%d/%m/%Y %H:%M'),
             'data_ultima_modificacao': self.data_ultima_modificacao.strftime('%d/%m/%Y'),
             'anexos': [anexo.to_dict() for anexo in self.anexos],
+            'produtos': [produto.to_dict() for produto in self.produtos],
             # Campos adicionais para pesquisa
             'cultura': self.cultura,
             'nome_vendedor': self.nome_vendedor,
@@ -284,7 +314,7 @@ class HistoricoStatus(db.Model):
             'pesquisa_id': self.pesquisa_id,
             'status_anterior': self.status_anterior,
             'status_novo': self.status_novo,
-            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M:%S'),
+            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M'),
             'usuario': self.usuario,
             'departamento': self.departamento,
             'observacao': self.observacao
@@ -322,7 +352,7 @@ class HistoricoEdicaoCampo(db.Model):
             'campo_label': self.campo_label,
             'valor_anterior': self.valor_anterior,
             'valor_novo': self.valor_novo,
-            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M:%S'),
+            'data_mudanca': self.data_mudanca.strftime('%d/%m/%Y %H:%M'),
             'usuario': self.usuario,
             'departamento': self.departamento
         }
@@ -354,8 +384,8 @@ class Observacao(db.Model):
             'texto': self.texto,
             'usuario': self.usuario,
             'departamento': self.departamento,
-            'data_criacao': self.data_criacao.strftime('%d/%m/%Y %H:%M:%S'),
-            'data_edicao': self.data_edicao.strftime('%d/%m/%Y %H:%M:%S') if self.data_edicao else None,
+            'data_criacao': self.data_criacao.strftime('%d/%m/%Y %H:%M'),
+            'data_edicao': self.data_edicao.strftime('%d/%m/%Y %H:%M') if self.data_edicao else None,
             'origem': self.origem
         }
 

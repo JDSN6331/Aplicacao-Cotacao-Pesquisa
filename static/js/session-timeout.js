@@ -246,10 +246,13 @@ class SessionTimeoutManager {
         this.destroy();
         
         // Fazer logout via API
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        
         fetch('/api/session/logout', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             credentials: 'include'
         })
@@ -271,10 +274,14 @@ class SessionTimeoutManager {
      * Resiliente a erros - não quebra a aplicação se falhar
      */
     extendSession() {
+        // Obter CSRF token do meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        
         fetch('/api/session/extend', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
             },
             credentials: 'include'
         })
@@ -318,8 +325,11 @@ class SessionTimeoutManager {
     }
 }
 
-// Inicializar ao carregar o DOM
-document.addEventListener('DOMContentLoaded', () => {
+/**
+ * Função para inicializar o gerenciador de timeout
+ * Chamada seja o DOM já esteja pronto ou ainda carregando
+ */
+function initSessionManager() {
     // Suprimir aviso de aria-hidden do navegador para modais Bootstrap
     // Isso evita conflitos com SweetAlert
     const hideAriaWarnings = () => {
@@ -349,4 +359,26 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Guardar referência global para debug
     window.sessionManager = sessionManager;
-});
+    
+    console.log('[SessionTimeout] ✅ Gerenciador inicializado com sucesso');
+}
+
+/**
+ * FIX: Verifica se o DOM já foi carregado (DOMContentLoaded já disparado)
+ * Como o script é carregado no final do HTML (antes de </body>),
+ * o evento DOMContentLoaded já foi disparado quando este script é executado.
+ * 
+ * Solução: Usar document.readyState para verificar o estado do DOM:
+ * - 'loading': DOM ainda sendo parseado
+ * - 'interactive': DOM pronto, scripts ainda executando
+ * - 'complete': Tudo carregado (imagens, estilos, etc)
+ */
+if (document.readyState === 'loading') {
+    // DOM ainda está carregando, registrar listener
+    console.log('[SessionTimeout] ⏳ Aguardando DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', initSessionManager);
+} else {
+    // DOM já foi carregado (é o caso quando script está no final do HTML)
+    console.log('[SessionTimeout] ✓ DOM já pronto, inicializando diretamente...');
+    initSessionManager();
+}

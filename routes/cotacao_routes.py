@@ -109,12 +109,18 @@ def get_cotacoes():
     if tipo == 'andamento':
         # Inclui todos os status intermediários (não finalizados)
         # Retorna apenas as não finalizadas/não perdidas (ou seja, não estão em "Cotação Finalizada" ou "Cotação Perdida")
-        cotacoes = Cotacao.query.filter(Cotacao.status.notin_(['Cotação Finalizada', 'Cotação Perdida'])).all()
+        cotacoes = Cotacao.query.filter(
+            Cotacao.status.notin_(['Cotação Finalizada', 'Cotação Perdida'])
+        ).order_by(Cotacao.data_ultima_modificacao.desc()).all()
     elif tipo == 'finalizadas':
         # Retorna apenas "Cotação Finalizada"
-        cotacoes = Cotacao.query.filter(Cotacao.status.in_(['Cotação Finalizada'])).all()
+        cotacoes = Cotacao.query.filter(
+            Cotacao.status.in_(['Cotação Finalizada'])
+        ).order_by(Cotacao.data_ultima_modificacao.desc()).all()
     elif tipo == 'perdidas':
-        cotacoes = Cotacao.query.filter(Cotacao.status == 'Cotação Perdida').all()
+        cotacoes = Cotacao.query.filter(
+            Cotacao.status == 'Cotação Perdida'
+        ).order_by(Cotacao.data_ultima_modificacao.desc()).all()
     else:
         cotacoes = []
     return jsonify([cotacao.to_dict() for cotacao in cotacoes])

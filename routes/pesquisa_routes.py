@@ -456,11 +456,13 @@ def listar_pesquisas(tipo):
     try:
         if tipo in ['abertas', 'pesquisa']:
             # Exibe pesquisas em andamento (criação e análise)
-            pesquisas = PesquisaMercado.query.filter(PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])).all()
+            pesquisas = PesquisaMercado.query.filter(
+                PesquisaMercado.status.notin_(['Pesquisa Finalizada', 'Pesquisa Perdida'])
+            ).order_by(PesquisaMercado.data_ultima_modificacao.desc()).all()
         elif tipo == 'finalizadas':
-            pesquisas = PesquisaMercado.query.filter_by(status='Pesquisa Finalizada').all()
+            pesquisas = PesquisaMercado.query.filter_by(status='Pesquisa Finalizada').order_by(PesquisaMercado.data_ultima_modificacao.desc()).all()
         elif tipo == 'perdidas':
-            pesquisas = PesquisaMercado.query.filter_by(status='Pesquisa Perdida').all()
+            pesquisas = PesquisaMercado.query.filter_by(status='Pesquisa Perdida').order_by(PesquisaMercado.data_ultima_modificacao.desc()).all()
         else:
             return jsonify([])
         for pesquisa in pesquisas:

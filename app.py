@@ -105,6 +105,7 @@ app.register_blueprint(admin_routes)
 # Importar e registrar session_routes após os outros blueprints
 from routes.session_routes import session_routes
 app.register_blueprint(session_routes)
+csrf.exempt(session_routes)
 
 # Tratamento global de erros
 @app.errorhandler(400)

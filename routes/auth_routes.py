@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, make_response
+from flask import Blueprint, render_template, redirect, url_for, flash, request, make_response, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User
 from flask import current_app
@@ -26,6 +26,11 @@ def login():
         next_page = request.args.get('next')
         return redirect(next_page or url_for('routes.index'))
         
+    # Forçar a geração de um novo token CSRF e garantir o salvamento da sessão
+    from flask_wtf.csrf import generate_csrf
+    generate_csrf()
+    session.modified = True
+    
     # Impedir que o navegador cacheie a página de login com token CSRF antigo/expirado
     response = make_response(render_template('login.html'))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'

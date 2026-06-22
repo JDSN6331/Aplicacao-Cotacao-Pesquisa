@@ -1,5 +1,5 @@
 Pesquisa (ID 5):
-matricula_cooperado do DB = ''
-nome_cooperado do DB = ''
+matricula_cooperado do DB = '645484'
+nome_cooperado do DB = 'Ana Maria Veroneze Beira e Outro(s)'
 Prefilled montado:
-{'nome_filial': '315:Unidade Avançada São Sebastião do Paraiso', 'numero_mesorregiao': 'REGIONAL - Rafael Lasaro Moreira da Silva', 'matricula_cooperado': '', 'nome_cooperado': '', 'analista_comercial': 'Rafael Lasaro Moreira da Silva', 'comprador': 'Juliana', 'observacoes': '', 'forma_pagamento': 'À Vista', 'prazo_entrega': '2026-06-26', 'cultura': '', 'nome_vendedor': 'José', 'motivo_venda_perdida': ''}
+{'nome_filial': 'L25:Loja Espirito Santo do Pinhal', 'numero_mesorregiao': 'REGIONAL - Joaquim Luiz dos Santos Neto', 'matricula_cooperado': '645484', 'nome_cooperado': 'Ana Maria Veroneze Beira e Outro(s)', 'analista_comercial': 'Joaquim Luiz dos Santos Neto', 'comprador': '', 'observacoes': '', 'forma_pagamento': '27/07/2026', 'prazo_entrega': '', 'cultura': 'Soja', 'nome_vendedor': 'Gabriel Lucateli', 'motivo_venda_perdida': ''}

@@ -1092,16 +1092,19 @@
                 const nome = String(item.nome_cooperado || '').toLowerCase();
                 const matricula = String(item.matricula_cooperado || '').toLowerCase();
 
+                // Sanitizar a query para busca por ID: remover prefixos "ct-" ou "pm-" se seguidos de número
+                const queryId = /^(ct|pm)-?\d/i.test(query) ? query.replace(/^(ct|pm)-?/i, '') : query;
+
                 switch (searchTypeValue) {
                     case 'id':
-                        return id.includes(query);
+                        return id.includes(queryId);
                     case 'matricula':
                         return matricula.includes(query);
                     case 'nome':
                         return nome.includes(query);
                     case 'todos':
                     default:
-                        return id.includes(query) || nome.includes(query) || matricula.includes(query);
+                        return id.includes(queryId) || nome.includes(query) || matricula.includes(query);
                 }
             });
         }
@@ -1282,7 +1285,7 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="#" onclick="excluirCotacao(${id})"><i class="fas fa-trash"></i> Excluir</a></li>` : '';
 
-        if (tipo === 'finalizadas' && !IS_ADMIN) {
+        if (tipo === 'finalizadas') {
             // Cotações Finalizadas: Exportar, Ir para Vendas, e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
@@ -1424,7 +1427,7 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="#" onclick="excluirPesquisa(${id})"><i class="fas fa-trash"></i> Excluir</a></li>` : '';
 
-        if (status === 'finalizadas' && !IS_ADMIN) {
+        if (status === 'finalizadas') {
             // Pesquisas Finalizadas: Exportar, Ir para Vendas, e Excluir (admin)
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">

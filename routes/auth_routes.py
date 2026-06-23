@@ -22,6 +22,9 @@ def login():
             flash('Usuário ou senha inválidos.', 'error')
             return redirect(url_for('auth.login'))
         
+        # Limpar qualquer mensagem de erro/timeout pendente antes de ir para o painel
+        session.pop('_flashes', None)
+        
         login_user(user, remember=remember)
         next_page = request.args.get('next')
         return redirect(next_page or url_for('routes.index'))

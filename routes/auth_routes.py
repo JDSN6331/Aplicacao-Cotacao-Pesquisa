@@ -30,6 +30,7 @@ def login():
     # Limpar a sessão antiga (mantendo mensagens flash) para descartar tokens expirados
     flashes = session.get('_flashes', [])
     session.clear()
+    session.permanent = True  # Garantir cookie persistente com expiração explícita de 30 min
     if flashes:
         session['_flashes'] = flashes
 

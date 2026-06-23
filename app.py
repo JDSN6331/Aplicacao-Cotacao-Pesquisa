@@ -137,7 +137,20 @@ def internal_error(error):
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
     logger.warning(f'CSRF error: {e.description}')
-    return jsonify({'error': 'Erro de validação CSRF'}), 400
+    
+    from flask import request, redirect, url_for, flash
+    import time
+    
+    # Se for uma API ou requisição AJAX, retornar JSON
+    if request.path.startswith('/api/') or \
+       request.is_json or \
+       request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+       request.headers.get('Accept') == 'application/json':
+        return jsonify({'error': 'Erro de validação CSRF'}), 400
+        
+    # Se for uma submissão de formulário HTML (como a tela de login)
+    flash('Sua sessão expirou ou ocorreu um erro de segurança. Por favor, tente novamente.', 'error')
+    return redirect(url_for('auth.login', t=int(time.time())))
 
 # Inicializar banco de dados
 with app.app_context():

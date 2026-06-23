@@ -68,6 +68,17 @@ def session_timeout_handler():
     # Se usuário está autenticado
     try:
         if current_user.is_authenticated:
+            # Limpar qualquer mensagem de timeout/CSRF residual se o usuário já se autenticou com sucesso
+            flashes = session.get('_flashes', [])
+            if flashes:
+                filtrados = [f for f in flashes if 'Sua sessão expirou' not in f[1]]
+                if len(filtrados) != len(flashes):
+                    if filtrados:
+                        session['_flashes'] = filtrados
+                    else:
+                        session.pop('_flashes', None)
+                    session.modified = True
+
             # Verificar se a sessão foi marcada como permanente
             if not session.get('permanent', False):
                 session.permanent = True

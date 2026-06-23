@@ -27,6 +27,12 @@ def login():
         return redirect(next_page or url_for('routes.index'))
         
     # Forçar a geração de um novo token CSRF e garantir o salvamento da sessão
+    # Limpar a sessão antiga (mantendo mensagens flash) para descartar tokens expirados
+    flashes = session.get('_flashes', [])
+    session.clear()
+    if flashes:
+        session['_flashes'] = flashes
+
     from flask_wtf.csrf import generate_csrf
     generate_csrf()
     session.modified = True

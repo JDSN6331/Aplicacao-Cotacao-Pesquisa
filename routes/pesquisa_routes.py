@@ -9,8 +9,7 @@ import pytz
 from werkzeug.utils import secure_filename
 import json
 import traceback
-import threading
-from services.email_service import enviar_email, obter_email_por_status
+from services.email_service import disparar_email_em_background, preparar_email_resumo_registro
 import uuid
 import time
 
@@ -422,27 +421,16 @@ def criar_pesquisa():
         
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # Capturar valores antes de iniciar a thread para evitar erro de contexto
-        email_status = pesquisa.status
-        email_nome_cooperado = pesquisa.nome_cooperado
-        email_pesquisa_id = pesquisa.id
-        email_is_new = not pesquisa_id
-        
-        def enviar_email_background(status, nome_cooperado, pid, is_new):
-            try:
-                destinatario = obter_email_por_status(status)
-                destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                enviar_email(
-                    destinatarios=destinatarios,
-                    assunto='Nova Pesquisa Criada' if is_new else 'Pesquisa Atualizada',
-                    corpo_html=f'<p>Uma pesquisa foi {"criada" if is_new else "atualizada"} para o cooperado {nome_cooperado} (PM-{pid}). Status: {status}.</p>'
-                )
-            except Exception as e:
-                print('Erro ao enviar e-mail automático:', e)
-        
-        # Executar envio de e-mail em thread separada
-        threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_pesquisa_id, email_is_new), daemon=True).start()
+        payload_email = preparar_email_resumo_registro(
+            pesquisa,
+            acao='criada' if not pesquisa_id else 'atualizada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de {"criação" if not pesquisa_id else "atualização"} da pesquisa PM-{pesquisa.id}',
+            daemon=True
+        )
         
         return jsonify({'id': pesquisa.id})
     except Exception as e:
@@ -776,28 +764,16 @@ def atualizar_pesquisa(id):
         
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # APENAS SE HOUVER MUDANÇA REAL DE STATUS
-        if status_anterior != novo_status:
-            # Capturar valores antes de iniciar a thread para evitar erro de contexto
-            email_status = pesquisa.status
-            email_nome_cooperado = pesquisa.nome_cooperado
-            email_pesquisa_id = pesquisa.id
-            
-            def enviar_email_background(status, nome_cooperado, pid):
-                try:
-                    destinatario = obter_email_por_status(status)
-                    destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                    enviar_email(
-                        destinatarios=destinatarios,
-                        assunto='Pesquisa Atualizada - Novo Status',
-                        corpo_html=f'<p>A pesquisa PM-{pid} do cooperado {nome_cooperado} teve seu status alterado para: {status}.</p>'
-                    )
-                except Exception as e:
-                    print('Erro ao enviar e-mail automático:', e)
-            
-            # Executar envio de e-mail em thread separada
-            threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_pesquisa_id), daemon=True).start()
+        payload_email = preparar_email_resumo_registro(
+            pesquisa,
+            acao='atualizada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de atualização da pesquisa PM-{pesquisa.id}',
+            daemon=True
+        )
         
         return jsonify(pesquisa.to_dict())
     except Exception as e:

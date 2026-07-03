@@ -389,7 +389,16 @@ def gerar_pdf_cotacao_ou_pesquisa(objeto, filename=None):
     pdf.set_font('Arial', '', 8)
     prazo_str = objeto.prazo_entrega.strftime('%d/%m/%Y') if objeto.prazo_entrega else '-'
     pdf.cell(220, 6, limpar_texto_pdf(prazo_str), border=1)
-    pdf.ln(10)
+    pdf.ln(6)
+
+    if 'Perdida' in (objeto.status or '') and objeto.motivo_venda_perdida:
+        pdf.set_font('Arial', 'B', 8)
+        pdf.cell(0, 6, limpar_texto_pdf("Motivo da Perda:"), ln=True)
+        pdf.set_font('Arial', '', 8)
+        pdf.multi_cell(265, 5, limpar_texto_pdf(objeto.motivo_venda_perdida), border=1)
+        pdf.ln(4)
+    else:
+        pdf.ln(6)
     
     # ---- OBSERVAÇÕES E HISTÓRICO ----
     tem_obs = (objeto.observacoes and objeto.observacoes.strip())
@@ -615,7 +624,16 @@ def gerar_pdf_multiplo(objetos, filename=None):
         pdf.set_font('Arial', '', 8)
         prazo_str = objeto.prazo_entrega.strftime('%d/%m/%Y') if objeto.prazo_entrega else '-'
         pdf.cell(220, 6, limpar_texto_pdf(prazo_str), border=1)
-        pdf.ln(10)
+        pdf.ln(6)
+
+        if 'Perdida' in (objeto.status or '') and objeto.motivo_venda_perdida:
+            pdf.set_font('Arial', 'B', 8)
+            pdf.cell(0, 6, limpar_texto_pdf("Motivo da Perda:"), ln=True)
+            pdf.set_font('Arial', '', 8)
+            pdf.multi_cell(265, 5, limpar_texto_pdf(objeto.motivo_venda_perdida), border=1)
+            pdf.ln(4)
+        else:
+            pdf.ln(6)
         
         # ---- OBSERVAÇÕES E HISTÓRICO ----
         tem_obs = (objeto.observacoes and objeto.observacoes.strip())
@@ -663,4 +681,3 @@ def gerar_pdf_multiplo(objetos, filename=None):
     pdf.output(filepath)
     
     return filepath
-

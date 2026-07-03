@@ -19,6 +19,7 @@ from routes import routes, cotacao_routes, pesquisa_routes, admin_routes
 from routes.auth_routes import auth_routes
 from logging_config import setup_logging
 from datetime import timedelta
+from services.email_service import inicializar_scheduler_resumo_pendencias
 
 # Criar a aplicação Flask
 app = Flask(__name__)
@@ -216,6 +217,8 @@ with app.app_context():
     except Exception as e:
         db.session.rollback()
         print(f"⚠️ Erro ao executar migração de pesquisas legadas: {e}")
+
+inicializar_scheduler_resumo_pendencias(app)
 
 @app.route('/debug-env')
 def debug_env():

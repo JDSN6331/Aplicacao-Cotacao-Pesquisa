@@ -9,8 +9,7 @@ import pytz
 from werkzeug.utils import secure_filename
 import json
 import traceback
-import threading
-from services.email_service import enviar_email, obter_email_por_status
+from services.email_service import disparar_email_em_background, preparar_email_resumo_registro
 from urllib.parse import unquote
 import sys
 import uuid
@@ -504,54 +503,16 @@ def criar_cotacao():
 
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # Capturar valores antes de iniciar a thread para evitar erro de contexto
-        email_status = cotacao.status
-        email_nome_cooperado = cotacao.nome_cooperado
-        email_cotacao_id = cotacao.id
-        
-        def enviar_email_background(status, nome_cooperado, cid):
-            import time
-            tentativas = 0
-            max_tentativas = 3
-            
-            while tentativas < max_tentativas:
-                try:
-                    print(f'\n[EMAIL] Iniciando envio para nova cotação (ID {cid}) - Tentativa {tentativas + 1}/{max_tentativas}')
-                    destinatario = obter_email_por_status(status)
-                    destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                    print(f'[EMAIL] Destinatários: {destinatarios}')
-                    
-                    resultado = enviar_email(
-                        destinatarios=destinatarios,
-                        assunto='Nova Cotação Criada',
-                        corpo_html=f'<p>Uma nova cotação foi criada para o cooperado <strong>{nome_cooperado}</strong> (CT-{cid}). Status: <strong>{status}</strong>.</p>'
-                    )
-                    
-                    if resultado:
-                        print(f'[EMAIL] ✅ E-mail enviado com sucesso para cotação ID {cid}')
-                        break
-                    else:
-                        print(f'[EMAIL] ❌ Falha ao enviar e-mail (enviar_email retornou False)')
-                        tentativas += 1
-                        if tentativas < max_tentativas:
-                            time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-                except Exception as e:
-                    print(f'[EMAIL] ❌ ERRO ao enviar e-mail (Tentativa {tentativas + 1}/{max_tentativas}): {str(e)}')
-                    print(f'[EMAIL] Tipo de erro: {type(e).__name__}')
-                    import traceback
-                    traceback.print_exc()
-                    tentativas += 1
-                    if tentativas < max_tentativas:
-                        time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-            
-            if tentativas >= max_tentativas:
-                print(f'[EMAIL] ❌ FALHA FINAL: Não foi possível enviar e-mail após {max_tentativas} tentativas para cotação ID {cid}')
-        
-        # Executar envio de e-mail em thread separada (não-daemon para permitir conclusão)
-        thread_email = threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_cotacao_id), daemon=False)
-        thread_email.start()
-        print(f'[THREAD] Thread de e-mail iniciada para cotação ID {email_cotacao_id}')
+        payload_email = preparar_email_resumo_registro(
+            cotacao,
+            acao='criada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de criação da cotação CT-{cotacao.id}',
+            daemon=False
+        )
         
         return jsonify({'success': True, 'message': 'Cotação criada com sucesso!'})
     except Exception as e:
@@ -838,56 +799,16 @@ def atualizar_cotacao(id):
         
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # APENAS SE HOUVER MUDANÇA REAL DE STATUS
-        if status_anterior != novo_status:
-            # Capturar valores antes de iniciar a thread para evitar erro de contexto
-            email_status = cotacao.status
-            email_nome_cooperado = cotacao.nome_cooperado
-            email_cotacao_id = cotacao.id
-            
-            def enviar_email_background(status, nome_cooperado, cid):
-                import time
-                tentativas = 0
-                max_tentativas = 3
-                
-                while tentativas < max_tentativas:
-                    try:
-                        print(f'\n[EMAIL] Iniciando envio para status "{status}" - Tentativa {tentativas + 1}/{max_tentativas}')
-                        destinatario = obter_email_por_status(status)
-                        destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                        print(f'[EMAIL] Destinatários: {destinatarios}')
-                        
-                        resultado = enviar_email(
-                            destinatarios=destinatarios,
-                            assunto='Cotação Atualizada - Novo Status',
-                            corpo_html=f'<p>A cotação CT-{cid} do cooperado {nome_cooperado} teve seu status alterado para: <strong>{status}</strong>.</p>'
-                        )
-                        
-                        if resultado:
-                            print(f'[EMAIL] ✅ E-mail enviado com sucesso para cotação ID {cid}')
-                            break
-                        else:
-                            print(f'[EMAIL] ❌ Falha ao enviar e-mail (enviar_email retornou False)')
-                            tentativas += 1
-                            if tentativas < max_tentativas:
-                                time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-                    except Exception as e:
-                        print(f'[EMAIL] ❌ ERRO ao enviar e-mail (Tentativa {tentativas + 1}/{max_tentativas}): {str(e)}')
-                        print(f'[EMAIL] Tipo de erro: {type(e).__name__}')
-                        import traceback
-                        traceback.print_exc()
-                        tentativas += 1
-                        if tentativas < max_tentativas:
-                            time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-                
-                if tentativas >= max_tentativas:
-                    print(f'[EMAIL] ❌ FALHA FINAL: Não foi possível enviar e-mail após {max_tentativas} tentativas para cotação ID {cid}')
-            
-            # Executar envio de e-mail em thread separada (não-daemon para permitir conclusão)
-            thread_email = threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_cotacao_id), daemon=False)
-            thread_email.start()
-            print(f'[THREAD] Thread de e-mail iniciada para cotação ID {email_cotacao_id}')
+        payload_email = preparar_email_resumo_registro(
+            cotacao,
+            acao='atualizada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de atualização da cotação CT-{cotacao.id}',
+            daemon=False
+        )
         
         return jsonify({'success': True, 'message': 'Cotação atualizada com sucesso!'})
     except Exception as e:

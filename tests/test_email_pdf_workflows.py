@@ -104,11 +104,7 @@ def test_montar_resumo_pendencias_html_lista_apenas_cotacoes():
         data_referencia=datetime(2026, 7, 1, 7, 0)
     )
 
-<<<<<<< HEAD
     assert 'Resumo Diário' in html
-=======
-    assert 'Resumo Diário de Pendências' in html
->>>>>>> origin/main
     assert 'CT-123' in html
     assert 'Análise Comercial' in html
     assert 'Pesquisas em aberto' not in html

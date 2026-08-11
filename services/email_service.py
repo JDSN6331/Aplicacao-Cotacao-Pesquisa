@@ -365,6 +365,7 @@ def _montar_linhas_pendencias(itens, is_pesquisa):
 
     return ''.join(linhas)
 
+<<<<<<< HEAD
 def montar_resumo_pendencias_html(cotacoes, data_referencia=None, taxa_sucesso=None):
     data_referencia = data_referencia or datetime.now(TZ_SP)
     
@@ -532,10 +533,25 @@ def montar_resumo_pendencias_html(cotacoes, data_referencia=None, taxa_sucesso=N
         <p style="margin: 0;"><strong>Sistema de Cotações Cooxupé</strong></p>
         <p style="margin: 5px 0 0 0;">Relatório gerado em: {footer_time}</p>
     </div>
+=======
+def montar_resumo_pendencias_html(cotacoes, data_referencia=None):
+    data_referencia = data_referencia or datetime.now(TZ_SP)
+    cabecalho = """
+    <tr style="background-color: #2e7d32; color: white;">
+        <th style="padding: 6px; border: 1px solid #2e7d32;">ID</th>
+        <th style="padding: 6px; border: 1px solid #2e7d32;">Cooperado</th>
+        <th style="padding: 6px; border: 1px solid #2e7d32;">Filial</th>
+        <th style="padding: 6px; border: 1px solid #2e7d32;">Produto</th>
+        <th style="padding: 6px; border: 1px solid #2e7d32;">Status</th>
+        <th style="padding: 6px; border: 1px solid #2e7d32;">Dias</th>
+        <th style="padding: 6px; border: 1px solid #2e7d32;">Última Modificação</th>
+    </tr>
+>>>>>>> origin/main
     """
 
     return f"""
     <html>
+<<<<<<< HEAD
     <body style="font-family: Arial, sans-serif; color: #222; max-width: 800px; margin: 0 auto; padding: 20px;">
         <div style="border-bottom: 3px solid #2e7d32; padding-bottom: 10px; margin-bottom: 20px;">
             <h2 style="color: #2e7d32; margin: 0; font-size: 24px;">Resumo Diário de Cotações</h2>
@@ -551,6 +567,20 @@ def montar_resumo_pendencias_html(cotacoes, data_referencia=None, taxa_sucesso=N
         {grouped_sections}
         
         {footer}
+=======
+    <body style="font-family: Arial, sans-serif; color: #222;">
+        <h2 style="color: #2e7d32;">Resumo Diário de Pendências</h2>
+        <p>Data de referência: <strong>{_formatar_data(data_referencia)}</strong></p>
+        <p>
+            <strong>Total de cotações pendentes:</strong> {len(cotacoes)}
+        </p>
+
+        <h3>Cotações em aberto</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px;">
+            {cabecalho}
+            {_montar_linhas_pendencias(cotacoes, is_pesquisa=False)}
+        </table>
+>>>>>>> origin/main
     </body>
     </html>
     """
@@ -666,6 +696,7 @@ def enviar_resumo_pendencias_diario(cotacoes, data_referencia=None, destinatario
         contexto='resumo diário de pendências'
     )
 
+<<<<<<< HEAD
 def enviar_resumo_pendencias_teste(destinatario):
     """Envia o relatório diário de pendências como teste para um destinatário específico."""
     data_referencia = datetime.now(TZ_SP)
@@ -680,6 +711,8 @@ def enviar_resumo_pendencias_teste(destinatario):
         contexto='teste de resumo diário'
     )
 
+=======
+>>>>>>> origin/main
 def _horario_agendado_atingido(agora):
     hora = int(os.environ.get('EMAIL_PENDING_DIGEST_HOUR', 7))
     minuto = int(os.environ.get('EMAIL_PENDING_DIGEST_MINUTE', 0))

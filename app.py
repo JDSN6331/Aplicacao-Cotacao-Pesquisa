@@ -20,7 +20,10 @@ from routes.auth_routes import auth_routes
 from logging_config import setup_logging
 from datetime import timedelta
 from services.email_service import inicializar_scheduler_resumo_pendencias
+<<<<<<< HEAD
 from services.backup_service import inicializar_scheduler_backup
+=======
+>>>>>>> origin/main
 
 # Criar a aplicação Flask
 app = Flask(__name__)
@@ -219,6 +222,7 @@ with app.app_context():
         db.session.rollback()
         print(f"⚠️ Erro ao executar migração de pesquisas legadas: {e}")
 
+<<<<<<< HEAD
     # Migração e Sincronização de Motivos de Perda Legados
     try:
         from models import Cotacao, PesquisaMercado, Observacao, HistoricoEdicaoCampo, HistoricoStatus
@@ -345,6 +349,9 @@ with app.app_context():
 
 inicializar_scheduler_resumo_pendencias(app)
 inicializar_scheduler_backup(app)
+=======
+inicializar_scheduler_resumo_pendencias(app)
+>>>>>>> origin/main
 
 @app.route('/debug-env')
 def debug_env():

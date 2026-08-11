@@ -569,6 +569,7 @@ def comparar_e_registrar_edicoes_produtos(produtos_antigos, produtos_novos, cota
                         historicos.append(historico)
     
     return historicos
+<<<<<<< HEAD
 
 
 def cadastrar_cooperado_excel(matricula, nome):
@@ -623,3 +624,5 @@ def cadastrar_produto_excel(codigo, nome, fornecedor):
     
     # Invalida cache
     _cache['produtos'] = None
+=======
+>>>>>>> origin/main

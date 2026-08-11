@@ -1543,7 +1543,7 @@ a.btn-outline-primary:active {
 /* Dark Mode Overrides for Modals and Bootstrap Utilities */
 [data-theme="dark"] .modal-content {
     background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
+    border: none !important;
     color: var(--text-primary);
 }
 
@@ -1717,6 +1717,14 @@ input[readonly] {
     color: rgba(255, 255, 255, 0.9);
 }
 
+.overview-card.active .card-sublabel {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.overview-card.active .card-sublabel i {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
 /* ===== CARDS DE CONTEÚDO ===== */
 .content-section {
     margin-top: var(--space-xl);
@@ -1772,6 +1780,11 @@ input[readonly] {
 .content-title i {
     color: var(--primary);
     font-size: 1.25rem;
+}
+
+.content-title .badge i {
+    color: inherit !important;
+    font-size: inherit !important;
 }
 
 .content-description {
@@ -1951,84 +1964,81 @@ input[readonly] {
 }
 
 /* Larguras das colunas otimizadas para caber sem scroll */
+/* 1. Seleção (Checkbox) */
 .table thead th:nth-child(1),
 .table tbody td:nth-child(1) {
     width: 3%;
     min-width: 35px;
 }
 
-/* Checkbox */
+/* 2. ID (c/ badges de Vínculo/Revisão) */
 .table thead th:nth-child(2),
 .table tbody td:nth-child(2) {
-    width: 5%;
-    min-width: 40px;
+    width: 10%;
+    min-width: 110px;
 }
 
-/* ID */
+/* 3. Data */
 .table thead th:nth-child(3),
 .table tbody td:nth-child(3) {
-    width: 9%;
-    min-width: 80px;
+    width: 8%;
+    min-width: 85px;
 }
 
-/* Data */
+/* 4. Filial */
 .table thead th:nth-child(4),
 .table tbody td:nth-child(4) {
-    width: 12%;
+    width: 14%;
+    min-width: 120px;
 }
 
-/* Filial */
+/* 5. Matrícula */
 .table thead th:nth-child(5),
 .table tbody td:nth-child(5) {
-    width: 9%;
+    width: 8%;
     min-width: 75px;
 }
 
-/* Matrícula */
+/* 6. Cooperado */
 .table thead th:nth-child(6),
 .table tbody td:nth-child(6) {
     width: 18%;
+    min-width: 150px;
 }
 
-/* Cooperado */
+/* 7. Valor Total */
 .table thead th:nth-child(7),
 .table tbody td:nth-child(7) {
     width: 11%;
-    min-width: 90px;
-}
-
-/* Valor Total */
-.table thead th:nth-child(8),
-.table tbody td:nth-child(8) {
-    width: 13%;
     min-width: 100px;
 }
 
-/* Status */
+/* 8. Status */
+.table thead th:nth-child(8),
+.table tbody td:nth-child(8) {
+    width: 12%;
+    min-width: 120px;
+}
+
+/* 9. Tempo */
 .table thead th:nth-child(9),
 .table tbody td:nth-child(9) {
-    width: 6%;
+    width: 5%;
     min-width: 45px;
 }
 
-/* Tempo */
+/* 10. Últ. Modif. */
 .table thead th:nth-child(10),
 .table tbody td:nth-child(10) {
-    width: 9%;
-    min-width: 80px;
+    width: 8%;
+    min-width: 85px;
 }
 
-/* Últ. Modif. */
-.table thead th:nth-child(11),
-.table tbody td:nth-child(11) {
-    width: 6%;
-    min-width: 55px;
-}
-
-/* Ações - não quebrar texto */
+/* 11. Ações - não quebrar texto */
 .table thead th:last-child,
 .table tbody td:last-child {
     white-space: nowrap;
+    width: 5%;
     min-width: 55px;
 }
 
@@ -2305,9 +2315,10 @@ footer p {
 .modal-content {
     background: var(--bg-card);
     backdrop-filter: blur(20px);
-    border: 1px solid var(--border-glass);
+    border: none !important;
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    overflow: hidden !important;
 }
 
 .modal-header {
@@ -3574,4 +3585,14 @@ footer p {
 .observacao-edit-textarea {
     min-height: 80px;
     width: 100%;
+}
+
+/* Custom timeline styles for lost reasons history */
+.observacao-timeline-perda {
+    border-left-color: rgba(220, 53, 69, 0.3) !important;
+}
+
+.observacao-card-perda::before {
+    background: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25) !important;
 }

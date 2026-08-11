@@ -8,14 +8,17 @@
         <div class="content-card active">
             <div class="content-header">
                 <div class="content-header-top">
-                    <div class="content-title">
+                    <div class="content-title d-flex align-items-center gap-2">
                         <i class="fas fa-users-cog"></i>
-                        <h3>Gerenciamento de Usuários</h3>
+                        <h3 class="mb-0">Gerenciamento de Usuários</h3>
+                        <span class="badge bg-info text-white ms-2" style="font-size: 0.85rem; font-weight: 600;">
+                            <i class="fas fa-users me-1" style="color: #ffffff !important; font-size: 0.85rem;"></i> {{ users|length }} usuário{{ 's' if users|length != 1 else '' }}
+                        </span>
                     </div>
                     <div class="content-status">
-                        <span class="badge bg-info text-white">
-                            <i class="fas fa-users me-1"></i> {{ users|length }} usuário{{ 's' if users|length != 1 else '' }}
-                        </span>
+                        <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm" onclick="abrirModalNovoUsuario()">
+                            <i class="fas fa-user-plus me-1"></i> Novo Usuário
+                        </button>
                     </div>
                 </div>
             </div>
@@ -26,9 +29,10 @@
                             <tr>
                                 <th style="width: 50px;">ID</th>
                                 <th style="width: 25%;">Nome</th>
-                                <th style="width: 30%;">E-mail</th>
-                                <th style="width: 130px;">Departamento</th>
-                                <th style="width: 130px;">Tipo</th>
+                                <th style="width: 25%;">E-mail</th>
+                                <th style="width: 120px;">Departamento</th>
+                                <th style="width: 110px;">Perfil</th>
+                                <th style="width: 120px;">Status</th>
                                 <th style="width: 70px;">Ações</th>
                             </tr>
                         </thead>
@@ -55,6 +59,17 @@
                                     {% endif %}
                                 </td>
                                 <td>
+                                    {% if user.is_active %}
+                                    <span class="badge bg-success text-white">
+                                        <i class="fas fa-check-circle me-1"></i>Ativo
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-clock me-1"></i>Pendente
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <div class="dropdown">
                                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
                                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -64,15 +79,23 @@
                                             <li>
                                                 <a class="dropdown-item" href="#"
                                                     onclick='abrirModalEditar({{ user.id }}, {{ user.name|tojson }}, {{ user.email|tojson }}, {{ (user.departamento or "Comercial")|tojson }}, {{ user.is_admin|tojson }})'>
-                                                    <i class="fas fa-edit"></i> Editar
+                                                    <i class="fas fa-edit me-1"></i> Editar
                                                 </a>
                                             </li>
+                                            {% if not user.is_active %}
+                                            <li>
+                                                <a class="dropdown-item text-primary" href="#"
+                                                    onclick='reenviarConviteUsuario({{ user.id }}, {{ user.name|tojson }})'>
+                                                    <i class="fas fa-paper-plane me-1"></i> Reenviar Convite
+                                                </a>
+                                            </li>
+                                            {% endif %}
                                             {% if current_user.get_id()|string != user.id|string %}
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 <a class="dropdown-item text-danger" href="#"
                                                     onclick='confirmarExclusaoUsuario({{ user.id }}, {{ user.name|tojson }})'>
-                                                    <i class="fas fa-trash"></i> Excluir
+                                                    <i class="fas fa-trash me-1"></i> Excluir
                                                 </a>
                                             </li>
                                             {% endif %}
@@ -84,6 +107,58 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cadastro de Novo Usuário -->
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border: none !important; overflow: hidden !important;">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="createUserModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>Cadastrar Novo Usuário
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    <i class="fas fa-info-circle me-1"></i> O usuário receberá um convite por e-mail contendo um link para ativar sua conta e definir sua senha de acesso.
+                </p>
+                <div class="mb-3">
+                    <label for="createUserName" class="form-label fw-bold">Nome Completo <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="createUserName" placeholder="Ex: João da Silva">
+                </div>
+                <div class="mb-3">
+                    <label for="createUserEmail" class="form-label fw-bold">E-mail Institucional (@cooxupe.com.br) <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="createUserEmail" placeholder="nome@cooxupe.com.br">
+                </div>
+                <div class="mb-3">
+                    <label for="createUserDepartamento" class="form-label fw-bold">Departamento <span class="text-danger">*</span></label>
+                    <select class="form-select" id="createUserDepartamento">
+                        <option value="Comercial" selected>Comercial</option>
+                        <option value="Suprimentos">Suprimentos</option>
+                        <option value="Loja">Loja</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="createUserIsAdmin">
+                        <label class="form-check-label" for="createUserIsAdmin">
+                            <i class="fas fa-crown me-1"></i>Perfil Administrador
+                        </label>
+                        <small class="d-block text-muted mt-1">
+                            Administradores têm acesso a todas as funcionalidades gerenciais e relatórios
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success fw-bold" onclick="cadastrarUsuario()">
+                    <i class="fas fa-paper-plane me-1"></i> Cadastrar e Enviar Convite
+                </button>
             </div>
         </div>
     </div>
@@ -217,6 +292,99 @@
             $dropdown.removeAttr('data-drop-id');
         }
     });
+    function abrirModalNovoUsuario() {
+        document.getElementById('createUserName').value = '';
+        document.getElementById('createUserEmail').value = '';
+        document.getElementById('createUserDepartamento').value = 'Comercial';
+        document.getElementById('createUserIsAdmin').checked = false;
+        new bootstrap.Modal(document.getElementById('createUserModal')).show();
+    }
+
+    function cadastrarUsuario() {
+        const name = document.getElementById('createUserName').value.trim();
+        const email = document.getElementById('createUserEmail').value.trim();
+        const departamento = document.getElementById('createUserDepartamento').value;
+        const is_admin = document.getElementById('createUserIsAdmin').checked;
+
+        if (!name || !email) {
+            Swal.fire('Atenção', 'Nome e e-mail são obrigatórios.', 'warning');
+            return;
+        }
+
+        if (!email.toLowerCase().endsWith('@cooxupe.com.br')) {
+            Swal.fire('Atenção', 'Apenas e-mails do domínio @cooxupe.com.br são permitidos.', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Cadastrando Usuário',
+            text: 'Enviando e-mail de convite...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ name, email, departamento, is_admin })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+                Swal.fire({
+                    title: 'Sucesso!',
+                    text: data.message,
+                    icon: 'success'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Erro', data.error || 'Erro ao cadastrar usuário.', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Erro:', err);
+            Swal.fire('Erro', 'Erro de conexão ao salvar usuário.', 'error');
+        });
+    }
+
+    function reenviarConviteUsuario(id, name) {
+        if (!confirm(`Deseja reenviar o e-mail de ativação de conta para ${name}?`)) {
+            return;
+        }
+
+        Swal.fire({
+            title: 'Reenviando Convite',
+            text: 'Enviando e-mail...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        fetch(`/api/admin/users/${id}/resend-activation`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire('Sucesso!', data.message, 'success');
+            } else {
+                Swal.fire('Erro', data.error || 'Erro ao reenviar convite.', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Erro:', err);
+            Swal.fire('Erro', 'Erro ao processar solicitação.', 'error');
+        });
+    }
+
     function abrirModalEditar(id, name, email, departamento, isAdmin) {
         document.getElementById('editUserId').value = id;
         document.getElementById('editUserName').value = name;

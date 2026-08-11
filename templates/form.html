@@ -284,8 +284,22 @@
                     <span class="badge status-liberado">{{ status }}</span>
                     {% elif status == 'Cotação Perdida' %}
                     <span class="badge status-perdida">{{ status }}</span>
+                    {% if pode_revisar %}
+                    <button type="button" class="btn btn-warning btn-sm ms-2" onclick="revisarCotacaoForm({{ cotacao.id }})">
+                        <i class="fas fa-rotate"></i> Revisar Cotação
+                    </button>
+                    {% if dias_restantes_revisao is defined and dias_restantes_revisao is not none %}
+                    <small class="text-muted ms-2">({{ dias_restantes_revisao }} dias restantes para revisão)</small>
+                    {% endif %}
+                    {% endif %}
                     {% else %}
                     <span class="badge status-criacao">{{ status }}</span>
+                    {% endif %}
+                    
+                    {% if cotacao.versao is defined and cotacao.versao > 1 %}
+                    <span class="badge text-decoration-none text-white ms-1" style="background: linear-gradient(135deg, #E65100 0%, #BF360C 100%);" title="Revisão V{{ cotacao.versao }}">
+                        <i class="fas fa-rotate"></i> Versão {{ cotacao.versao }}
+                    </span>
                     {% endif %}
                     {% else %}
                     <strong>Fase atual:</strong>
@@ -529,8 +543,18 @@
                                 <!-- Timeline de Observações Existentes -->
                                 <div class="observacoes-container">
                                     <div class="observacao-timeline" id="observacoesTimeline">
+                                        {% set user_obs = [] %}
                                         {% if cotacao and cotacao.observacoes_lista %}
-                                            {% for obs in cotacao.observacoes_lista %}
+                                            {% set user_obs = cotacao.observacoes_lista | selectattr('origem', 'equalto', 'cotacao') | list %}
+                                        {% endif %}
+                                        
+                                        {% set p_obs = [] %}
+                                        {% if pesquisa_observacoes is defined and pesquisa_observacoes %}
+                                            {% set p_obs = pesquisa_observacoes | selectattr('origem', 'equalto', 'pesquisa') | list %}
+                                        {% endif %}
+                                        
+                                        {% if user_obs %}
+                                            {% for obs in user_obs | sort(attribute='data_criacao', reverse=true) %}
                                             <div class="observacao-card" id="obs-card-{{ obs.id }}">
                                                 <div class="observacao-header">
                                                     <div class="observacao-meta">
@@ -548,8 +572,8 @@
                                                 <div class="observacao-texto" id="obs-texto-{{ obs.id }}">{{ obs.texto }}</div>
                                             </div>
                                             {% endfor %}
-                                        {% elif pesquisa_observacoes is defined and pesquisa_observacoes %}
-                                            {% for obs in pesquisa_observacoes %}
+                                        {% elif p_obs %}
+                                            {% for obs in p_obs %}
                                             <div class="observacao-card">
                                                 <div class="observacao-header">
                                                     <div class="observacao-meta">
@@ -896,8 +920,51 @@
                                 <label for="motivo_venda_perdida" class="form-label">Motivo da Cotação Perdida <span
                                         class="text-danger">*</span></label>
                                 <textarea class="form-control" id="motivo_venda_perdida" name="motivo_venda_perdida"
-                                    rows="2">{{ cotacao.motivo_venda_perdida if cotacao else (prefilled.motivo_venda_perdida if prefilled else '') }}</textarea>
+                                    rows="2">{{ cotacao.motivo_venda_perdida if cotacao and cotacao.status == 'Cotação Perdida' else (prefilled.motivo_venda_perdida if prefilled else '') }}</textarea>
                             </div>
+                            
+                            {% if cotacao %}
+                                {% set historico_motivos = cotacao.observacoes_lista | selectattr('origem', 'equalto', 'motivo_perda') | list if cotacao.observacoes_lista else [] %}
+                                {% set tem_motivo_perda = historico_motivos | length > 0 %}
+                                {% set mostrar_motivo_sintetico = cotacao.motivo_venda_perdida and not tem_motivo_perda %}
+                                
+                                {% if historico_motivos or mostrar_motivo_sintetico %}
+                                <div class="mt-4 mb-3">
+                                    <label class="form-label text-muted small fw-bold"><i class="fas fa-history me-1"></i> Histórico de Motivos de Perda Anteriores</label>
+                                    <div class="observacoes-container mt-1">
+                                        <div class="observacao-timeline observacao-timeline-perda" id="motivosPerdaTimeline">
+                                            {% if mostrar_motivo_sintetico %}
+                                            <div class="observacao-card observacao-card-perda mb-3" style="border-left-color: #dc3545;">
+                                                <div class="observacao-header">
+                                                    <div class="observacao-meta">
+                                                        <span class="observacao-autor text-danger"><i class="fas fa-ban me-1"></i>Motivo da Perda</span>
+                                                        <span class="observacao-autor ms-2"><i class="fas fa-user me-1 text-muted"></i>{{ cotacao.comprador or 'Sistema' }}</span>
+                                                        <span class="observacao-depto" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">{{ 'Suprimentos' if cotacao.comprador else 'Sistema' }}</span>
+                                                        <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ cotacao.data_entrada_status.strftime('%d/%m/%Y %H:%M') if cotacao.data_entrada_status else '' }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="observacao-texto">{{ cotacao.motivo_venda_perdida }}</div>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% for m in historico_motivos | sort(attribute='data_criacao', reverse=true) %}
+                                            <div class="observacao-card observacao-card-perda mb-3" style="border-left-color: #dc3545;">
+                                                <div class="observacao-header">
+                                                    <div class="observacao-meta">
+                                                        <span class="observacao-autor text-danger"><i class="fas fa-ban me-1"></i>{{ m.texto.split(':')[0] if ':' in m.texto else 'Registro' }}</span>
+                                                        <span class="observacao-autor ms-2"><i class="fas fa-user me-1 text-muted"></i>{{ m.usuario }}</span>
+                                                        <span class="observacao-depto" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">{{ m.departamento }}</span>
+                                                        <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ m.data_criacao.strftime('%d/%m/%Y %H:%M') }}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="observacao-texto">{{ m.texto.split(':', 1)[1].strip() if ':' in m.texto else m.texto }}</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -958,11 +1025,53 @@
     window.podeEditarCampos = {{ 'true' if pode_editar is not defined or pode_editar else 'false' }};
     window.usuarioDepto = '{{ usuario_depto if usuario_depto is defined else 'N/A' }}';
     window.modoReadonly = {{ 'true' if readonly is defined and readonly else 'false' }};
+    window.cotacaoVersao = {{ cotacao.versao if (cotacao and cotacao.versao is defined) else 1 }};
     console.log('Permissões de campos:', {
         pode_editar_campos: window.podeEditarCampos,
         usuario_depto: window.usuarioDepto,
-        modo_readonly: window.modoReadonly
+        modo_readonly: window.modoReadonly,
+        cotacao_versao: window.cotacaoVersao
     });
+
+    function revisarCotacaoForm(id) {
+        Swal.fire({
+            title: 'Revisar Cotação?',
+            text: `Esta cotação voltará para o status "Análise Comercial" e sua versão será incrementada para que você possa editá-la. Deseja prosseguir?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#ff9800',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, revisar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/api/cotacao/${id}/revisar`,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: 'Sucesso!',
+                                text: response.message,
+                                icon: 'success'
+                            }).then(() => {
+                                // Redirecionar para a página sem ?readonly=1 para que abra editável
+                                window.location.href = `/cotacao/${id}`;
+                            });
+                        } else {
+                            Swal.fire('Erro!', response.error || 'Não foi possível revisar a cotação.', 'error');
+                        }
+                    },
+                    error: function (xhr) {
+                        Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao revisar a cotação.', 'error');
+                    }
+                });
+            }
+        });
+    }
 </script>
 
 <script src="{{ url_for('static', filename='js/cotacao.js') }}?v=19"></script>

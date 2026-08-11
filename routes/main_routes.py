@@ -308,3 +308,92 @@ def get_historico(tipo, id):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@main_routes.route('/api/cooperados/cadastrar', methods=['POST'])
+@login_required
+def cadastrar_cooperado():
+    data = request.get_json() or request.form
+    if not data:
+        return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
+        
+    matricula = data.get('matricula')
+    nome = data.get('nome')
+    
+    if not matricula or not nome:
+        return jsonify({'success': False, 'error': 'Matrícula e nome são obrigatórios'}), 400
+        
+    matricula = str(matricula).strip()
+    nome = str(nome).strip()
+    
+    if not matricula or not nome:
+        return jsonify({'success': False, 'error': 'Matrícula e nome não podem ser vazios'}), 400
+
+    # Validação: matrícula não duplicada
+    from services.utils import carregar_contas_cache
+    df, error = carregar_contas_cache()
+    if error:
+        return jsonify({'success': False, 'error': f'Erro ao carregar dados: {error}'}), 500
+        
+    if df is not None and not df.empty:
+        # Verificar se a matrícula já existe
+        if matricula in df['Matricula'].astype(str).values:
+            return jsonify({'success': False, 'error': 'Matrícula já cadastrada'}), 400
+            
+    # Chamar a função em utils para salvar no Excel e invalidar o cache
+    from services.utils import cadastrar_cooperado_excel
+    try:
+        cadastrar_cooperado_excel(matricula, nome)
+        return jsonify({
+            'success': True,
+            'matricula': matricula,
+            'nome': nome
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@main_routes.route('/api/produtos/cadastrar', methods=['POST'])
+@login_required
+def cadastrar_produto():
+    data = request.get_json() or request.form
+    if not data:
+        return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
+        
+    codigo = data.get('codigo')
+    nome = data.get('nome')
+    fornecedor = data.get('fornecedor', '')
+    
+    if not codigo or not nome:
+        return jsonify({'success': False, 'error': 'Código e nome são obrigatórios'}), 400
+        
+    codigo = str(codigo).strip()
+    nome = str(nome).strip()
+    fornecedor = str(fornecedor).strip() if fornecedor else ''
+    
+    if not codigo or not nome:
+        return jsonify({'success': False, 'error': 'Código e nome não podem ser vazios'}), 400
+
+    # Validação: código não duplicado
+    from services.utils import carregar_produtos_cache
+    df, error = carregar_produtos_cache()
+    if error:
+        return jsonify({'success': False, 'error': f'Erro ao carregar dados: {error}'}), 500
+        
+    if df is not None and not df.empty:
+        # Verificar se o código já existe
+        if codigo in df['Código do produto'].astype(str).values:
+            return jsonify({'success': False, 'error': 'Código do produto já cadastrado'}), 400
+            
+    # Chamar a função em utils para salvar no Excel e invalidar o cache
+    from services.utils import cadastrar_produto_excel
+    try:
+        cadastrar_produto_excel(codigo, nome, fornecedor)
+        return jsonify({
+            'success': True,
+            'codigo': codigo,
+            'nome': nome,
+            'fornecedor': fornecedor
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

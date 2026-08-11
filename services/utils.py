@@ -306,13 +306,16 @@ def registrar_edicao_campo(cotacao_id=None, pesquisa_id=None, campo_nome=None, c
         if str(valor_anterior) == str(valor_novo):
             return None
         
+        # Garantir que valor_novo nunca seja None (devido à restrição NOT NULL no banco)
+        val_novo_str = str(valor_novo) if (valor_novo is not None and str(valor_novo).strip() != '') else '(Vazio)'
+
         historico = HistoricoEdicaoCampo(
             cotacao_id=cotacao_id,
             pesquisa_id=pesquisa_id,
             campo_nome=campo_nome,
             campo_label=campo_label,
             valor_anterior=str(valor_anterior) if valor_anterior is not None else None,
-            valor_novo=str(valor_novo) if valor_novo is not None else None,
+            valor_novo=val_novo_str,
             usuario=usuario,
             departamento=departamento
         )
@@ -557,8 +560,8 @@ def comparar_e_registrar_edicoes_produtos(produtos_antigos, produtos_novos, cota
                         pesquisa_id=pesquisa_id,
                         campo_nome=f'produto_{idx}_{campo_nome}',
                         campo_label=f'Produto {idx + 1} ({nome_produto}) - {campo_label}',
-                        valor_anterior=valor_antigo_exib if valor_antigo_exib else None,
-                        valor_novo=valor_novo_exib if valor_novo_exib else None,
+                        valor_anterior=valor_antigo_exib if valor_antigo_exib else '(Vazio)',
+                        valor_novo=valor_novo_exib if valor_novo_exib else '(Vazio)',
                         usuario=usuario,
                         departamento=departamento
                     )
@@ -566,3 +569,57 @@ def comparar_e_registrar_edicoes_produtos(produtos_antigos, produtos_novos, cota
                         historicos.append(historico)
     
     return historicos
+
+
+def cadastrar_cooperado_excel(matricula, nome):
+    """
+    Cadastra um cooperado no arquivo Contas.xlsx e limpa o cache.
+    """
+    global _cache
+    import openpyxl
+    
+    # Calcular o caminho relativo à pasta do projeto
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    contas_path = os.path.join(base_dir, 'data', 'Contas.xlsx')
+    
+    if not os.path.exists(contas_path):
+        raise FileNotFoundError("Arquivo Contas.xlsx não encontrado")
+        
+    wb = openpyxl.load_workbook(contas_path)
+    ws = wb.active
+    
+    # Adicionar nova linha com Matrícula (col A) e Nome da conta (col B)
+    ws.append([matricula, nome])
+    
+    # Salvar o arquivo
+    wb.save(contas_path)
+    
+    # Invalida cache
+    _cache['contas'] = None
+
+
+def cadastrar_produto_excel(codigo, nome, fornecedor):
+    """
+    Cadastra um produto no arquivo Produtos.xlsx e limpa o cache.
+    """
+    global _cache
+    import openpyxl
+    
+    # Calcular o caminho relativo à pasta do projeto
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    produtos_path = os.path.join(base_dir, 'data', 'Produtos.xlsx')
+    
+    if not os.path.exists(produtos_path):
+        raise FileNotFoundError("Arquivo Produtos.xlsx não encontrado")
+        
+    wb = openpyxl.load_workbook(produtos_path)
+    ws = wb.active
+    
+    # Adicionar nova linha com Código do produto (col A), Nome do produto (col B), Nome do fornecedor (col C)
+    ws.append([codigo, nome, fornecedor])
+    
+    # Salvar o arquivo
+    wb.save(produtos_path)
+    
+    # Invalida cache
+    _cache['produtos'] = None

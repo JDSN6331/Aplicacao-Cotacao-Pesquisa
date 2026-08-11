@@ -14,6 +14,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Mapeamento de meses em português para evitar dependência de locale do sistema
+MESES_PT_BR = {
+    1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
+    7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'
+}
+
 admin_routes = Blueprint('admin', __name__)
 
 
@@ -119,7 +125,7 @@ def painel_dados():
             m += 12
             y -= 1
         d = hoje.replace(year=y, month=m, day=1)
-        meses.append({'mes': m, 'ano': y, 'label': d.strftime('%b/%y')})
+        meses.append({'mes': m, 'ano': y, 'label': f"{MESES_PT_BR[m]}/{d.strftime('%y')}"})
 
     cotacoes_por_mes = []
     for m in meses:
@@ -178,6 +184,27 @@ def painel_dados():
     ).filter(Cotacao.nome_vendedor != None, Cotacao.nome_vendedor != '').group_by(Cotacao.nome_vendedor).order_by(func.count(Cotacao.id).desc()).first()
     usuario_ativo = usuario_ativo_c[0] if usuario_ativo_c else '-'
     usuario_ativo_count = usuario_ativo_c[1] if usuario_ativo_c else 0
+
+    # 1.3 Produtividade por usuário (cotações criadas e seus status)
+    from sqlalchemy.orm import joinedload
+    cotacoes_all = Cotacao.query.options(joinedload(Cotacao.historico_status)).all()
+    
+    # Obter os analistas regionais (Comercial, não admin)
+    analistas_regionais = User.query.filter(User.departamento == 'Comercial', User.is_admin == False).all()
+    analistas_nomes = [u.name for u in analistas_regionais]
+    
+    produtividade_data = {
+        'analistas': analistas_nomes,
+        'cotacoes': [
+            {
+                'id': cot.id,
+                'status': cot.status,
+                'data': cot.data.strftime('%Y-%m-%d') if cot.data else None,
+                'criado_por': next((h.usuario for h in cot.historico_status if h.status_anterior is None), None) or cot.nome_vendedor or 'Sem Criador'
+            }
+            for cot in cotacoes_all
+        ]
+    }
 
     # ── ANÁLISES ADICIONAIS ───────────────────────────────────────────────────
     # 1.1 Tempo médio por status (Cotações)
@@ -241,33 +268,70 @@ def painel_dados():
         tempo_medio_pesquisas.append({'status': st, 'media_dias': media})
     tempo_medio_pesquisas.sort(key=lambda x: x['media_dias'], reverse=True)
 
-    # 2. Cotações e Pesquisas por Loja
+    # 2. Cotações e Pesquisas por Loja (Top 10 independentes para Cotações e Pesquisas)
     lojas_c = db.session.query(Cotacao.nome_filial, func.count(Cotacao.id)).group_by(Cotacao.nome_filial).all()
     lojas_p = db.session.query(PesquisaMercado.nome_filial, func.count(PesquisaMercado.id)).group_by(PesquisaMercado.nome_filial).all()
     
-    lojas_map = {}
+    lojas_c_map = {}
     for filial, total in lojas_c:
-        lojas_map[filial] = {'loja': filial, 'cotacoes': total, 'pesquisas': 0}
-    for filial, total in lojas_p:
-        if filial not in lojas_map:
-            lojas_map[filial] = {'loja': filial, 'cotacoes': 0, 'pesquisas': 0}
-        lojas_map[filial]['pesquisas'] = total
-        
-    por_loja = list(lojas_map.values())
-    por_loja.sort(key=lambda x: (x['cotacoes'] + x['pesquisas']), reverse=True)
-    por_loja = por_loja[:10] # Top 10 lojas
+        nome_filial = filial.strip() if (filial and filial.strip()) else 'Não Informada'
+        if nome_filial not in lojas_c_map:
+            lojas_c_map[nome_filial] = {'loja': nome_filial, 'cotacoes': 0, 'pesquisas': 0}
+        lojas_c_map[nome_filial]['cotacoes'] += total
 
-    # 3. Cotações e Pesquisas por Regional
+    lojas_p_map = {}
+    for filial, total in lojas_p:
+        nome_filial = filial.strip() if (filial and filial.strip()) else 'Não Informada'
+        if nome_filial not in lojas_p_map:
+            lojas_p_map[nome_filial] = {'loja': nome_filial, 'cotacoes': 0, 'pesquisas': 0}
+        lojas_p_map[nome_filial]['pesquisas'] += total
+        
+    por_loja_cotacoes = sorted(list(lojas_c_map.values()), key=lambda x: x['cotacoes'], reverse=True)[:10]
+    por_loja_pesquisas = sorted(list(lojas_p_map.values()), key=lambda x: x['pesquisas'], reverse=True)[:10]
+    
+    # Manter por_loja para retrocompatibilidade
+    lojas_all_map = {}
+    for item in list(lojas_c_map.values()) + list(lojas_p_map.values()):
+        lj = item['loja']
+        if lj not in lojas_all_map:
+            lojas_all_map[lj] = {'loja': lj, 'cotacoes': 0, 'pesquisas': 0}
+        lojas_all_map[lj]['cotacoes'] += item['cotacoes']
+        lojas_all_map[lj]['pesquisas'] += item['pesquisas']
+    por_loja = sorted(list(lojas_all_map.values()), key=lambda x: (x['cotacoes'] + x['pesquisas']), reverse=True)[:10]
+
+    # 3. Cotações e Pesquisas por Regional (com normalização de variações de nomes)
+    def normalizar_regional(r_str):
+        if not r_str or not str(r_str).strip():
+            return 'Não Informada'
+        r_clean = str(r_str).strip()
+        r_lower = r_clean.lower()
+        if 'ana c' in r_lower or 'ana cassia' in r_lower or 'ana cássia' in r_lower:
+            return 'REGIONAL - Ana Cassia Moreira Reis'
+        elif 'rafael' in r_lower:
+            return 'REGIONAL - Rafael Lasaro Moreira da Silva'
+        elif 'leiliele' in r_lower:
+            return 'REGIONAL - Leiliele Cristina Terra Santos'
+        elif 'joaquim' in r_lower:
+            return 'REGIONAL - Joaquim Luiz dos Santos Neto'
+        elif 'thalles' in r_lower:
+            return 'REGIONAL - Thalles da Silva Rodrigues'
+        return r_clean
+
     reg_c = db.session.query(Cotacao.numero_mesorregiao, func.count(Cotacao.id)).group_by(Cotacao.numero_mesorregiao).all()
     reg_p = db.session.query(PesquisaMercado.numero_mesorregiao, func.count(PesquisaMercado.id)).group_by(PesquisaMercado.numero_mesorregiao).all()
     
     reg_map = {}
     for r, total in reg_c:
-        reg_map[r] = {'regional': r, 'cotacoes': total, 'pesquisas': 0}
+        r_norm = normalizar_regional(r)
+        if r_norm not in reg_map:
+            reg_map[r_norm] = {'regional': r_norm, 'cotacoes': 0, 'pesquisas': 0}
+        reg_map[r_norm]['cotacoes'] += total
+
     for r, total in reg_p:
-        if r not in reg_map:
-            reg_map[r] = {'regional': r, 'cotacoes': 0, 'pesquisas': 0}
-        reg_map[r]['pesquisas'] = total
+        r_norm = normalizar_regional(r)
+        if r_norm not in reg_map:
+            reg_map[r_norm] = {'regional': r_norm, 'cotacoes': 0, 'pesquisas': 0}
+        reg_map[r_norm]['pesquisas'] += total
         
     por_regional = list(reg_map.values())
     por_regional.sort(key=lambda x: (x['cotacoes'] + x['pesquisas']), reverse=True)
@@ -307,7 +371,7 @@ def painel_dados():
             valor_total = sum([prod.valor_total or 0 for prod in cotacao.produtos]) if cotacao.produtos else 0
             valor_mes += valor_total
         
-        mes_nome = data_inicio.strftime('%b/%y')
+        mes_nome = f"{MESES_PT_BR[data_inicio.month]}/{data_inicio.strftime('%y')}"
         meses_valores.append({'label': mes_nome, 'valor': round(float(valor_mes), 2)})
 
 
@@ -344,6 +408,8 @@ def painel_dados():
         'analises': {
             'tempo_status_cotacoes': tempo_medio_cotacoes,
             'tempo_status_pesquisas': tempo_medio_pesquisas,
+            'por_loja_cotacoes': por_loja_cotacoes,
+            'por_loja_pesquisas': por_loja_pesquisas,
             'por_loja': por_loja,
             'por_regional': por_regional
         },
@@ -351,7 +417,8 @@ def painel_dados():
             'valor_cotacoes_finalizadas': valor_cotacoes_finalizadas,
             'valor_pesquisas_finalizadas': valor_pesquisas_finalizadas,
             'por_mes': meses_valores
-        }
+        },
+        'produtividade_usuarios': produtividade_data
     })
 
 @admin_routes.route('/api/admin/users/<int:user_id>', methods=['PUT'])
@@ -523,3 +590,156 @@ def send_reset_password(user_id):
             'success': False,
             'error': f'Erro ao processar solicitação: {str(e)}'
         }), 500
+
+@admin_routes.route('/api/admin/users', methods=['POST'])
+@login_required
+@admin_required
+def create_user():
+    """Cadastra um novo usuário e envia o e-mail de ativação de conta com token"""
+    try:
+        data = request.get_json() or {}
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip().lower()
+        departamento = data.get('departamento', '').strip()
+        is_admin = bool(data.get('is_admin', False))
+
+        if not name or not email or not departamento:
+            return jsonify({'success': False, 'error': 'Nome, e-mail e departamento são obrigatórios.'}), 400
+
+        if not email.endswith('@cooxupe.com.br'):
+            return jsonify({'success': False, 'error': 'Apenas e-mails com o domínio @cooxupe.com.br são permitidos.'}), 400
+
+        departamentos_validos = ['Comercial', 'Suprimentos', 'Loja']
+        if departamento not in departamentos_validos:
+            return jsonify({'success': False, 'error': 'Departamento inválido. Escolha Comercial, Suprimentos ou Loja.'}), 400
+
+        # Verificar se usuário já existe
+        if User.query.filter((User.email == email) | (User.username == email)).first():
+            return jsonify({'success': False, 'error': f'Já existe um usuário cadastrado com o e-mail {email}.'}), 400
+
+        # Criar usuário inativo com hash temporário
+        import secrets
+        temp_pass = secrets.token_urlsafe(16)
+        
+        new_user = User(
+            username=email,
+            email=email,
+            name=name,
+            departamento=departamento,
+            is_admin=is_admin,
+            is_active=False
+        )
+        new_user.set_password(temp_pass)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Enviar e-mail de ativação
+        sucesso_email = enviar_email_ativacao_conta(new_user)
+
+        msg = f'Usuário {name} criado com sucesso!'
+        if sucesso_email:
+            msg += f' Um e-mail de ativação de conta foi enviado para {email}.'
+        else:
+            msg += ' Contudo, houve uma falha ao enviar o e-mail de ativação. Use a opção "Reenviar Convite" na lista.'
+
+        return jsonify({'success': True, 'message': msg})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao cadastrar usuário pelo admin: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def enviar_email_ativacao_conta(user):
+    """Gera o token de ativação e envia e-mail para o usuário definir sua senha."""
+    try:
+        serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        token = serializer.dumps(user.email, salt='account-activation-salt')
+        activation_url = url_for('auth.activate_account', token=token, _external=True)
+
+        corpo_html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; color: #222; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; }}
+                .header {{ color: #2e7d32; border-bottom: 3px solid #2e7d32; padding-bottom: 10px; }}
+                .content {{ padding: 20px 0; line-height: 1.6; }}
+                .button {{ 
+                    display: inline-block; 
+                    background-color: #2e7d32; 
+                    color: white; 
+                    padding: 12px 24px; 
+                    text-decoration: none; 
+                    border-radius: 6px;
+                    font-weight: bold;
+                    margin: 20px 0;
+                }}
+                .footer {{ 
+                    color: #757575; 
+                    font-size: 12px; 
+                    border-top: 1px solid #eeeeee; 
+                    padding-top: 10px; 
+                    margin-top: 20px;
+                    text-align: center;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2 class="header">Bem-vindo ao Sistema de Cotações Cooxupé</h2>
+                
+                <div class="content">
+                    <p>Olá <strong>{user.name}</strong>,</p>
+                    
+                    <p>Sua conta de acesso ao <strong>Sistema de Cotações e Pesquisas de Mercado</strong> foi criada pelo Administrador.</p>
+                    
+                    <p>Para ativar sua conta e definir sua senha de acesso, clique no botão abaixo:</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="{activation_url}" class="button">Ativar Minha Conta</a>
+                    </div>
+                    
+                    <p>Ou copie e cole o link abaixo no seu navegador:</p>
+                    <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 13px;">
+                        {activation_url}
+                    </p>
+                    
+                    <p><strong>⏰ Este convite de ativação é válido por 48 horas.</strong></p>
+                </div>
+                
+                <div class="footer">
+                    <p>Este é um e-mail automático do Sistema de Cotações Cooxupé. Não responda a esta mensagem.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        return enviar_email(
+            destinatarios=[user.email],
+            assunto='Ative sua Conta - Sistema de Cotações Cooxupé',
+            corpo_html=corpo_html
+        )
+    except Exception as e:
+        logger.error(f'Erro ao enviar e-mail de ativação de conta: {str(e)}')
+        return False
+
+@admin_routes.route('/api/admin/users/<int:user_id>/resend-activation', methods=['POST'])
+@login_required
+@admin_required
+def resend_activation(user_id):
+    """Reenvia o e-mail de ativação de conta para um usuário pendente"""
+    try:
+        user = User.query.get_or_404(user_id)
+        if user.is_active:
+            return jsonify({'success': False, 'error': 'Esta conta já está ativa.'}), 400
+
+        sucesso = enviar_email_ativacao_conta(user)
+        if sucesso:
+            return jsonify({'success': True, 'message': f'E-mail de ativação reenviado com sucesso para {user.email}!'})
+        else:
+            return jsonify({'success': False, 'error': 'Falha ao enviar e-mail de ativação. Tente novamente mais tarde.'}), 500
+    except Exception as e:
+        logger.error(f'Erro ao reenviar ativação para usuário {user_id}: {str(e)}')
+        return jsonify({'success': False, 'error': str(e)}), 500

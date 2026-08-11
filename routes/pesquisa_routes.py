@@ -9,8 +9,7 @@ import pytz
 from werkzeug.utils import secure_filename
 import json
 import traceback
-import threading
-from services.email_service import enviar_email, obter_email_por_status
+from services.email_service import disparar_email_em_background, preparar_email_resumo_registro
 import uuid
 import time
 
@@ -378,6 +377,20 @@ def criar_pesquisa():
                 origem='pesquisa'
             )
             db.session.add(nova_obs)
+
+        # Registrar o motivo da perda como observação automática se iniciar como Pesquisa Perdida
+        if pesquisa.status == 'Pesquisa Perdida':
+            motivo_texto = pesquisa.motivo_venda_perdida.strip() if pesquisa.motivo_venda_perdida else ''
+            if motivo_texto:
+                 from models import Observacao
+                 obs_sistema = Observacao(
+                     pesquisa_id=pesquisa.id,
+                     texto=motivo_texto,
+                     usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                     departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                     origem='motivo_perda'
+                 )
+                 db.session.add(obs_sistema)
         
         # Registrar histórico de status
         if not pesquisa_id:
@@ -422,27 +435,16 @@ def criar_pesquisa():
         
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # Capturar valores antes de iniciar a thread para evitar erro de contexto
-        email_status = pesquisa.status
-        email_nome_cooperado = pesquisa.nome_cooperado
-        email_pesquisa_id = pesquisa.id
-        email_is_new = not pesquisa_id
-        
-        def enviar_email_background(status, nome_cooperado, pid, is_new):
-            try:
-                destinatario = obter_email_por_status(status)
-                destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                enviar_email(
-                    destinatarios=destinatarios,
-                    assunto='Nova Pesquisa Criada' if is_new else 'Pesquisa Atualizada',
-                    corpo_html=f'<p>Uma pesquisa foi {"criada" if is_new else "atualizada"} para o cooperado {nome_cooperado} (PM-{pid}). Status: {status}.</p>'
-                )
-            except Exception as e:
-                print('Erro ao enviar e-mail automático:', e)
-        
-        # Executar envio de e-mail em thread separada
-        threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_pesquisa_id, email_is_new), daemon=True).start()
+        payload_email = preparar_email_resumo_registro(
+            pesquisa,
+            acao='criada' if not pesquisa_id else 'atualizada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de {"criação" if not pesquisa_id else "atualização"} da pesquisa PM-{pesquisa.id}',
+            daemon=True
+        )
         
         return jsonify({'id': pesquisa.id})
     except Exception as e:
@@ -598,6 +600,18 @@ def atualizar_pesquisa(id):
                 origem='pesquisa'
             )
             db.session.add(nova_obs)
+            
+            # Registrar alteração de campo no histórico de edições
+            from services.utils import registrar_edicao_campo
+            registrar_edicao_campo(
+                campo_nome='observacao',
+                campo_label='Nova Observação',
+                valor_anterior='(vazio)',
+                valor_novo=nova_obs_texto,
+                pesquisa_id=pesquisa.id,
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+            )
         
         # Campos adicionais - CORREÇÃO: Usar data.get() e manter valores existentes se não fornecidos
         cultura_value = data.get('cultura')
@@ -617,7 +631,7 @@ def atualizar_pesquisa(id):
             pesquisa.fornecedor = fornecedor_value if fornecedor_value and str(fornecedor_value).strip() else pesquisa.fornecedor
             
         motivo_venda_perdida_value = data.get('motivo_venda_perdida')
-        if motivo_venda_perdida_value is not None:
+        if motivo_venda_perdida_value is not None and pesquisa.status == 'Pesquisa Perdida':
             pesquisa.motivo_venda_perdida = motivo_venda_perdida_value if motivo_venda_perdida_value and str(motivo_venda_perdida_value).strip() else pesquisa.motivo_venda_perdida
         
         # Tratar prazo de entrega
@@ -700,6 +714,20 @@ def atualizar_pesquisa(id):
                 departamento=departamento
             )
             db.session.add(historico)
+            
+            # Registrar o motivo da perda como observação automática para histórico
+            if novo_status == 'Pesquisa Perdida':
+                motivo_texto = data.get('motivo_venda_perdida', '').strip()
+                if motivo_texto:
+                    from models import Observacao
+                    obs_sistema = Observacao(
+                        pesquisa_id=pesquisa.id,
+                        texto=motivo_texto,
+                        usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                        departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                        origem='motivo_perda'
+                    )
+                    db.session.add(obs_sistema)
         
         # Processar anexos (múltiplos arquivos)
         arquivos = request.files.getlist('anexos[]') or request.files.getlist('anexo')
@@ -776,28 +804,16 @@ def atualizar_pesquisa(id):
         
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # APENAS SE HOUVER MUDANÇA REAL DE STATUS
-        if status_anterior != novo_status:
-            # Capturar valores antes de iniciar a thread para evitar erro de contexto
-            email_status = pesquisa.status
-            email_nome_cooperado = pesquisa.nome_cooperado
-            email_pesquisa_id = pesquisa.id
-            
-            def enviar_email_background(status, nome_cooperado, pid):
-                try:
-                    destinatario = obter_email_por_status(status)
-                    destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                    enviar_email(
-                        destinatarios=destinatarios,
-                        assunto='Pesquisa Atualizada - Novo Status',
-                        corpo_html=f'<p>A pesquisa PM-{pid} do cooperado {nome_cooperado} teve seu status alterado para: {status}.</p>'
-                    )
-                except Exception as e:
-                    print('Erro ao enviar e-mail automático:', e)
-            
-            # Executar envio de e-mail em thread separada
-            threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_pesquisa_id), daemon=True).start()
+        payload_email = preparar_email_resumo_registro(
+            pesquisa,
+            acao='atualizada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de atualização da pesquisa PM-{pesquisa.id}',
+            daemon=True
+        )
         
         return jsonify(pesquisa.to_dict())
     except Exception as e:

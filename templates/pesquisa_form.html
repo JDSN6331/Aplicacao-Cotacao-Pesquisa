@@ -389,8 +389,13 @@
                     <!-- Timeline de Observações Existentes -->
                     <div class="observacoes-container">
                         <div class="observacao-timeline" id="observacoesTimeline">
+                            {% set user_obs = [] %}
                             {% if pesquisa and pesquisa.observacoes_lista %}
-                                {% for obs in pesquisa.observacoes_lista %}
+                                {% set user_obs = pesquisa.observacoes_lista | selectattr('origem', 'equalto', 'pesquisa') | list %}
+                            {% endif %}
+                            
+                            {% if user_obs %}
+                                {% for obs in user_obs | sort(attribute='data_criacao', reverse=true) %}
                                 <div class="observacao-card" id="obs-card-{{ obs.id }}">
                                     <div class="observacao-header">
                                         <div class="observacao-meta">
@@ -589,8 +594,51 @@
                             <label for="motivo_venda_perdida" class="form-label">Motivo da Pesquisa Perdida <span
                                     class="text-danger">*</span></label>
                             <textarea class="form-control" id="motivo_venda_perdida" name="motivo_venda_perdida"
-                                rows="2">{{ pesquisa.motivo_venda_perdida if pesquisa else '' }}</textarea>
+                                rows="2">{{ pesquisa.motivo_venda_perdida if pesquisa and pesquisa.status == 'Pesquisa Perdida' else '' }}</textarea>
                         </div>
+                        
+                        {% if pesquisa %}
+                            {% set historico_motivos = pesquisa.observacoes_lista | selectattr('origem', 'equalto', 'motivo_perda') | list if pesquisa.observacoes_lista else [] %}
+                            {% set tem_motivo_perda = historico_motivos | length > 0 %}
+                            {% set mostrar_motivo_sintetico = pesquisa.motivo_venda_perdida and not tem_motivo_perda %}
+                            
+                            {% if historico_motivos or mostrar_motivo_sintetico %}
+                            <div class="mt-4 mb-3">
+                                <label class="form-label text-muted small fw-bold"><i class="fas fa-history me-1"></i> Histórico de Motivos de Perda Anteriores</label>
+                                <div class="observacoes-container mt-1">
+                                    <div class="observacao-timeline observacao-timeline-perda" id="motivosPerdaTimeline">
+                                        {% if mostrar_motivo_sintetico %}
+                                        <div class="observacao-card observacao-card-perda mb-3" style="border-left-color: #dc3545;">
+                                            <div class="observacao-header">
+                                                <div class="observacao-meta">
+                                                    <span class="observacao-autor text-danger"><i class="fas fa-ban me-1"></i>Motivo da Perda</span>
+                                                    <span class="observacao-autor ms-2"><i class="fas fa-user me-1 text-muted"></i>Sistema</span>
+                                                    <span class="observacao-depto" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">Sistema</span>
+                                                    <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ pesquisa.data_entrada_status.strftime('%d/%m/%Y %H:%M') if pesquisa.data_entrada_status else '' }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="observacao-texto">{{ pesquisa.motivo_venda_perdida }}</div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% for m in historico_motivos | sort(attribute='data_criacao', reverse=true) %}
+                                        <div class="observacao-card observacao-card-perda mb-3" style="border-left-color: #dc3545;">
+                                            <div class="observacao-header">
+                                                <div class="observacao-meta">
+                                                    <span class="observacao-autor text-danger"><i class="fas fa-ban me-1"></i>Registro de Perda</span>
+                                                    <span class="observacao-autor ms-2"><i class="fas fa-user me-1 text-muted"></i>{{ m.usuario }}</span>
+                                                    <span class="observacao-depto" style="background: rgba(220, 53, 69, 0.1); color: #dc3545;">{{ m.departamento }}</span>
+                                                    <span class="observacao-data"><i class="far fa-clock me-1"></i>{{ m.data_criacao.strftime('%d/%m/%Y %H:%M') }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="observacao-texto">{{ m.texto }}</div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 </div>
             </form>
@@ -1108,7 +1156,7 @@
             const motivoPerdidaGroup = $('#motivoVendaPerdidaGroup');
             const motivoPerdidaInput = $('#motivo_venda_perdida');
 
-            if (selectedStatus === 'Pesquisa Perdida') {
+            if (selectedStatus === 'Pesquisa Perdida' && !window.modoReadonly) {
                 motivoPerdidaGroup.show();
                 motivoPerdidaInput.prop('required', true);
             } else {
@@ -1817,6 +1865,51 @@
             $('#sugestoes_nome').show();
         }
 
+        function verificarECadastrarCooperadoFluxo() {
+            const matVal = $('#matricula_cooperado').val().trim();
+            const nomeVal = $('#nome_cooperado').val().trim();
+            
+            const matInvalido = $('#matricula_cooperado').hasClass('is-invalid') || matVal === 'Matrícula não encontrada' || matVal === 'Erro na busca';
+            const nomeInvalido = $('#nome_cooperado').hasClass('is-invalid') || nomeVal === 'Cooperado não encontrado' || nomeVal === 'Erro na busca';
+            
+            if (matInvalido || nomeInvalido) {
+                let matParaCadastrar = '';
+                let nomeParaCadastrar = '';
+                
+                if (nomeVal === 'Cooperado não encontrado' || nomeVal === 'Erro na busca') {
+                    matParaCadastrar = (matVal !== 'Matrícula não encontrada' && matVal !== 'Erro na busca') ? matVal : '';
+                } else if (matVal === 'Matrícula não encontrada' || matVal === 'Erro na busca') {
+                    nomeParaCadastrar = (nomeVal !== 'Cooperado não encontrado' && nomeVal !== 'Erro na busca') ? nomeVal : '';
+                } else {
+                    const originalMat = $('#matricula_cooperado').data('ultimoValor') || '';
+                    const originalNome = $('#nome_cooperado').data('ultimoValor') || '';
+                    
+                    const matValida = originalMat && originalMat !== 'Matrícula não encontrada' && originalMat !== 'Erro na busca' && originalMat !== 'Cooperado não encontrado';
+                    const nomeValido = originalNome && originalNome !== 'Cooperado não encontrado' && originalNome !== 'Erro na busca' && originalNome !== 'Matrícula não encontrada';
+                    
+                    if (matValida) matParaCadastrar = originalMat;
+                    else if (nomeValido) nomeParaCadastrar = originalNome;
+                }
+                
+                if (matParaCadastrar || nomeParaCadastrar) {
+                    if (Swal.isVisible()) return;
+                    
+                    confirmarECadastrarCooperado(
+                        matParaCadastrar,
+                        nomeParaCadastrar,
+                        function(cooperadoData) {
+                            $('#matricula_cooperado').val(cooperadoData.matricula);
+                            $('#nome_cooperado').val(cooperadoData.nome);
+                            $('#matricula_cooperado').addClass('is-valid').removeClass('is-invalid').prop('disabled', true);
+                            $('#nome_cooperado').addClass('is-valid').removeClass('is-invalid').prop('disabled', true);
+                        }
+                    );
+                }
+            }
+        }
+
+        // Função antiga de cooperado removida
+
         // REGISTRAR EVENT LISTENERS
         console.log('🎯 Registrando event listeners...');
 
@@ -1824,6 +1917,11 @@
         $('#matricula_cooperado').on('input', function () {
             const matricula = $(this).val();
             console.log('🎯 Input matrícula:', matricula);
+
+            const val = $(this).val().trim();
+            if (val && val !== 'Matrícula não encontrada' && val !== 'Erro na busca') {
+                $(this).data('ultimoValor', val);
+            }
 
             // Limpar timeout anterior
             clearTimeout(timeoutMatricula);
@@ -1838,10 +1936,17 @@
             }, 300);
         });
 
+        $('#matricula_cooperado').on('blur', verificarECadastrarCooperadoFluxo);
+
         // Event listener para busca por nome
         $('#nome_cooperado').on('input', function () {
             const nome = $(this).val();
             console.log('🎯 Input nome:', nome);
+
+            const val = $(this).val().trim();
+            if (val && val !== 'Cooperado não encontrado' && val !== 'Erro na busca') {
+                $(this).data('ultimoValor', val);
+            }
 
             // Limpar timeout anterior
             clearTimeout(timeoutNome);
@@ -1861,6 +1966,8 @@
                 buscarCooperadoPorNome(nome);
             }, 300);
         });
+
+        $('#nome_cooperado').on('blur', verificarECadastrarCooperadoFluxo);
 
         // Limpar sugestões quando clicar fora
         $(document).on('click', function (e) {
@@ -2047,12 +2154,67 @@
         }
 
         // REGISTRAR EVENT LISTENERS PARA PRODUTOS
+        function verificarECadastrarProdutoFluxoSimples() {
+            const codVal = $('#codigo_produto').val().trim();
+            const nomeVal = $('#nome_produto').val().trim();
+            
+            const codInvalido = $('#codigo_produto').hasClass('is-invalid') || codVal === 'Código não encontrado' || codVal === 'Erro na busca' || codVal === 'Produto não encontrado';
+            const nomeInvalido = $('#nome_produto').hasClass('is-invalid') || nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca' || nomeVal === 'Código não encontrado';
+            
+            if (codInvalido || nomeInvalido) {
+                let codParaCadastrar = '';
+                let nomeParaCadastrar = '';
+                
+                if (nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca') {
+                    codParaCadastrar = (codVal !== 'Código não encontrado' && codVal !== 'Erro na busca') ? codVal : '';
+                } else if (codVal === 'Código não encontrado' || codVal === 'Erro na busca') {
+                    nomeParaCadastrar = (nomeVal !== 'Produto não encontrado' && nomeVal !== 'Erro na busca') ? nomeVal : '';
+                } else {
+                    const originalCod = $('#codigo_produto').data('ultimoValor') || '';
+                    const originalNome = $('#nome_produto').data('ultimoValor') || '';
+                    
+                    const codValido = originalCod && originalCod !== 'Código não encontrado' && originalCod !== 'Erro na busca' && originalCod !== 'Produto não encontrado';
+                    const nomeValido = originalNome && originalNome !== 'Produto não encontrado' && originalNome !== 'Erro na busca' && originalNome !== 'Código não encontrado';
+                    
+                    if (codValido) codParaCadastrar = originalCod;
+                    else if (nomeValido) nomeParaCadastrar = originalNome;
+                }
+                
+                if (codParaCadastrar || nomeParaCadastrar) {
+                    if (Swal.isVisible()) return;
+                    
+                    confirmarECadastrarProduto(
+                        codParaCadastrar,
+                        nomeParaCadastrar,
+                        '',
+                        function(prodData) {
+                            $('#codigo_produto').val(prodData.codigo);
+                            $('#nome_produto').val(prodData.nome);
+                            $('#codigo_produto').addClass('is-valid').removeClass('is-invalid');
+                            $('#nome_produto').addClass('is-valid').removeClass('is-invalid');
+                            bloquearCampo($('#codigo_produto'), 'Campo bloqueado - preenchido automaticamente');
+                            bloquearCampo($('#nome_produto'), 'Campo bloqueado - preenchido automaticamente');
+                            transformarParaTexto(prodData.fornecedor);
+                        }
+                    );
+                }
+            }
+        }
+
+        // Função antiga de produto simples removida
+
+        // REGISTRAR EVENT LISTENERS PARA PRODUTOS
         console.log('🎯 Registrando event listeners para produtos...');
 
         // Event listener para busca por código do produto
         $('#codigo_produto').on('input', function () {
             const codigo = $(this).val();
             console.log('🎯 Input código produto:', codigo);
+
+            const val = $(this).val().trim();
+            if (val && val !== 'Código não encontrado' && val !== 'Erro na busca' && val !== 'Produto não encontrado') {
+                $(this).data('ultimoValor', val);
+            }
 
             // Desbloquear campo nome ao começar a digitar/apagar
             desbloquearCampo($('#nome_produto'));
@@ -2070,10 +2232,17 @@
             }, 300);
         });
 
+        $('#codigo_produto').on('blur', verificarECadastrarProdutoFluxoSimples);
+
         // Event listener para busca por nome do produto
         $('#nome_produto').on('input', function () {
             const nome = $(this).val();
             console.log('🎯 Input nome produto:', nome);
+
+            const val = $(this).val().trim();
+            if (val && val !== 'Produto não encontrado' && val !== 'Erro na busca' && val !== 'Código não encontrado') {
+                $(this).data('ultimoValor', val);
+            }
 
             // Desbloquear campo código ao começar a digitar/apagar
             desbloquearCampo($('#codigo_produto'));
@@ -2096,6 +2265,8 @@
                 buscarProdutoPorNome(nome);
             }, 300);
         });
+
+        $('#nome_produto').on('blur', verificarECadastrarProdutoFluxoSimples);
 
         // Limpar sugestões quando clicar fora
         $(document).on('click', function (e) {
@@ -2275,10 +2446,70 @@
             console.warn(`[Produto ${index}] Inputs não encontrados para vincular busca`);
             return;
         }
+
+        function verificarECadastrarProdutoFluxoMulti() {
+            const codVal = codigoInput.value.trim();
+            const nomeVal = nomeInput.value.trim();
+            
+            const codInvalido = codigoInput.classList.contains('is-invalid') || codVal === 'Código não encontrado' || codVal === 'Erro na busca' || codVal === 'Produto não encontrado';
+            const nomeInvalido = nomeInput.classList.contains('is-invalid') || nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca' || nomeVal === 'Código não encontrado';
+            
+            if (codInvalido || nomeInvalido) {
+                let codParaCadastrar = '';
+                let nomeParaCadastrar = '';
+                
+                if (nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca') {
+                    codParaCadastrar = (codVal !== 'Código não encontrado' && codVal !== 'Erro na busca') ? codVal : '';
+                } else if (codVal === 'Código não encontrado' || codVal === 'Erro na busca') {
+                    nomeParaCadastrar = (nomeVal !== 'Produto não encontrado' && nomeVal !== 'Erro na busca') ? nomeVal : '';
+                } else {
+                    const originalCod = codigoInput.dataset.ultimoValor || '';
+                    const originalNome = nomeInput.dataset.ultimoValor || '';
+                    
+                    const codValido = originalCod && originalCod !== 'Código não encontrado' && originalCod !== 'Erro na busca' && originalCod !== 'Produto não encontrado';
+                    const nomeValido = originalNome && originalNome !== 'Produto não encontrado' && originalNome !== 'Erro na busca' && originalNome !== 'Código não encontrado';
+                    
+                    if (codValido) codParaCadastrar = originalCod;
+                    else if (nomeValido) nomeParaCadastrar = originalNome;
+                }
+                
+                if (codParaCadastrar || nomeParaCadastrar) {
+                    if (Swal.isVisible()) return;
+                    
+                    confirmarECadastrarProduto(
+                        codParaCadastrar,
+                        nomeParaCadastrar,
+                        '',
+                        function(prodData) {
+                            codigoInput.value = prodData.codigo;
+                            nomeInput.value = prodData.nome;
+                            codigoInput.classList.add('is-valid');
+                            codigoInput.classList.remove('is-invalid');
+                            nomeInput.classList.add('is-valid');
+                            nomeInput.classList.remove('is-invalid');
+                            codigoInput.disabled = true;
+                            nomeInput.disabled = true;
+                            
+                            const fornecedorInput = document.getElementById(`produto_fornecedor_${index}`);
+                            if (fornecedorInput && prodData.fornecedor) {
+                                fornecedorInput.value = prodData.fornecedor;
+                            }
+                        }
+                    );
+                }
+            }
+        }
+
+        // Função antiga de produto múltiplo removida
         
         // Busca por código (debounce 400ms)
         codigoInput.addEventListener('input', function() {
             const codigo = this.value.trim();
+            
+            const val = this.value.trim();
+            if (val && val !== 'Código não encontrado' && val !== 'Erro na busca' && val !== 'Produto não encontrado') {
+                this.dataset.ultimoValor = val;
+            }
             
             clearTimeout(window._produtoBuscaTimers[`codigo_${index}`]);
             
@@ -2328,10 +2559,17 @@
                 }
             }, 400);
         });
+
+        codigoInput.addEventListener('blur', verificarECadastrarProdutoFluxoMulti);
         
         // Busca por nome (debounce 400ms, com sugestões)
         nomeInput.addEventListener('input', function() {
             const nome = this.value.trim();
+            
+            const val = this.value.trim();
+            if (val && val !== 'Produto não encontrado' && val !== 'Erro na busca' && val !== 'Código não encontrado' && val !== 'Buscando...') {
+                this.dataset.ultimoValor = val;
+            }
             
             clearTimeout(window._produtoBuscaTimers[`nome_${index}`]);
             
@@ -2413,6 +2651,8 @@
                 }
             }, 400);
         });
+
+        nomeInput.addEventListener('blur', verificarECadastrarProdutoFluxoMulti);
         
         // Fechar sugestões ao clicar fora
         document.addEventListener('click', function(e) {

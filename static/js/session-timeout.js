@@ -245,28 +245,9 @@ class SessionTimeoutManager {
         // Parar todos os timers
         this.destroy();
         
-        // Fazer logout via API
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-        
-        fetch('/api/session/logout', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            credentials: 'include'
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('[SessionTimeout] Logout realizado:', data);
-            // Redirecionar para login (com cache-buster para forçar requisição ao servidor)
-            window.location.href = '/login?t=' + Date.now();
-        })
-        .catch(error => {
-            console.error('[SessionTimeout] Erro ao fazer logout:', error);
-            // Mesmo em caso de erro, redirecionar (com cache-buster)
-            window.location.href = '/login?t=' + Date.now();
-        });
+        // Redirecionar diretamente para a rota nativa de logout
+        console.log('[SessionTimeout] Redirecionando para rota nativa de logout...');
+        window.location.href = '/logout';
     }
 
     /**

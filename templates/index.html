@@ -45,12 +45,248 @@
         color: #81c784;
     }
 
-    /* Ajustes para evitar sobreposição do painel de filtros com a legenda */
-    .panel-search {
-        max-width: 520px !important;
+    /* ===== Estilo para destacar cotações revisadas (versão > 1) ===== */
+    tr.linha-revisao td {
+        background-color: rgba(255, 152, 0, 0.12) !important; /* Âmbar (#FF9800) - 12% opacidade */
+        transition: background-color 0.2s ease;
     }
-    .panel-search-input {
-        min-width: 220px !important;
+    tr.linha-revisao td:first-child {
+        border-left: 4.5px solid #E65100 !important;
+    }
+    tr.linha-revisao:hover td {
+        background-color: rgba(255, 152, 0, 0.20) !important;
+    }
+    
+    /* Tema escuro - revisão */
+    [data-theme="dark"] tr.linha-revisao td {
+        background-color: rgba(255, 152, 0, 0.16) !important;
+    }
+    [data-theme="dark"] tr.linha-revisao td:first-child {
+        border-left: 4.5px solid #FF9800 !important;
+    }
+    [data-theme="dark"] tr.linha-revisao:hover td {
+        background-color: rgba(255, 152, 0, 0.24) !important;
+    }
+
+    .legend-revisao {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: rgba(230, 81, 0, 0.08);
+        border: 1px solid rgba(230, 81, 0, 0.20);
+        color: #E65100;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-right: 15px;
+    }
+    
+    [data-theme="dark"] .legend-revisao {
+        background-color: rgba(255, 152, 0, 0.12);
+        border-color: rgba(255, 152, 0, 0.25);
+        color: #FFB74D;
+    }
+
+    .badge-versao {
+        background: linear-gradient(135deg, #E65100 0%, #BF360C 100%);
+        color: #FFFFFF;
+        font-size: 0.72em;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-left: 4px;
+        letter-spacing: 0.3px;
+    }
+
+    /* ===== PAINEL DE FILTROS - TEMA CLARO (GLASSMORPHISM INTEGRADO) ===== */
+    .panel-filters {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        width: 100% !important;
+        margin-top: 14px !important;
+        margin-bottom: 12px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .panel-filters select.panel-filter-select {
+        height: 38px !important;
+        border-radius: 6px !important;
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        background-color: rgba(255, 255, 255, 0.55) !important;
+        backdrop-filter: blur(8px) !important;
+        color: #212529 !important;
+        font-size: 0.88rem !important;
+        font-weight: 500 !important;
+        flex-shrink: 0 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 12px center !important;
+        background-size: 10px !important;
+        padding-right: 28px !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .panel-filters select.panel-filter-select:hover,
+    .panel-filters select.panel-filter-select:focus {
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border-color: #2e7d32 !important;
+    }
+
+    .panel-filters select.status-select {
+        width: 200px !important;
+    }
+
+    .panel-filters select.type-select {
+        width: 160px !important;
+    }
+
+    .panel-search-box {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .panel-search-box input.panel-search-input {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 38px !important;
+        border-radius: 6px !important;
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        background-color: rgba(255, 255, 255, 0.55) !important;
+        backdrop-filter: blur(8px) !important;
+        color: #212529 !important;
+        padding: 0 14px !important;
+        font-size: 0.88rem !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .panel-search-box input.panel-search-input::placeholder {
+        color: #212529 !important;
+        font-weight: 500 !important;
+        opacity: 1 !important;
+    }
+
+    .panel-search-box input.panel-search-input:hover,
+    .panel-search-box input.panel-search-input:focus {
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border-color: #2e7d32 !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15) !important;
+    }
+
+    .panel-search-box button.panel-search-btn {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        background-color: #2e7d32 !important;
+        background-image: none !important;
+        border: none !important;
+        border-radius: 6px !important;
+        color: #FFFFFF !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+    }
+
+    .panel-search-box button.panel-search-btn:hover {
+        background-color: #256528 !important;
+    }
+
+    /* ===== LINHA DE LEGENDAS - TEMA CLARO (PADRÃO) ===== */
+    .panel-legends-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        width: 100% !important;
+        margin-top: 4px !important;
+        margin-bottom: 12px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .panel-legends-row .legend-vinculo,
+    .panel-legends-row .legend-revisao {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 6px 14px !important;
+        border-radius: 6px !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+    }
+
+    .panel-legends-row .legend-vinculo {
+        background-color: #e8f5e9 !important;
+        border: 1px solid #a5d6a7 !important;
+        color: #1b5e20 !important;
+    }
+
+    .panel-legends-row .legend-vinculo i {
+        color: #2e7d32 !important;
+    }
+
+    .panel-legends-row .legend-revisao {
+        background-color: #fff3e0 !important;
+        border: 1px solid #ffe0b2 !important;
+        color: #e65100 !important;
+    }
+
+    .panel-legends-row .legend-revisao i {
+        color: #f57c00 !important;
+    }
+
+    /* ===== OVERRIDES PARA TEMA ESCURO (data-theme="dark") ===== */
+    [data-theme="dark"] .panel-filters select.panel-filter-select {
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        background-color: #222225 !important;
+        color: #E0E0E0 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23A0A0A0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e") !important;
+    }
+
+    [data-theme="dark"] .panel-search-box input.panel-search-input {
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        background-color: #222225 !important;
+        color: #E0E0E0 !important;
+    }
+
+    [data-theme="dark"] .panel-search-box input.panel-search-input::placeholder {
+        color: #E0E0E0 !important;
+        font-weight: 500 !important;
+        opacity: 1 !important;
+    }
+
+    [data-theme="dark"] .panel-legends-row .legend-vinculo {
+        background-color: rgba(30, 70, 35, 0.4) !important;
+        border: 1px solid rgba(76, 175, 80, 0.4) !important;
+        color: #81c784 !important;
+    }
+
+    [data-theme="dark"] .panel-legends-row .legend-vinculo i {
+        color: #4caf50 !important;
+    }
+
+    [data-theme="dark"] .panel-legends-row .legend-revisao {
+        background-color: rgba(80, 55, 15, 0.4) !important;
+        border: 1px solid rgba(255, 152, 0, 0.4) !important;
+        color: #ffb74d !important;
+    }
+
+    [data-theme="dark"] .panel-legends-row .legend-revisao i {
+        color: #ff9800 !important;
     }
 </style>
 {% endblock %}
@@ -115,6 +351,9 @@
                 <div class="card-content">
                     <div class="card-number" id="count-perdidas">{{ stats.perdidas|default(0) }}</div>
                     <div class="card-label">Cotações Perdidas</div>
+                    <div class="card-sublabel text-muted" style="font-size: 0.72em; margin-top: 3px;" title="Cotações perdidas podem ser revisadas em até 5 dias corridos">
+                        <i class="fas fa-info-circle text-warning"></i> Revisável até 5 dias
+                    </div>
                 </div>
             </div>
             <div class="overview-card" data-type="pesquisas-perdidas">
@@ -165,18 +404,35 @@
                     </div>
                 </div>
                 <div class="panel-filters">
-                    <div class="panel-search">
-                        <select class="panel-filter-select" id="searchTypeAndamento"
-                            onchange="atualizarPlaceholder('andamento')">
-                            <option value="todos">Todos</option>
-                            <option value="id">ID</option>
-                            <option value="matricula">Matrícula</option>
-                            <option value="nome">Nome</option>
-                        </select>
+                    <select class="panel-filter-select status-select" id="statusFilterAndamento" onchange="filtrarPainel('andamento')" title="Filtrar por Status">
+                        <option value="">Status: Todos</option>
+                        <option value="Análise Comercial">Análise Comercial</option>
+                        <option value="Análise Suprimentos">Análise Suprimentos</option>
+                        <option value="Avaliação Comercial">Avaliação Comercial</option>
+                        <option value="Aguardando Cooperado">Aguardando Cooperado</option>
+                        <option value="Revisão Comercial">Revisão Comercial</option>
+                        <option value="Revisão Suprimentos">Revisão Suprimentos</option>
+                    </select>
+                    <select class="panel-filter-select type-select" id="searchTypeAndamento" onchange="atualizarPlaceholder('andamento')">
+                        <option value="todos">Todos os campos</option>
+                        <option value="id">ID</option>
+                        <option value="matricula">Matrícula</option>
+                        <option value="nome">Nome</option>
+                        <option value="criador">Criado por</option>
+                    </select>
+                    <div class="panel-search-box">
                         <input type="text" placeholder="Pesquisar..." class="panel-search-input" id="searchAndamento">
-                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('andamento')">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('andamento')" title="Buscar">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                </div>
+                <div class="panel-legends-row">
+                    <div class="legend-vinculo">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #4caf50;"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
+                    </div>
+                    <div class="legend-revisao">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #ff9800;"></i> Linhas destacadas em âmbar são cotações revisadas (V2, V3...)
                     </div>
                 </div>
             </div>
@@ -254,18 +510,27 @@
                     </div>
                 </div>
                 <div class="panel-filters">
-                    <div class="panel-search">
-                        <select class="panel-filter-select" id="searchTypePesquisas"
-                            onchange="atualizarPlaceholder('pesquisas')">
-                            <option value="todos">Todos</option>
-                            <option value="id">ID</option>
-                            <option value="matricula">Matrícula</option>
-                            <option value="nome">Nome</option>
-                        </select>
+                    <select class="panel-filter-select status-select" id="statusFilterPesquisas" onchange="filtrarPainel('pesquisas')" title="Filtrar por Status">
+                        <option value="">Status: Todos</option>
+                        <option value="Avaliação Comercial">Avaliação Comercial</option>
+                    </select>
+                    <select class="panel-filter-select type-select" id="searchTypePesquisas" onchange="atualizarPlaceholder('pesquisas')">
+                        <option value="todos">Todos os campos</option>
+                        <option value="id">ID</option>
+                        <option value="matricula">Matrícula</option>
+                        <option value="nome">Nome</option>
+                        <option value="criador">Criado por</option>
+                    </select>
+                    <div class="panel-search-box">
                         <input type="text" placeholder="Pesquisar..." class="panel-search-input" id="searchPesquisas">
-                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas')">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas')" title="Buscar">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                </div>
+                <div class="panel-legends-row">
+                    <div class="legend-vinculo">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #4caf50;"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
                     </div>
                 </div>
             </div>
@@ -343,18 +608,30 @@
                     </div>
                 </div>
                 <div class="panel-filters">
-                    <div class="panel-search">
-                        <select class="panel-filter-select" id="searchTypeFinalizadas"
-                            onchange="atualizarPlaceholder('finalizadas')">
-                            <option value="todos">Todos</option>
-                            <option value="id">ID</option>
-                            <option value="matricula">Matrícula</option>
-                            <option value="nome">Nome</option>
-                        </select>
+                    <select class="panel-filter-select status-select" id="statusFilterFinalizadas" onchange="filtrarPainel('finalizadas')" title="Filtrar por Status">
+                        <option value="">Status: Todos</option>
+                        <option value="Cotação Finalizada">Cotação Finalizada</option>
+                    </select>
+                    <select class="panel-filter-select type-select" id="searchTypeFinalizadas" onchange="atualizarPlaceholder('finalizadas')">
+                        <option value="todos">Todos os campos</option>
+                        <option value="id">ID</option>
+                        <option value="matricula">Matrícula</option>
+                        <option value="nome">Nome</option>
+                        <option value="criador">Criado por</option>
+                    </select>
+                    <div class="panel-search-box">
                         <input type="text" placeholder="Pesquisar..." class="panel-search-input" id="searchFinalizadas">
-                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('finalizadas')">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('finalizadas')" title="Buscar">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                </div>
+                <div class="panel-legends-row">
+                    <div class="legend-vinculo">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #4caf50;"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
+                    </div>
+                    <div class="legend-revisao">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #ff9800;"></i> Linhas destacadas em âmbar são cotações revisadas (V2, V3...)
                     </div>
                 </div>
             </div>
@@ -437,19 +714,27 @@
                     </div>
                 </div>
                 <div class="panel-filters">
-                    <div class="panel-search">
-                        <select class="panel-filter-select" id="searchTypePesquisasFinalizadas"
-                            onchange="atualizarPlaceholder('pesquisas-finalizadas')">
-                            <option value="todos">Todos</option>
-                            <option value="id">ID</option>
-                            <option value="matricula">Matrícula</option>
-                            <option value="nome">Nome</option>
-                        </select>
-                        <input type="text" placeholder="Pesquisar..." class="panel-search-input"
-                            id="searchPesquisasFinalizadas">
-                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas-finalizadas')">
+                    <select class="panel-filter-select status-select" id="statusFilterPesquisasFinalizadas" onchange="filtrarPainel('pesquisas-finalizadas')" title="Filtrar por Status">
+                        <option value="">Status: Todos</option>
+                        <option value="Pesquisa Finalizada">Pesquisa Finalizada</option>
+                    </select>
+                    <select class="panel-filter-select type-select" id="searchTypePesquisasFinalizadas" onchange="atualizarPlaceholder('pesquisas-finalizadas')">
+                        <option value="todos">Todos os campos</option>
+                        <option value="id">ID</option>
+                        <option value="matricula">Matrícula</option>
+                        <option value="nome">Nome</option>
+                        <option value="criador">Criado por</option>
+                    </select>
+                    <div class="panel-search-box">
+                        <input type="text" placeholder="Pesquisar..." class="panel-search-input" id="searchPesquisasFinalizadas">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas-finalizadas')" title="Buscar">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                </div>
+                <div class="panel-legends-row">
+                    <div class="legend-vinculo">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #4caf50;"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
                     </div>
                 </div>
             </div>
@@ -505,6 +790,7 @@
                     <div class="content-title">
                         <i class="fas fa-file-circle-xmark"></i>
                         <h3>Cotações Perdidas</h3>
+                        <small class="text-muted ms-3 fs-7 align-self-center"><i class="fas fa-info-circle text-warning"></i> Cotações perdidas podem ser revisadas em até 5 dias corridos.</small>
                     </div>
                     <div class="content-status">
                         <i class="fas fa-chart-line"></i>
@@ -527,18 +813,30 @@
                     </div>
                 </div>
                 <div class="panel-filters">
-                    <div class="panel-search">
-                        <select class="panel-filter-select" id="searchTypePerdidas"
-                            onchange="atualizarPlaceholder('perdidas')">
-                            <option value="todos">Todos</option>
-                            <option value="id">ID</option>
-                            <option value="matricula">Matrícula</option>
-                            <option value="nome">Nome</option>
-                        </select>
+                    <select class="panel-filter-select status-select" id="statusFilterPerdidas" onchange="filtrarPainel('perdidas')" title="Filtrar por Status">
+                        <option value="">Status: Todos</option>
+                        <option value="Cotação Perdida">Cotação Perdida</option>
+                    </select>
+                    <select class="panel-filter-select type-select" id="searchTypePerdidas" onchange="atualizarPlaceholder('perdidas')">
+                        <option value="todos">Todos os campos</option>
+                        <option value="id">ID</option>
+                        <option value="matricula">Matrícula</option>
+                        <option value="nome">Nome</option>
+                        <option value="criador">Criado por</option>
+                    </select>
+                    <div class="panel-search-box">
                         <input type="text" placeholder="Pesquisar..." class="panel-search-input" id="searchPerdidas">
-                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('perdidas')">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('perdidas')" title="Buscar">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                </div>
+                <div class="panel-legends-row">
+                    <div class="legend-vinculo">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #4caf50;"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
+                    </div>
+                    <div class="legend-revisao">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #ff9800;"></i> Linhas destacadas em âmbar são cotações revisadas (V2, V3...)
                     </div>
                 </div>
             </div>
@@ -621,19 +919,27 @@
                     </div>
                 </div>
                 <div class="panel-filters">
-                    <div class="panel-search">
-                        <select class="panel-filter-select" id="searchTypePesquisasPerdidas"
-                            onchange="atualizarPlaceholder('pesquisas-perdidas')">
-                            <option value="todos">Todos</option>
-                            <option value="id">ID</option>
-                            <option value="matricula">Matrícula</option>
-                            <option value="nome">Nome</option>
-                        </select>
-                        <input type="text" placeholder="Pesquisar..." class="panel-search-input"
-                            id="searchPesquisasPerdidas">
-                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas-perdidas')">
+                    <select class="panel-filter-select status-select" id="statusFilterPesquisasPerdidas" onchange="filtrarPainel('pesquisas-perdidas')" title="Filtrar por Status">
+                        <option value="">Status: Todos</option>
+                        <option value="Pesquisa Perdida">Pesquisa Perdida</option>
+                    </select>
+                    <select class="panel-filter-select type-select" id="searchTypePesquisasPerdidas" onchange="atualizarPlaceholder('pesquisas-perdidas')">
+                        <option value="todos">Todos os campos</option>
+                        <option value="id">ID</option>
+                        <option value="matricula">Matrícula</option>
+                        <option value="nome">Nome</option>
+                        <option value="criador">Criado por</option>
+                    </select>
+                    <div class="panel-search-box">
+                        <input type="text" placeholder="Pesquisar..." class="panel-search-input" id="searchPesquisasPerdidas">
+                        <button type="button" class="panel-search-btn" onclick="filtrarPainel('pesquisas-perdidas')" title="Buscar">
                             <i class="fas fa-search"></i>
                         </button>
+                    </div>
+                </div>
+                <div class="panel-legends-row">
+                    <div class="legend-vinculo">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #4caf50;"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
                     </div>
                 </div>
             </div>
@@ -731,23 +1037,6 @@
     const IS_ADMIN = {{ 'true' if current_user.is_admin else 'false' }};
     const USUARIO_DEPTO = '{{ current_user.departamento }}';
     $(document).ready(function () {
-        // Injetar a legenda de vínculo em cada painel de filtros
-        $('.panel-filters').each(function() {
-            $(this).append(`
-                <div class="legend-vinculo">
-                    <i class="fas fa-info-circle"></i> Linhas destacadas em verde possuem vínculo (Pesquisa ↔ Cotação)
-                </div>
-            `);
-            $(this).css({
-                'display': 'flex',
-                'justify-content': 'space-between',
-                'align-items': 'center',
-                'flex-wrap': 'wrap',
-                'gap': '10px',
-                'width': '100%'
-            });
-        });
-
         // Estado de paginação por card (10 itens por página)
         window.paginacao = {
             andamento: { paginaAtual: 1, totalPaginas: 1, tamanhoPagina: 10 },
@@ -974,8 +1263,7 @@
             success: function (data) {
                 // Armazenar dados originais
                 window.dadosOriginais[tipo] = data;
-                renderizarTabelaCotacoes(data, targetSelector, tipo);
-                atualizarTotalResultados(data.length, tipo);
+                filtrarPainel(tipo);
             },
             error: function (error) {
                 console.error('Erro ao carregar cotações:', error);
@@ -992,8 +1280,7 @@
             success: function (data) {
                 // Armazenar dados originais
                 window.dadosOriginais[tipoStorage] = data;
-                renderizarTabelaPesquisas(data, targetSelector, status);
-                atualizarTotalResultados(data.length, tipoStorage);
+                filtrarPainel(tipoStorage);
             },
             error: function (error) {
                 console.error('Erro ao carregar pesquisas:', error);
@@ -1030,7 +1317,9 @@
                 'todos': 'Pesquisar...',
                 'id': 'Digite o ID...',
                 'matricula': 'Digite a matrícula...',
-                'nome': 'Digite o nome...'
+                'nome': 'Digite o nome...',
+                'criador': 'Digite o usuário criador...',
+                'status': 'Digite o status...'
             };
             searchInput.placeholder = placeholders[searchType.value] || 'Pesquisar...';
             // Aplicar filtro imediatamente quando mudar o tipo
@@ -1039,7 +1328,7 @@
     }
 
     // Função para filtrar painel (pesquisa e filtro local)
-    function filtrarPainel(tipo) {
+    function filtrarPainel(tipo, resetarPagina = true) {
         // Mapeamento de IDs dos campos
         const searchInputId = {
             'andamento': 'searchAndamento',
@@ -1061,7 +1350,11 @@
 
         const statusFilterId = {
             'andamento': 'statusFilterAndamento',
-            'pesquisas': 'statusFilterPesquisas'
+            'pesquisas': 'statusFilterPesquisas',
+            'finalizadas': 'statusFilterFinalizadas',
+            'pesquisas-finalizadas': 'statusFilterPesquisasFinalizadas',
+            'perdidas': 'statusFilterPerdidas',
+            'pesquisas-perdidas': 'statusFilterPesquisasPerdidas'
         };
 
         const targetSelector = {
@@ -1091,6 +1384,8 @@
                 const id = String(item.id || '').toLowerCase();
                 const nome = String(item.nome_cooperado || '').toLowerCase();
                 const matricula = String(item.matricula_cooperado || '').toLowerCase();
+                const criador = String(item.criado_por || '').toLowerCase();
+                const status = String(item.status || '').toLowerCase();
 
                 // Sanitizar a query para busca por ID: remover prefixos "ct-" ou "pm-" se seguidos de número
                 const queryId = /^(ct|pm)-?\d/i.test(query) ? query.replace(/^(ct|pm)-?/i, '') : query;
@@ -1102,20 +1397,24 @@
                         return matricula.includes(query);
                     case 'nome':
                         return nome.includes(query);
+                    case 'criador':
+                        return criador.includes(query);
+                    case 'status':
+                        return status.includes(query);
                     case 'todos':
                     default:
-                        return id.includes(queryId) || nome.includes(query) || matricula.includes(query);
+                        return id.includes(queryId) || nome.includes(query) || matricula.includes(query) || criador.includes(query) || status.includes(query);
                 }
             });
         }
 
-        // Aplicar filtro de status (apenas para painéis em andamento)
+        // Aplicar filtro de status
         if (statusValue) {
             dados = dados.filter(item => item.status === statusValue);
         }
 
         // Resetar paginação
-        if (window.paginacao && window.paginacao[tipo]) {
+        if (resetarPagina && window.paginacao && window.paginacao[tipo]) {
             window.paginacao[tipo].paginaAtual = 1;
         }
 
@@ -1303,12 +1602,17 @@
                     </div>`;
         } else if ((tipo === 'perdidas' && !IS_ADMIN) || !podeEditar) {
             // Cotações Perdidas ou com status bloqueado: Exportar e Excluir (admin)
+            let revisarItem = '';
+            if (cotacao.status === 'Cotação Perdida' && cotacao.dias_no_status <= 5) {
+                revisarItem = `<li><a class="dropdown-item text-warning" href="#" onclick="revisarCotacao(${id})"><i class="fas fa-rotate"></i> Revisar Cotação</a></li>`;
+            }
             acoes = `<div class="dropdown">
                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="true">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="/cotacao/${id}?readonly=1"><i class="fas fa-eye"></i> Ver Cotação</a></li>
+                            ${revisarItem}
                             <li><a class="dropdown-item" href="#" onclick="verHistorico(${id}, 'cotacao')"><i class="fas fa-history"></i> Histórico de Status</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacao(${id})"><i class="fas fa-file-excel"></i> Exportar Excel</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportarCotacaoPDF(${id})"><i class="fas fa-file-pdf"></i> Exportar PDF</a></li>
@@ -1336,6 +1640,10 @@
         if (cotacao.pesquisa_id) {
             idDisplay = `CT-${id} <a href="/pesquisa/${cotacao.pesquisa_id}" class="text-decoration-none text-muted ms-1" style="font-size: 0.85em;" title="Originada da Pesquisa PM-${cotacao.pesquisa_id}"><i class="fas fa-link"></i></a>`;
             rowClass = 'class="linha-vinculada"';
+        }
+        if (cotacao.versao > 1) {
+            idDisplay += ` <span class="badge-versao" title="Versão ${cotacao.versao}"><i class="fas fa-rotate"></i> V${cotacao.versao}</span>`;
+            rowClass = 'class="linha-revisao"';
         }
 
         return `<tr ${rowClass}>
@@ -1519,39 +1827,69 @@
         renderizarPaginacao(tipo);
     }
 
-    // Renderiza os botões de paginação básicos (Anterior, número atual, Próximo)
+    // Renderiza os botões de paginação (Anterior, números de página 1, 2, 3..., Próximo)
     function renderizarPaginacao(tipo) {
         const ul = document.getElementById('pagination-list-' + tipo);
         const estado = window.paginacao[tipo];
         if (!ul || !estado) return;
         ul.innerHTML = '';
+
         // Anterior
         const liPrev = document.createElement('li');
-        liPrev.className = 'page-item' + (estado.paginaAtual === 1 ? ' disabled' : '');
+        liPrev.className = 'page-item' + (estado.paginaAtual <= 1 ? ' disabled' : '');
         liPrev.innerHTML = '<a class="page-link" href="#">&lt; Anterior</a>';
-        liPrev.onclick = function (e) { e.preventDefault(); mudarPagina(tipo, estado.paginaAtual - 1); };
+        liPrev.onclick = function (e) {
+            e.preventDefault();
+            if (estado.paginaAtual > 1) {
+                mudarPagina(tipo, estado.paginaAtual - 1);
+            }
+        };
         ul.appendChild(liPrev);
-        // Número atual
-        const liAtual = document.createElement('li');
-        liAtual.className = 'page-item active';
-        liAtual.innerHTML = '<a class="page-link" href="#">' + estado.paginaAtual + '</a>';
-        ul.appendChild(liAtual);
+
+        // Numeração de páginas (exibe janela de até 5 botões)
+        const maxBotoes = 5;
+        let paginaInicial = Math.max(1, estado.paginaAtual - Math.floor(maxBotoes / 2));
+        let paginaFinal = Math.min(estado.totalPaginas, paginaInicial + maxBotoes - 1);
+
+        if (paginaFinal - paginaInicial + 1 < maxBotoes) {
+            paginaInicial = Math.max(1, paginaFinal - maxBotoes + 1);
+        }
+
+        for (let p = paginaInicial; p <= paginaFinal; p++) {
+            const liNum = document.createElement('li');
+            liNum.className = 'page-item' + (p === estado.paginaAtual ? ' active' : '');
+            liNum.innerHTML = `<a class="page-link" href="#">${p}</a>`;
+            (function(num) {
+                liNum.onclick = function (e) {
+                    e.preventDefault();
+                    mudarPagina(tipo, num);
+                };
+            })(p);
+            ul.appendChild(liNum);
+        }
+
         // Próximo
         const liNext = document.createElement('li');
         liNext.className = 'page-item' + (estado.paginaAtual >= estado.totalPaginas ? ' disabled' : '');
         liNext.innerHTML = '<a class="page-link" href="#">Próximo &gt;</a>';
-        liNext.onclick = function (e) { e.preventDefault(); mudarPagina(tipo, estado.paginaAtual + 1); };
+        liNext.onclick = function (e) {
+            e.preventDefault();
+            if (estado.paginaAtual < estado.totalPaginas) {
+                mudarPagina(tipo, estado.paginaAtual + 1);
+            }
+        };
         ul.appendChild(liNext);
     }
 
-    // Troca de página e recarrega os dados para refletir a nova janela
+    // Troca de página e recarrega a tabela mantendo os filtros aplicados
     function mudarPagina(tipo, novaPagina) {
         const estado = window.paginacao[tipo];
         if (!estado) return;
         if (novaPagina < 1 || novaPagina > estado.totalPaginas || novaPagina === estado.paginaAtual) return;
+        
         estado.paginaAtual = novaPagina;
-        // Recarregar dados do tipo para aplicar o slice da nova página SEM RESETAR para 1
-        carregarDadosPorTipo(tipo, true);
+        // Re-executa o filtro sem resetar a página atual para 1
+        filtrarPainel(tipo, false);
     }
 
     // Função para aplicar filtros
@@ -2107,6 +2445,47 @@
                     },
                     error: function (xhr) {
                         Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao excluir.', 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    // Função para revisar uma cotação perdida (volta status e incrementa versão)
+    window.revisarCotacao = function (id) {
+        Swal.fire({
+            title: 'Revisar Cotação?',
+            text: `Esta cotação voltará para o status "Análise Comercial" e sua versão será incrementada para que você possa editá-la. Deseja prosseguir?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#ff9800',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, revisar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/api/cotacao/${id}/revisar`,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: 'Sucesso!',
+                                text: response.message,
+                                icon: 'success'
+                            }).then(() => {
+                                // Redirecionar para a página de edição da cotação
+                                window.location.href = `/cotacao/${id}`;
+                            });
+                        } else {
+                            Swal.fire('Erro!', response.error || 'Não foi possível revisar a cotação.', 'error');
+                        }
+                    },
+                    error: function (xhr) {
+                        Swal.fire('Erro!', xhr.responseJSON?.error || 'Ocorreu um erro ao revisar a cotação.', 'error');
                     }
                 });
             }

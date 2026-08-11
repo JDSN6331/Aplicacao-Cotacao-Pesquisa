@@ -63,6 +63,9 @@ exports/*
 # Temporary files
 *.tmp
 *.temp
+~$*
+query
+debug_pesquisa.txt
 .DS_Store
 Thumbs.db
 
@@ -94,6 +97,7 @@ scratch/
 
 # Backup folder (local development)
 backup_seguranca/
+backups/
 
 # Pytest cache
 .pytest_cache/

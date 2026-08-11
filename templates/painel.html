@@ -97,6 +97,7 @@
         position: relative;
         overflow: hidden;
         min-height: 140px;
+        min-width: 0;
     }
 
     .kpi-card::before {
@@ -138,14 +139,21 @@
         font-weight: 800;
         color: var(--text-primary);
         line-height: 1;
+        max-width: 100%;
+        min-width: 0;
     }
 
     .kpi-value.long {
-        font-size: 1.4rem;
-        letter-spacing: -0.5px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        line-height: 1.25;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        width: 100%;
+        max-width: 100%;
+        display: block;
     }
 
     .kpi-label {
@@ -356,6 +364,34 @@
             grid-template-columns: repeat(2, 1fr);
         }
     }
+
+    /* Card do Analista */
+    .analista-card {
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-glass);
+        border: 2px solid transparent;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    [data-theme="dark"] .analista-card {
+        background: rgba(40, 40, 40, 0.85);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .analista-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-color: rgba(46, 125, 50, 0.3);
+    }
+    .analista-card.active {
+        border-color: var(--primary) !important;
+        background: rgba(46, 125, 50, 0.05) !important;
+    }
+    [data-theme="dark"] .analista-card.active {
+        background: rgba(46, 125, 50, 0.15) !important;
+    }
 </style>
 {% endblock %}
 
@@ -551,6 +587,50 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SEÇÃO 5 — PRODUTIVIDADE POR ANALISTA REGIONAL            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div class="section-divider"></div>
+    <div class="section-title">
+        <i class="fas fa-user-tie"></i> Produtividade por Analista Regional
+    </div>
+
+    <!-- Filtro de Mês e Título -->
+    <div class="chart-card mb-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="chart-card-title m-0"><i class="fas fa-users-cog"></i> Cotações Criadas por Analista</div>
+            <div class="d-flex align-items-center gap-2">
+                <label for="filtroMesProdutividade" style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); white-space: nowrap;">Filtrar Mês:</label>
+                <select class="form-select form-select-sm" id="filtroMesProdutividade" onchange="aoMudarFiltroMes()" style="min-width: 160px; font-size: 0.85rem; border-radius: 8px;">
+                    <option value="todos">Todos os Meses</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid de Cards dos Analistas -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 mb-4" id="gridAnalistas">
+        <!-- Preenchido via JavaScript -->
+        <div class="col-12 w-100 text-center py-4 text-muted" style="font-size: 0.88rem;">
+            <i class="fas fa-spinner fa-spin me-2"></i> Carregando analistas...
+        </div>
+    </div>
+
+    <!-- Detalhamento por Status -->
+    <div class="chart-card" id="cardDetalheProdutividade">
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div class="chart-card-title m-0" id="tituloDetalheStatus" style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary);">
+                <i class="fas fa-chart-pie me-2"></i> Distribuição por Status (Todos os Analistas)
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnLimparSelecaoAnalista" onclick="selecionarAnalista(null)" style="display: none; font-size: 0.75rem; border-radius: 6px; padding: 0.2rem 0.6rem;">
+                <i class="fas fa-times me-1"></i> Mostrar Todos
+            </button>
+        </div>
+        <div id="corpoDetalheStatus">
+            <!-- Barra de progresso e legenda preenchidos via JavaScript -->
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -564,13 +644,14 @@
         green: ['#2E7D32', '#4CAF50', '#81C784', '#A5D6A7', '#C8E6C9', '#E8F5E9'],
         status: {
             'Análise Comercial': '#2E7D32',
-            'Análise Suprimentos': '#0288D1',
-            'Avaliação Comercial': '#7B1FA2',
-            'Aguardando Cooperado': '#F9A825',
-            'Revisão Comercial': '#E65100',
-            'Revisão Suprimentos': '#AD1457',
-            'Cotação Finalizada': '#43A047',
+            'Análise Suprimentos': '#FFB300',
+            'Avaliação Comercial': '#00897B',
+            'Aguardando Cooperado': '#7B1FA2',
+            'Revisão Comercial': '#0097A7',
+            'Revisão Suprimentos': '#3949AB',
+            'Cotação Finalizada': '#0288D1',
             'Cotação Perdida': '#C62828',
+            'Criação': '#757575',
         },
         dept: { 'Comercial': '#2E7D32', 'Suprimentos': '#0288D1', 'Loja': '#F9A825', 'N/A': '#9E9E9E' },
         multi: ['#2E7D32', '#0288D1', '#F9A825', '#7B1FA2', '#E65100', '#AD1457', '#00897B', '#5D4037'],
@@ -680,6 +761,7 @@
             renderPesquisas(d.pesquisas);
             renderLocalidade(d.analises);
             renderUsuarios(d.usuarios);
+            renderProdutividade(d.produtividade_usuarios);
 
         } catch (e) {
             console.error(e);
@@ -699,8 +781,17 @@
                 badge: c.perdidas > 0 ? { type: 'danger', text: '✗' } : null
             },
             {
-                icon: 'fa-trophy', label: 'Taxa de Sucesso', value: c.taxa_sucesso + '%', color: '#F9A825',
-                sub: 'Finalizadas / (Fin. + Perdidas)', badge: { type: c.taxa_sucesso >= 50 ? 'success' : 'warning', text: c.taxa_sucesso + '%' }
+                icon: 'fa-trophy', label: 'Taxa de Sucesso', value: c.taxa_sucesso + '%', 
+                color: c.taxa_sucesso >= 80 ? '#2E7D32' : '#C62828',
+                sub: 'Finalizadas / (Fin. + Perdidas)', 
+                badge: { 
+                    type: c.taxa_sucesso >= 80 ? 'success' : 'danger', 
+                    text: c.taxa_sucesso >= 80 ? '✓ Meta Atingida' : '⚠️ Abaixo da Meta' 
+                }
+            },
+            {
+                icon: 'fa-bullseye', label: 'Meta de Sucesso', value: '80%', color: '#0288D1',
+                sub: 'Meta para Taxa de Sucesso'
             },
             {
                 icon: 'fa-coins', label: 'Valor Total Finalizado', 
@@ -944,8 +1035,8 @@
     function renderLocalidade(a) {
         if (!a) return;
 
-        // Gráfico Loja - Cotações
-        const lojasC = a.por_loja.filter(l => l.cotacoes > 0);
+        // Gráfico Loja - Cotações (Top 10 por volume de Cotações)
+        const lojasC = (a.por_loja_cotacoes || a.por_loja).filter(l => l.cotacoes > 0);
         makeChart('chartCotacoesPorLoja', 'bar', lojasC.map(l => l.loja), [
             { label: 'Cotações', data: lojasC.map(l => l.cotacoes), backgroundColor: '#2E7D32', borderRadius: 4 }
         ], {
@@ -956,8 +1047,8 @@
             }
         });
 
-        // Gráfico Loja - Pesquisas
-        const lojasP = a.por_loja.filter(l => l.pesquisas > 0);
+        // Gráfico Loja - Pesquisas (Top 10 por volume de Pesquisas)
+        const lojasP = (a.por_loja_pesquisas || a.por_loja).filter(l => l.pesquisas > 0);
         makeChart('chartPesquisasPorLoja', 'bar', lojasP.map(l => l.loja), [
             { label: 'Pesquisas', data: lojasP.map(l => l.pesquisas), backgroundColor: '#7B1FA2', borderRadius: 4 }
         ], {
@@ -1064,6 +1155,231 @@
             </div>
         </div>
     `;
+    }
+
+    // ── PRODUTIVIDADE DINÂMICA POR ANALISTA REGIONAL ────────────────────────────────
+    let rawProdutividadeData = null;
+    let filtroMesSelecionado = 'todos';
+    let analistaSelecionado = null;
+
+    const MESES_NOMES = {
+        '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
+        '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
+        '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+    };
+
+    function renderProdutividade(dados) {
+        rawProdutividadeData = dados;
+        
+        // 1. Preencher o select de meses
+        popularSelectMeses(dados.cotacoes);
+        
+        // 2. Renderizar os cards e detalhamento inicial
+        atualizarVisualizacaoProdutividade();
+    }
+
+    function popularSelectMeses(cotacoes) {
+        const select = document.getElementById('filtroMesProdutividade');
+        if (!select) return;
+        
+        // Obter meses únicos
+        const mesesSet = new Set();
+        cotacoes.forEach(c => {
+            if (c.data) {
+                // pegar YYYY-MM
+                mesesSet.add(c.data.substring(0, 7));
+            }
+        });
+        
+        // Ordenar os meses decrescente
+        const mesesOrdenados = Array.from(mesesSet).sort().reverse();
+        
+        // Resetar opções mantendo apenas "Todos"
+        select.innerHTML = '<option value="todos">Todos os Meses</option>';
+        
+        mesesOrdenados.forEach(mes => {
+            const [ano, mesNum] = mes.split('-');
+            const label = `${MESES_NOMES[mesNum] || mesNum}/${ano}`;
+            const opt = document.createElement('option');
+            opt.value = mes;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+        
+        // Restaurar filtro selecionado se ainda existir
+        select.value = filtroMesSelecionado;
+    }
+
+    function aoMudarFiltroMes() {
+        const select = document.getElementById('filtroMesProdutividade');
+        if (select) {
+            filtroMesSelecionado = select.value;
+            atualizarVisualizacaoProdutividade();
+        }
+    }
+
+    function selecionarAnalista(nome) {
+        analistaSelecionado = nome;
+        atualizarVisualizacaoProdutividade();
+        
+        // Rolar suavemente até o detalhamento de status se um analista for selecionado
+        if (nome) {
+            const cardDetalhe = document.getElementById('cardDetalheProdutividade');
+            if (cardDetalhe) {
+                cardDetalhe.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }
+
+    function atualizarVisualizacaoProdutividade() {
+        if (!rawProdutividadeData) return;
+        
+        const analistasNomesRaw = rawProdutividadeData.analistas || [];
+        const cotacoes = rawProdutividadeData.cotacoes || [];
+        
+        // Filtrar para mostrar apenas os analistas que criaram pelo menos uma cotação na base histórica
+        const analistasNomes = analistasNomesRaw.filter(nome => {
+            return cotacoes.some(c => c.criado_por === nome);
+        });
+        
+        // 1. Filtrar as cotações baseadas no mês selecionado
+        let cotacoesFiltradas = cotacoes.filter(c => {
+            // Apenas cotações criadas pelos analistas regionais da lista oficial
+            if (!analistasNomes.includes(c.criado_por)) return false;
+            
+            if (filtroMesSelecionado === 'todos') return true;
+            return c.data && c.data.startsWith(filtroMesSelecionado);
+        });
+        
+        // 2. Agrupar contagem por analista
+        const contagemPorAnalista = {};
+        analistasNomes.forEach(nome => {
+            contagemPorAnalista[nome] = 0;
+        });
+        
+        cotacoesFiltradas.forEach(c => {
+            if (contagemPorAnalista[c.criado_por] !== undefined) {
+                contagemPorAnalista[c.criado_por]++;
+            }
+        });
+        
+        // 3. Renderizar Cards dos Analistas
+        const grid = document.getElementById('gridAnalistas');
+        if (grid) {
+            // Ordenar analistas pelo total de cotações criado
+            const analistasOrdenados = [...analistasNomes].sort((a, b) => contagemPorAnalista[b] - contagemPorAnalista[a]);
+            
+            grid.innerHTML = analistasOrdenados.map(nome => {
+                const total = contagemPorAnalista[nome];
+                const initials = nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const avatarColor = '#0288D1';
+                const isActive = analistaSelecionado === nome;
+                
+                return `
+                    <div class="col">
+                        <div class="analista-card p-3 d-flex align-items-center gap-3 ${isActive ? 'active' : ''}" 
+                             onclick="selecionarAnalista('${nome}')" 
+                             style="border-radius: var(--radius-md);">
+                            <div class="analista-avatar" 
+                                 style="width: 38px; height: 38px; border-radius: 50%; background-color: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                ${initials}
+                            </div>
+                            <div class="flex-grow-1 min-width-0">
+                                <h6 class="mb-0 fw-bold text-truncate text-primary-emphasis" style="font-size: 0.85rem;" title="${nome}">${nome}</h6>
+                                <span class="text-secondary" style="font-size: 0.72rem;">Criadas</span>
+                            </div>
+                            <div class="text-end fw-bold" style="color: var(--text-secondary); font-size: 0.95rem; padding-right: 0.25rem;">
+                                ${total}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 4. Renderizar o Detalhamento de Status para o Analista Selecionado ou Geral
+        const titulo = document.getElementById('tituloDetalheStatus');
+        const btnLimpar = document.getElementById('btnLimparSelecaoAnalista');
+        const corpo = document.getElementById('corpoDetalheStatus');
+        
+        if (titulo && btnLimpar && corpo) {
+            // Filtrar cotações para o detalhamento por status
+            let cotacoesStatus = cotacoesFiltradas;
+            if (analistaSelecionado) {
+                cotacoesStatus = cotacoesFiltradas.filter(c => c.criado_por === analistaSelecionado);
+                titulo.innerHTML = `<i class="fas fa-chart-pie me-2"></i> Distribuição por Status (Analista: <strong>${analistaSelecionado}</strong>)`;
+                btnLimpar.style.display = 'inline-block';
+            } else {
+                titulo.innerHTML = `<i class="fas fa-chart-pie me-2"></i> Distribuição por Status (Todos os Analistas)`;
+                btnLimpar.style.display = 'none';
+            }
+            
+            const totalStatus = cotacoesStatus.length;
+            
+            if (totalStatus === 0) {
+                corpo.innerHTML = `
+                    <div class="text-center py-4 text-muted" style="font-size: 0.88rem;">
+                        <i class="fas fa-info-circle me-2"></i> Nenhuma cotação criada neste período.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Agrupar por status
+            const statusAgrupado = {};
+            cotacoesStatus.forEach(c => {
+                const st = c.status || 'Sem Status';
+                statusAgrupado[st] = (statusAgrupado[st] || 0) + 1;
+            });
+            
+            // Gerar barra de progresso empilhada
+            let progressHtml = '<div class="progress" style="height: 22px; border-radius: 11px; overflow: hidden; background-color: rgba(0,0,0,0.05); display: flex;">';
+            let legendHtml = '<div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2 mt-3" style="font-size: 0.8rem;">';
+            
+            const statusesOrdenados = Object.keys(statusAgrupado).sort((a, b) => statusAgrupado[b] - statusAgrupado[a]);
+            
+            statusesOrdenados.forEach(status => {
+                const count = statusAgrupado[status];
+                const percentage = ((count / totalStatus) * 100).toFixed(1);
+                const color = PALETTE.status[status] || '#9E9E9E';
+                
+                progressHtml += `
+                    <div class="progress-bar" role="progressbar" 
+                         style="width: ${percentage}%; background-color: ${color}; font-weight: 700; font-size: 0.72rem; text-align: center; line-height: 22px;" 
+                         title="${status}: ${count} (${percentage}%)" 
+                         data-bs-toggle="tooltip" 
+                         data-bs-placement="top">
+                         ${count}
+                    </div>
+                `;
+                
+                legendHtml += `
+                    <div class="col d-flex align-items-center gap-2">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${color}; flex-shrink: 0;"></span>
+                        <span class="text-secondary text-truncate" title="${status}">${status}: <strong>${count}</strong></span>
+                    </div>
+                `;
+            });
+            
+            progressHtml += '</div>';
+            legendHtml += '</div>';
+            
+            corpo.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.82rem; color: var(--text-secondary);">
+                    <span>Volume Total Analisado: <strong>${totalStatus} cotação(ões)</strong></span>
+                </div>
+                ${progressHtml}
+                ${legendHtml}
+            `;
+            
+            // Inicializar tooltips do bootstrap
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
+        }
     }
 
     // ── Atualizar cores dos gráficos ao trocar tema ────────────────────────────────

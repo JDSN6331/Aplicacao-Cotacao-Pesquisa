@@ -9,8 +9,7 @@ import pytz
 from werkzeug.utils import secure_filename
 import json
 import traceback
-import threading
-from services.email_service import enviar_email, obter_email_por_status
+from services.email_service import disparar_email_em_background, preparar_email_resumo_registro
 from urllib.parse import unquote
 import sys
 import uuid
@@ -68,6 +67,25 @@ def pode_editar_cotacao(usuario_departamento, status_cotacao, is_admin=False):
 
     status_permitido = STATUS_DEPARTAMENTO_MAP.get(status_cotacao)
     return status_permitido == usuario_departamento
+
+def pode_revisar_cotacao_perdida(cotacao):
+    """
+    Verifica se uma cotação perdida pode ser revisada (prazo de 5 dias corridos).
+    
+    Args:
+        cotacao: Objeto Cotacao
+    
+    Returns:
+        tuple: (bool, int) - (pode revisar, dias restantes)
+    """
+    if cotacao.status != 'Cotação Perdida':
+        return False, 0
+    if not cotacao.data_entrada_status:
+        return False, 0
+    dias_passados = (datetime.now() - cotacao.data_entrada_status).days
+    if dias_passados <= 5:
+        return True, 5 - dias_passados
+    return False, 0
 
 def obter_status_permitidos(usuario_departamento, is_admin=False):
     """
@@ -233,9 +251,13 @@ def editar_cotacao(id):
     if cotacao.status in ['Cotação Finalizada', 'Cotação Perdida'] or not pode_editar:
         readonly = True
     
+    # Verificar se cotação perdida pode ser revisada (prazo de 5 dias)
+    pode_revisar, dias_restantes = pode_revisar_cotacao_perdida(cotacao)
+    
     return render_template('form.html', cotacao=cotacao, status_options=STATUS_OPTIONS, 
                           produtos_json=produtos_json, pode_editar=pode_editar,
-                          usuario_depto=usuario_depto, readonly=readonly)
+                          usuario_depto=usuario_depto, readonly=readonly,
+                          pode_revisar=pode_revisar, dias_restantes_revisao=dias_restantes)
 
 @cotacao_routes.route('/api/cotacao', methods=['POST'])
 @login_required
@@ -343,6 +365,20 @@ def criar_cotacao():
                 origem='cotacao'
             )
             db.session.add(nova_obs)
+
+        # Registrar o motivo da perda como observação automática se iniciar como Cotação Perdida
+        if cotacao.status == 'Cotação Perdida':
+            motivo_texto = cotacao.motivo_venda_perdida.strip() if cotacao.motivo_venda_perdida else ''
+            if motivo_texto:
+                from models import Observacao
+                obs_sistema = Observacao(
+                    cotacao_id=cotacao.id,
+                    texto=f"Versão 1: {motivo_texto}",
+                    usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                    departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                    origem='motivo_perda'
+                )
+                db.session.add(obs_sistema)
         
         # Registrar histórico de status inicial
         historico = HistoricoStatus(
@@ -504,54 +540,16 @@ def criar_cotacao():
 
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # Capturar valores antes de iniciar a thread para evitar erro de contexto
-        email_status = cotacao.status
-        email_nome_cooperado = cotacao.nome_cooperado
-        email_cotacao_id = cotacao.id
-        
-        def enviar_email_background(status, nome_cooperado, cid):
-            import time
-            tentativas = 0
-            max_tentativas = 3
-            
-            while tentativas < max_tentativas:
-                try:
-                    print(f'\n[EMAIL] Iniciando envio para nova cotação (ID {cid}) - Tentativa {tentativas + 1}/{max_tentativas}')
-                    destinatario = obter_email_por_status(status)
-                    destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                    print(f'[EMAIL] Destinatários: {destinatarios}')
-                    
-                    resultado = enviar_email(
-                        destinatarios=destinatarios,
-                        assunto='Nova Cotação Criada',
-                        corpo_html=f'<p>Uma nova cotação foi criada para o cooperado <strong>{nome_cooperado}</strong> (CT-{cid}). Status: <strong>{status}</strong>.</p>'
-                    )
-                    
-                    if resultado:
-                        print(f'[EMAIL] ✅ E-mail enviado com sucesso para cotação ID {cid}')
-                        break
-                    else:
-                        print(f'[EMAIL] ❌ Falha ao enviar e-mail (enviar_email retornou False)')
-                        tentativas += 1
-                        if tentativas < max_tentativas:
-                            time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-                except Exception as e:
-                    print(f'[EMAIL] ❌ ERRO ao enviar e-mail (Tentativa {tentativas + 1}/{max_tentativas}): {str(e)}')
-                    print(f'[EMAIL] Tipo de erro: {type(e).__name__}')
-                    import traceback
-                    traceback.print_exc()
-                    tentativas += 1
-                    if tentativas < max_tentativas:
-                        time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-            
-            if tentativas >= max_tentativas:
-                print(f'[EMAIL] ❌ FALHA FINAL: Não foi possível enviar e-mail após {max_tentativas} tentativas para cotação ID {cid}')
-        
-        # Executar envio de e-mail em thread separada (não-daemon para permitir conclusão)
-        thread_email = threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_cotacao_id), daemon=False)
-        thread_email.start()
-        print(f'[THREAD] Thread de e-mail iniciada para cotação ID {email_cotacao_id}')
+        payload_email = preparar_email_resumo_registro(
+            cotacao,
+            acao='criada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de criação da cotação CT-{cotacao.id}',
+            daemon=False
+        )
         
         return jsonify({'success': True, 'message': 'Cotação criada com sucesso!'})
     except Exception as e:
@@ -641,6 +639,21 @@ def atualizar_cotacao(id):
                 departamento=departamento
             )
             db.session.add(historico)
+            
+            # Registrar o motivo da perda como observação automática para histórico de versões
+            if novo_status == 'Cotação Perdida':
+                motivo_texto = data.get('motivo_venda_perdida', '').strip()
+                if motivo_texto:
+                    versao_atual = getattr(cotacao, 'versao', 1)
+                    from models import Observacao
+                    obs_sistema = Observacao(
+                        cotacao_id=cotacao.id,
+                        texto=f"Versão {versao_atual}: {motivo_texto}",
+                        usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                        departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A',
+                        origem='motivo_perda'
+                    )
+                    db.session.add(obs_sistema)
         
         cotacao.analista_comercial = data.get('analista_comercial', cotacao.analista_comercial)
         cotacao.comprador = data.get('comprador', cotacao.comprador)
@@ -658,6 +671,18 @@ def atualizar_cotacao(id):
                 origem='cotacao'
             )
             db.session.add(nova_obs)
+            
+            # Registrar alteração de campo no histórico de edições
+            from services.utils import registrar_edicao_campo
+            registrar_edicao_campo(
+                campo_nome='observacao',
+                campo_label='Nova Observação',
+                valor_anterior='(vazio)',
+                valor_novo=nova_obs_texto,
+                cotacao_id=cotacao.id,
+                usuario=current_user.name if current_user.is_authenticated else 'Sistema',
+                departamento=getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+            )
         
         # Tratar prazo_entrega corretamente como data
         prazo_str = data.get('prazo_entrega', '').strip()
@@ -669,7 +694,8 @@ def atualizar_cotacao(id):
         
         cotacao.cultura = data.get('cultura', cotacao.cultura)
         cotacao.nome_vendedor = data.get('nome_vendedor', cotacao.nome_vendedor)
-        cotacao.motivo_venda_perdida = data.get('motivo_venda_perdida', cotacao.motivo_venda_perdida)
+        if cotacao.status == 'Cotação Perdida':
+            cotacao.motivo_venda_perdida = data.get('motivo_venda_perdida', cotacao.motivo_venda_perdida)
         
         # Processar anexos (múltiplos arquivos)
         arquivos = request.files.getlist('anexos[]') or request.files.getlist('anexo')
@@ -838,58 +864,90 @@ def atualizar_cotacao(id):
         
         db.session.commit()
         
-        # Enviar e-mail para o departamento correto (em background para não bloquear)
-        # APENAS SE HOUVER MUDANÇA REAL DE STATUS
-        if status_anterior != novo_status:
-            # Capturar valores antes de iniciar a thread para evitar erro de contexto
-            email_status = cotacao.status
-            email_nome_cooperado = cotacao.nome_cooperado
-            email_cotacao_id = cotacao.id
-            
-            def enviar_email_background(status, nome_cooperado, cid):
-                import time
-                tentativas = 0
-                max_tentativas = 3
-                
-                while tentativas < max_tentativas:
-                    try:
-                        print(f'\n[EMAIL] Iniciando envio para status "{status}" - Tentativa {tentativas + 1}/{max_tentativas}')
-                        destinatario = obter_email_por_status(status)
-                        destinatarios = destinatario if isinstance(destinatario, list) else [destinatario]
-                        print(f'[EMAIL] Destinatários: {destinatarios}')
-                        
-                        resultado = enviar_email(
-                            destinatarios=destinatarios,
-                            assunto='Cotação Atualizada - Novo Status',
-                            corpo_html=f'<p>A cotação CT-{cid} do cooperado {nome_cooperado} teve seu status alterado para: <strong>{status}</strong>.</p>'
-                        )
-                        
-                        if resultado:
-                            print(f'[EMAIL] ✅ E-mail enviado com sucesso para cotação ID {cid}')
-                            break
-                        else:
-                            print(f'[EMAIL] ❌ Falha ao enviar e-mail (enviar_email retornou False)')
-                            tentativas += 1
-                            if tentativas < max_tentativas:
-                                time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-                    except Exception as e:
-                        print(f'[EMAIL] ❌ ERRO ao enviar e-mail (Tentativa {tentativas + 1}/{max_tentativas}): {str(e)}')
-                        print(f'[EMAIL] Tipo de erro: {type(e).__name__}')
-                        import traceback
-                        traceback.print_exc()
-                        tentativas += 1
-                        if tentativas < max_tentativas:
-                            time.sleep(2)  # Aguardar 2 segundos antes de tentar novamente
-                
-                if tentativas >= max_tentativas:
-                    print(f'[EMAIL] ❌ FALHA FINAL: Não foi possível enviar e-mail após {max_tentativas} tentativas para cotação ID {cid}')
-            
-            # Executar envio de e-mail em thread separada (não-daemon para permitir conclusão)
-            thread_email = threading.Thread(target=enviar_email_background, args=(email_status, email_nome_cooperado, email_cotacao_id), daemon=False)
-            thread_email.start()
-            print(f'[THREAD] Thread de e-mail iniciada para cotação ID {email_cotacao_id}')
+        payload_email = preparar_email_resumo_registro(
+            cotacao,
+            acao='atualizada',
+            usuario=current_user.name if current_user.is_authenticated else None
+        )
+        disparar_email_em_background(
+            payload_email,
+            contexto=f'resumo de atualização da cotação CT-{cotacao.id}',
+            daemon=False
+        )
         
         return jsonify({'success': True, 'message': 'Cotação atualizada com sucesso!'})
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@cotacao_routes.route('/api/cotacao/<int:id>/revisar', methods=['POST'])
+@login_required
+def revisar_cotacao(id):
+    """Revisa uma cotação perdida: incrementa versão e volta para 'Análise Comercial'."""
+    try:
+        cotacao = Cotacao.query.get_or_404(id)
+        
+        # Validar que é uma cotação perdida
+        if cotacao.status != 'Cotação Perdida':
+            return jsonify({'success': False, 'error': 'Apenas cotações com status "Cotação Perdida" podem ser revisadas.'}), 400
+        
+        # Validar prazo de 5 dias corridos
+        pode_revisar, dias_restantes = pode_revisar_cotacao_perdida(cotacao)
+        if not pode_revisar:
+            return jsonify({'success': False, 'error': 'O prazo de 5 dias corridos para revisão desta cotação já expirou.'}), 400
+        
+        # Incrementar versão
+        nova_versao = (cotacao.versao or 1) + 1
+        status_anterior = cotacao.status
+        
+        # Atualizar cotação
+        cotacao.versao = nova_versao
+        cotacao.status = 'Análise Comercial'
+        cotacao.data_entrada_status = datetime.now(TZ_SP)
+        cotacao.data_ultima_modificacao = datetime.now(TZ_SP)
+        
+        # Registrar histórico de status
+        usuario = current_user.name if current_user.is_authenticated else 'Sistema'
+        departamento = getattr(current_user, 'departamento', 'N/A') if current_user.is_authenticated else 'N/A'
+        
+        historico = HistoricoStatus(
+            cotacao_id=cotacao.id,
+            status_anterior=status_anterior,
+            status_novo='Análise Comercial',
+            observacao=f'Cotação revisada - Versão {nova_versao}',
+            usuario=usuario,
+            departamento=departamento
+        )
+        db.session.add(historico)
+        
+        # Se a cotação está vinculada a uma pesquisa, reverter status da pesquisa também
+        if cotacao.pesquisa_id:
+            from models import PesquisaMercado
+            pesquisa_origem = PesquisaMercado.query.get(cotacao.pesquisa_id)
+            if pesquisa_origem and pesquisa_origem.status == 'Pesquisa Perdida':
+                status_pesquisa_anterior = pesquisa_origem.status
+                pesquisa_origem.status = 'Avaliação Comercial'
+                pesquisa_origem.data_entrada_status = datetime.now(TZ_SP)
+                
+                historico_pesquisa = HistoricoStatus(
+                    pesquisa_id=pesquisa_origem.id,
+                    status_anterior=status_pesquisa_anterior,
+                    status_novo='Avaliação Comercial',
+                    observacao=f'Status revertido automaticamente por revisão da cotação CT-{cotacao.id} (Versão {nova_versao})',
+                    usuario=usuario,
+                    departamento=departamento
+                )
+                db.session.add(historico_pesquisa)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Cotação revisada com sucesso! Agora na Versão {nova_versao}.',
+            'versao': nova_versao,
+            'cotacao_id': cotacao.id
+        })
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
@@ -1082,8 +1140,23 @@ def editar_observacao_api(obs_id):
         if not novo_texto:
             return jsonify({'success': False, 'error': 'O texto da observação não pode ser vazio.'}), 400
             
+        texto_anterior = obs.texto
         obs.texto = novo_texto
         obs.data_edicao = datetime.now()
+        
+        # Registrar no histórico de edições
+        from services.utils import registrar_edicao_campo
+        registrar_edicao_campo(
+            campo_nome='observacao',
+            campo_label='Observação Editada',
+            valor_anterior=texto_anterior,
+            valor_novo=novo_texto,
+            cotacao_id=obs.cotacao_id,
+            pesquisa_id=obs.pesquisa_id,
+            usuario=current_user.name,
+            departamento=getattr(current_user, 'departamento', 'N/A')
+        )
+        
         db.session.commit()
         return jsonify({'success': True, 'message': 'Observação atualizada com sucesso!', 'observacao': obs.to_dict()})
     except Exception as e:
@@ -1099,6 +1172,19 @@ def excluir_observacao_api(obs_id):
         if obs.usuario != current_user.name:
             return jsonify({'success': False, 'error': 'Apenas o autor pode excluir esta observação.'}), 403
             
+        # Registrar no histórico de edições
+        from services.utils import registrar_edicao_campo
+        registrar_edicao_campo(
+            campo_nome='observacao',
+            campo_label='Observação Excluída',
+            valor_anterior=obs.texto,
+            valor_novo='(excluída)',
+            cotacao_id=obs.cotacao_id,
+            pesquisa_id=obs.pesquisa_id,
+            usuario=current_user.name,
+            departamento=getattr(current_user, 'departamento', 'N/A')
+        )
+        
         db.session.delete(obs)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Observação excluída com sucesso!'})

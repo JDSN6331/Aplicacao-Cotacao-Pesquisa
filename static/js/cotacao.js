@@ -905,11 +905,67 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         }
 
+        function verificarECadastrarProdutoFluxoAutocomplete() {
+            const skuVal = skuInput.value.trim();
+            const nomeVal = nomeInput.value.trim();
+            
+            const skuInvalido = skuInput.classList.contains('is-invalid') || skuVal === 'Código não encontrado' || skuVal === 'Erro na busca' || skuVal === 'Produto não encontrado';
+            const nomeInvalido = nomeInput.classList.contains('is-invalid') || nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca' || nomeVal === 'Código não encontrado';
+            
+            if (skuInvalido || nomeInvalido) {
+                let codParaCadastrar = '';
+                let nomeParaCadastrar = '';
+                
+                if (nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca') {
+                    // Busca foi por código, logo código é a chave digitada. O nome deve ser vazio.
+                    codParaCadastrar = (skuVal !== 'Código não encontrado' && skuVal !== 'Erro na busca') ? skuVal : '';
+                } else if (skuVal === 'Código não encontrado' || skuVal === 'Erro na busca') {
+                    // Busca foi por nome, logo nome é a chave digitada. O código deve ser vazio.
+                    nomeParaCadastrar = (nomeVal !== 'Produto não encontrado' && nomeVal !== 'Erro na busca') ? nomeVal : '';
+                } else {
+                    // Fallback
+                    const originalSku = skuInput.dataset.ultimoValor || '';
+                    const originalNome = nomeInput.dataset.ultimoValor || '';
+                    
+                    const skuValido = originalSku && originalSku !== 'Código não encontrado' && originalSku !== 'Erro na busca' && originalSku !== 'Produto não encontrado';
+                    const nomeValido = originalNome && originalNome !== 'Produto não encontrado' && originalNome !== 'Erro na busca' && originalNome !== 'Código não encontrado';
+                    
+                    if (skuValido) codParaCadastrar = originalSku;
+                    else if (nomeValido) nomeParaCadastrar = originalNome;
+                }
+                
+                if (codParaCadastrar || nomeParaCadastrar) {
+                    if (Swal.isVisible()) return;
+                    
+                    confirmarECadastrarProduto(
+                        codParaCadastrar,
+                        nomeParaCadastrar,
+                        '',
+                        function(prodData) {
+                            skuInput.value = prodData.codigo;
+                            nomeInput.value = prodData.nome;
+                            skuInput.classList.add('is-valid');
+                            skuInput.classList.remove('is-invalid');
+                            nomeInput.classList.add('is-valid');
+                            nomeInput.classList.remove('is-invalid');
+                            bloquearCampo(skuInput, 'Campo bloqueado - preenchido automaticamente');
+                            bloquearCampo(nomeInput, 'Campo bloqueado - preenchido automaticamente');
+                            transformarParaTexto(prodData.fornecedor);
+                        }
+                    );
+                }
+            }
+        }
+
         // Event listeners para autocompletar produtos
         let timeoutCodigo, timeoutNome;
 
         skuInput.addEventListener('input', function () {
             const codigo = this.value;
+            const val = this.value.trim();
+            if (val && val !== 'Código não encontrado' && val !== 'Erro na busca' && val !== 'Produto não encontrado') {
+                this.dataset.ultimoValor = val;
+            }
 
             // Limpar timeout anterior
             clearTimeout(timeoutCodigo);
@@ -920,8 +976,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 500);
         });
 
+        skuInput.addEventListener('blur', verificarECadastrarProdutoFluxoAutocomplete);
+
         nomeInput.addEventListener('input', function () {
             const nome = this.value;
+            const val = this.value.trim();
+            if (val && val !== 'Produto não encontrado' && val !== 'Erro na busca' && val !== 'Código não encontrado') {
+                this.dataset.ultimoValor = val;
+            }
 
             // Limpar timeout anterior
             clearTimeout(timeoutNome);
@@ -931,6 +993,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 buscarProdutoPorNome(nome);
             }, 500);
         });
+
+        nomeInput.addEventListener('blur', verificarECadastrarProdutoFluxoAutocomplete);
 
         // Event listeners para desbloquear campos quando editados
         skuInput.addEventListener('focus', function () {
@@ -1295,6 +1359,64 @@ document.addEventListener('DOMContentLoaded', function () {
     let timeoutMatricula = null;
     let timeoutNome = null;
 
+    function verificarECadastrarCooperadoFluxo() {
+        const matVal = matriculaInput ? matriculaInput.value.trim() : '';
+        const nomeVal = nomeInput ? nomeInput.value.trim() : '';
+        
+        const matInvalido = matriculaInput && (matriculaInput.classList.contains('is-invalid') || matVal === 'Matrícula não encontrada' || matVal === 'Erro na busca');
+        const nomeInvalido = nomeInput && (nomeInput.classList.contains('is-invalid') || nomeVal === 'Cooperado não encontrado' || nomeVal === 'Erro na busca');
+        
+        if (matInvalido || nomeInvalido) {
+            let matParaCadastrar = '';
+            let nomeParaCadastrar = '';
+            
+            if (nomeVal === 'Cooperado não encontrado' || nomeVal === 'Erro na busca') {
+                // Busca foi por matrícula, logo matrícula é a chave digitada. O nome deve ser vazio.
+                matParaCadastrar = (matVal !== 'Matrícula não encontrada' && matVal !== 'Erro na busca') ? matVal : '';
+            } else if (matVal === 'Matrícula não encontrada' || matVal === 'Erro na busca') {
+                // Busca foi por nome, logo nome é a chave digitada. A matrícula deve ser vazia.
+                nomeParaCadastrar = (nomeVal !== 'Cooperado não encontrado' && nomeVal !== 'Erro na busca') ? nomeVal : '';
+            } else {
+                // Fallback com o último valor válido
+                const originalMat = matriculaInput ? (matriculaInput.dataset.ultimoValor || '') : '';
+                const originalNome = nomeInput ? (nomeInput.dataset.ultimoValor || '') : '';
+                
+                const matValida = originalMat && originalMat !== 'Matrícula não encontrada' && originalMat !== 'Erro na busca' && originalMat !== 'Cooperado não encontrado';
+                const nomeValido = originalNome && originalNome !== 'Cooperado não encontrado' && originalNome !== 'Erro na busca' && originalNome !== 'Matrícula não encontrada';
+                
+                if (matValida) matParaCadastrar = originalMat;
+                else if (nomeValido) nomeParaCadastrar = originalNome;
+            }
+            
+            if (matParaCadastrar || nomeParaCadastrar) {
+                if (Swal.isVisible()) return;
+                
+                confirmarECadastrarCooperado(
+                    matParaCadastrar,
+                    nomeParaCadastrar,
+                    function(cooperadoData) {
+                        if (matriculaInput) {
+                            matriculaInput.value = cooperadoData.matricula;
+                            matriculaInput.classList.add('is-valid');
+                            matriculaInput.classList.remove('is-invalid');
+                            matriculaInput.readOnly = true;
+                        }
+                        if (nomeInput) {
+                            nomeInput.value = cooperadoData.nome;
+                            nomeInput.classList.add('is-valid');
+                            nomeInput.classList.remove('is-invalid');
+                            nomeInput.readOnly = true;
+                        }
+                        const errorMsg = document.getElementById('nome_cooperado_error');
+                        if (errorMsg) errorMsg.style.display = 'none';
+                        const errorMsgMat = document.getElementById('matricula_cooperado_error');
+                        if (errorMsgMat) errorMsgMat.style.display = 'none';
+                    }
+                );
+            }
+        }
+    }
+
     // Função para buscar cooperado por matrícula
     async function buscarPorMatricula(matricula) {
         if (!matricula.trim()) {
@@ -1434,6 +1556,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (matriculaInput) {
         matriculaInput.addEventListener('input', function () {
             const matricula = this.value;
+            const val = this.value.trim();
+            if (val && val !== 'Matrícula não encontrada' && val !== 'Erro na busca') {
+                this.dataset.ultimoValor = val;
+            }
 
             // Limpar timeout anterior
             if (timeoutMatricula) {
@@ -1449,12 +1575,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 buscarPorMatricula(matricula);
             }, 300); // Delay de 300ms para evitar muitas requisições
         });
+
+        matriculaInput.addEventListener('blur', verificarECadastrarCooperadoFluxo);
     }
 
     // Event listeners para busca por nome
     if (nomeInput) {
         nomeInput.addEventListener('input', function () {
             const nome = this.value;
+            const val = this.value.trim();
+            if (val && val !== 'Cooperado não encontrado' && val !== 'Erro na busca') {
+                this.dataset.ultimoValor = val;
+            }
 
             // Limpar timeout anterior
             if (timeoutNome) {
@@ -1476,6 +1608,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 buscarPorNome(nome);
             }, 300); // Delay de 300ms para evitar muitas requisições
         });
+
+        nomeInput.addEventListener('blur', verificarECadastrarCooperadoFluxo);
     }
 
     // Limpar sugestões quando clicar fora
@@ -1682,9 +1816,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const motivoGroup = document.getElementById('motivoVendaPerdidaGroup');
         const motivoInput = document.getElementById('motivo_venda_perdida');
         if (status && motivoGroup && motivoInput) {
-            if (status.value === 'Cotação Perdida') {
+            if (status.value === 'Cotação Perdida' && !window.modoReadonly) {
                 motivoGroup.style.display = '';
                 motivoInput.setAttribute('required', 'required');
+                motivoInput.readOnly = false;
+                motivoInput.disabled = false;
             } else {
                 motivoGroup.style.display = 'none';
                 motivoInput.removeAttribute('required');
@@ -1841,10 +1977,70 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        function verificarECadastrarProdutoFluxoFinal() {
+            const codVal = codigoInput.value.trim();
+            const nomeVal = nomeInput.value.trim();
+            
+            const codInvalido = codigoInput.classList.contains('is-invalid') || codVal === 'Código não encontrado' || codVal === 'Erro na busca' || codVal === 'Produto não encontrado';
+            const nomeInvalido = nomeInput.classList.contains('is-invalid') || nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca' || nomeVal === 'Código não encontrado';
+            
+            if (codInvalido || nomeInvalido) {
+                let codParaCadastrar = '';
+                let nomeParaCadastrar = '';
+                
+                if (nomeVal === 'Produto não encontrado' || nomeVal === 'Erro na busca') {
+                    codParaCadastrar = (codVal !== 'Código não encontrado' && codVal !== 'Erro na busca') ? codVal : '';
+                } else if (codVal === 'Código não encontrado' || codVal === 'Erro na busca') {
+                    nomeParaCadastrar = (nomeVal !== 'Produto não encontrado' && nomeVal !== 'Erro na busca') ? nomeVal : '';
+                } else {
+                    const originalCod = codigoInput.dataset.ultimoValor || '';
+                    const originalNome = nomeInput.dataset.ultimoValor || '';
+                    
+                    const codValido = originalCod && originalCod !== 'Código não encontrado' && originalCod !== 'Erro na busca' && originalCod !== 'Produto não encontrado';
+                    const nomeValido = originalNome && originalNome !== 'Produto não encontrado' && originalNome !== 'Erro na busca' && originalCod !== 'Código não encontrado';
+                    
+                    if (codValido) codParaCadastrar = originalCod;
+                    else if (nomeValido) nomeParaCadastrar = originalNome;
+                }
+                
+                if (codParaCadastrar || nomeParaCadastrar) {
+                    if (Swal.isVisible()) return;
+                    
+                    confirmarECadastrarProduto(
+                        codParaCadastrar,
+                        nomeParaCadastrar,
+                        '',
+                        function(prodData) {
+                            codigoInput.value = prodData.codigo;
+                            nomeInput.value = prodData.nome;
+                            codigoInput.classList.add('is-valid');
+                            codigoInput.classList.remove('is-invalid');
+                            nomeInput.classList.add('is-valid');
+                            nomeInput.classList.remove('is-invalid');
+                            
+                            const fornecedorEl = document.getElementById(`fornecedor_${produtoIndex}`);
+                            if (fornecedorEl) {
+                                fornecedorEl.value = prodData.fornecedor || '';
+                                fornecedorEl.setAttribute('readonly', true);
+                                fornecedorEl.classList.add('campo-bloqueado');
+                            }
+                        }
+                    );
+                }
+            }
+        }
+
+        // Função antiga removida
+
         // Event listener para busca por código
         codigoInput.addEventListener('input', function () {
             const codigo = this.value;
             console.log('🎯 Input código produto:', codigo, 'Index:', produtoIndex);
+            
+            const val = this.value.trim();
+            if (val && val !== 'Código não encontrado' && val !== 'Erro na busca' && val !== 'Produto não encontrado') {
+                this.dataset.ultimoValor = val;
+            }
 
             // Limpar timeout anterior
             if (timeoutCodigoProduto[produtoIndex]) {
@@ -1867,10 +2063,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }, 300);
         });
 
+        codigoInput.addEventListener('blur', verificarECadastrarProdutoFluxoFinal);
+
         // Event listener para busca por nome
         nomeInput.addEventListener('input', function () {
             const nome = this.value;
             console.log('🎯 Input nome produto:', nome, 'Index:', produtoIndex);
+            
+            const val = this.value.trim();
+            if (val && val !== 'Produto não encontrado' && val !== 'Erro na busca' && val !== 'Código não encontrado') {
+                this.dataset.ultimoValor = val;
+            }
 
             // Limpar timeout anterior
             if (timeoutNomeProduto[produtoIndex]) {
@@ -1898,6 +2101,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 buscarProdutoPorNome(nome, produtoIndex);
             }, 300);
         });
+
+        nomeInput.addEventListener('blur', verificarECadastrarProdutoFluxoFinal);
 
         // Limpar sugestões quando clicar fora
         document.addEventListener('click', function (e) {

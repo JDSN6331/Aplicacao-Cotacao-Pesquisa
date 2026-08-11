@@ -19,6 +19,8 @@ from routes import routes, cotacao_routes, pesquisa_routes, admin_routes
 from routes.auth_routes import auth_routes
 from logging_config import setup_logging
 from datetime import timedelta
+from services.email_service import inicializar_scheduler_resumo_pendencias
+from services.backup_service import inicializar_scheduler_backup
 
 # Criar a aplicação Flask
 app = Flask(__name__)
@@ -217,6 +219,133 @@ with app.app_context():
         db.session.rollback()
         print(f"⚠️ Erro ao executar migração de pesquisas legadas: {e}")
 
+    # Migração e Sincronização de Motivos de Perda Legados
+    try:
+        from models import Cotacao, PesquisaMercado, Observacao, HistoricoEdicaoCampo, HistoricoStatus
+        from datetime import datetime
+        
+        migrados_perda = 0
+        
+        # 1. Cotações perdidas
+        cotacoes_perdidas = Cotacao.query.filter(
+            Cotacao.status == 'Cotação Perdida',
+            Cotacao.motivo_venda_perdida != None,
+            Cotacao.motivo_venda_perdida != ''
+        ).all()
+        
+        for cot in cotacoes_perdidas:
+            # Buscar dados corretos de autoria nos históricos
+            hist_edit = HistoricoEdicaoCampo.query.filter_by(
+                cotacao_id=cot.id, 
+                campo_nome='motivo_venda_perdida'
+            ).order_by(HistoricoEdicaoCampo.data_mudanca.desc()).first()
+            
+            user_c = None
+            depto_c = None
+            date_c = None
+            
+            if hist_edit:
+                user_c = hist_edit.usuario
+                depto_c = hist_edit.departamento
+                date_c = hist_edit.data_mudanca
+            else:
+                hist_status = HistoricoStatus.query.filter_by(
+                    cotacao_id=cot.id, 
+                    status_novo='Cotação Perdida'
+                ).order_by(HistoricoStatus.data_mudanca.desc()).first()
+                if hist_status:
+                    user_c = hist_status.usuario
+                    depto_c = hist_status.departamento
+                    date_c = hist_status.data_mudanca
+            
+            usuario_final = user_c or cot.comprador or 'Sistema'
+            depto_final = depto_c or ('Suprimentos' if cot.comprador else 'Sistema')
+            data_final = date_c or cot.data_entrada_status or cot.data_ultima_modificacao or datetime.now()
+            
+            obs = Observacao.query.filter_by(cotacao_id=cot.id, origem='motivo_perda').first()
+            if not obs:
+                nova_obs = Observacao(
+                    cotacao_id=cot.id,
+                    usuario=usuario_final,
+                    departamento=depto_final,
+                    texto=f"Versão {cot.versao or 1}: {cot.motivo_venda_perdida.strip()}",
+                    origem='motivo_perda',
+                    data_criacao=data_final
+                )
+                db.session.add(nova_obs)
+                migrados_perda += 1
+            else:
+                # Atualizar para corrigir se os metadados estiverem incorretos
+                if obs.usuario != usuario_final or obs.departamento != depto_final or obs.data_criacao != data_final:
+                    obs.usuario = usuario_final
+                    obs.departamento = depto_final
+                    obs.data_criacao = data_final
+                    migrados_perda += 1
+                
+        # 2. Pesquisas perdidas
+        pesquisas_perdidas = PesquisaMercado.query.filter(
+            PesquisaMercado.status == 'Pesquisa Perdida',
+            PesquisaMercado.motivo_venda_perdida != None,
+            PesquisaMercado.motivo_venda_perdida != ''
+        ).all()
+        
+        for pesq in pesquisas_perdidas:
+            hist_edit = HistoricoEdicaoCampo.query.filter_by(
+                pesquisa_id=pesq.id, 
+                campo_nome='motivo_venda_perdida'
+            ).order_by(HistoricoEdicaoCampo.data_mudanca.desc()).first()
+            
+            user_p = None
+            depto_p = None
+            date_p = None
+            
+            if hist_edit:
+                user_p = hist_edit.usuario
+                depto_p = hist_edit.departamento
+                date_p = hist_edit.data_mudanca
+            else:
+                hist_status = HistoricoStatus.query.filter_by(
+                    pesquisa_id=pesq.id, 
+                    status_novo='Pesquisa Perdida'
+                ).order_by(HistoricoStatus.data_mudanca.desc()).first()
+                if hist_status:
+                    user_p = hist_status.usuario
+                    depto_p = hist_status.departamento
+                    date_p = hist_status.data_mudanca
+                    
+            usuario_final = user_p or 'Sistema'
+            depto_final = depto_p or 'Sistema'
+            data_final = date_p or pesq.data_entrada_status or pesq.data_ultima_modificacao or datetime.now()
+            
+            obs = Observacao.query.filter_by(pesquisa_id=pesq.id, origem='motivo_perda').first()
+            if not obs:
+                nova_obs = Observacao(
+                    pesquisa_id=pesq.id,
+                    usuario=usuario_final,
+                    departamento=depto_final,
+                    texto=pesq.motivo_venda_perdida.strip(),
+                    origem='motivo_perda',
+                    data_criacao=data_final
+                )
+                db.session.add(nova_obs)
+                migrados_perda += 1
+            else:
+                if obs.usuario != usuario_final or obs.departamento != depto_final or obs.data_criacao != data_final:
+                    obs.usuario = usuario_final
+                    obs.departamento = depto_final
+                    obs.data_criacao = data_final
+                    migrados_perda += 1
+                
+        if migrados_perda > 0:
+            db.session.commit()
+            print(f"✅ Migração de banco: {migrados_perda} motivos de perda legados foram corrigidos/convertidos em observações de timeline!")
+    except Exception as e:
+        db.session.rollback()
+        print(f"⚠️ Erro ao executar migração de motivos de perda legados: {e}")
+
+inicializar_scheduler_resumo_pendencias(app)
+inicializar_scheduler_backup(app)
+
 @app.route('/debug-env')
 def debug_env():
     # REMOVIDO: Endpoint de debug expõe informações sensíveis!
@@ -227,5 +356,5 @@ def debug_env():
 import os
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5000))  # QA: porta 5090 para isolamento (5050 em uso)
     app.run(host="0.0.0.0", port=port, debug=False)

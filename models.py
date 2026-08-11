@@ -21,6 +21,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     departamento = db.Column(db.String(50), nullable=False, default='Comercial')
+    is_active = db.Column(db.Boolean, default=True, nullable=False, server_default='1')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -78,6 +79,7 @@ class Cotacao(db.Model):
     motivo_venda_perdida = db.Column(db.Text, nullable=True)
     nome_vendedor = db.Column(db.String(100), nullable=False)
     pesquisa_id = db.Column(db.Integer, db.ForeignKey('pesquisas_mercado.id'), nullable=True)
+    versao = db.Column(db.Integer, nullable=False, default=1)  # Versionamento: 1=original, 2+=revisões
     
     # Relacionamentos
     produtos = db.relationship('ProdutoCotacao', backref='cotacao', lazy=True, cascade='all, delete-orphan')
@@ -107,6 +109,8 @@ class Cotacao(db.Model):
         dias_no_status = round(diff_segundos / 86400)
         valor_total = sum([produto.valor_total or 0 for produto in self.produtos]) if self.produtos else 0
         fornecedor = self.produtos[0].fornecedor if self.produtos and self.produtos[0].fornecedor else '-'
+        # Buscar o usuário que criou a cotação (primeiro histórico, status_anterior=None)
+        criado_por = next((h.usuario for h in self.historico_status if h.status_anterior is None), None)
         return {
             'id': self.id,
             'data': self.data.strftime('%d/%m/%Y'),
@@ -125,12 +129,14 @@ class Cotacao(db.Model):
             'cultura': self.cultura,
             'motivo_venda_perdida': self.motivo_venda_perdida,
             'nome_vendedor': self.nome_vendedor,
+            'criado_por': criado_por,
             'produtos': [produto.to_dict() for produto in self.produtos],
             'valor_total': valor_total,
             'fornecedor': fornecedor,
             'anexos': [anexo.to_dict() for anexo in self.anexos],
             'observacoes_lista': [obs.to_dict() for obs in self.observacoes_lista],
-            'pesquisa_id': self.pesquisa_id
+            'pesquisa_id': self.pesquisa_id,
+            'versao': self.versao
         }
 
 
@@ -256,6 +262,8 @@ class PesquisaMercado(db.Model):
         entrada = self.data_entrada_status or agora
         diff_segundos = (agora - entrada).total_seconds()
         dias_no_status = round(diff_segundos / 86400)
+        # Buscar o usuário que criou a pesquisa (primeiro histórico, status_anterior=None)
+        criado_por = next((h.usuario for h in self.historico_status if h.status_anterior is None), None)
         return {
             'id': self.id,
             'data': self.data.strftime('%d/%m/%Y'),
@@ -281,6 +289,7 @@ class PesquisaMercado(db.Model):
             # Campos adicionais para pesquisa
             'cultura': self.cultura,
             'nome_vendedor': self.nome_vendedor,
+            'criado_por': criado_por,
             'comprador': self.comprador,
             'motivo_venda_perdida': self.motivo_venda_perdida,
             'prazo_entrega': self.prazo_entrega.strftime('%Y-%m-%d') if self.prazo_entrega else None,

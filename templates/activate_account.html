@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Ativar Conta - Cotações Cooxupé{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-lg border-0 rounded-4 glass-effect">
+            <div class="card-header bg-transparent border-0 text-center pt-5 pb-2">
+                <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle mb-3"
+                    style="background: rgba(46, 125, 50, 0.1); color: var(--primary);">
+                    <i class="fas fa-user-check fa-2x"></i>
+                </div>
+                <h4 class="mb-0 fw-bold" style="color: var(--text-primary);">Ativar sua Conta</h4>
+                <p class="text-muted mt-2 mb-0" style="font-size: 0.95rem;">
+                    Bem-vindo(a), <strong>{{ user.name }}</strong>!<br>
+                    Crie sua senha de acesso para ativar a conta.
+                </p>
+            </div>
+            <div class="card-body p-4 p-md-5 pt-md-4">
+                <form method="POST" action="{{ url_for('auth.activate_account', token=token) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="email" value="{{ user.email }}" disabled readonly>
+                        <label for="email"><i class="fas fa-envelope me-2"></i>E-mail Corporativo</label>
+                    </div>
+
+                    <div class="form-floating mb-3 position-relative">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Criar Senha"
+                            required autofocus minlength="6" style="padding-right: 3rem;">
+                        <label for="password"><i class="fas fa-lock me-2"></i>Criar Senha</label>
+                        <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y me-2 text-muted" 
+                                onclick="togglePasswordVisibility('password', this)" style="z-index: 10; text-decoration: none;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-floating mb-3 position-relative">
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirme a Senha"
+                            required minlength="6" style="padding-right: 3rem;">
+                        <label for="confirm_password"><i class="fas fa-lock me-2"></i>Confirme a Senha</label>
+                        <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y me-2 text-muted" 
+                                onclick="togglePasswordVisibility('confirm_password', this)" style="z-index: 10; text-decoration: none;">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn text-white btn-lg fw-bold shadow-sm hover-elevate"
+                            style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border: none;">
+                            <i class="fas fa-check-circle me-2"></i>Ativar Conta e Entrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center py-3 rounded-bottom-3 border-0" style="background: rgba(0,0,0,0.02);">
+                <small class="text-muted"><a href="{{ url_for('auth.login') }}"
+                        class="fw-bold text-decoration-none" style="color: var(--primary);">Já possui conta ativa? Entrar</a></small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    [data-theme="dark"] .glass-effect {
+        background: rgba(20, 20, 20, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+    }
+
+    .hover-elevate {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .hover-elevate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+    }
+
+    .form-floating>label,
+    .form-floating>.form-control:focus~label,
+    .form-floating>.form-control:not(:placeholder-shown)~label,
+    .card-body .form-floating>label,
+    .card-body .form-floating>.form-control:focus~label,
+    .card-body .form-floating>.form-control:not(:placeholder-shown)~label {
+        background: transparent !important;
+        background-color: transparent !important;
+        --bs-body-bg: transparent !important;
+    }
+
+    .form-floating>label::before,
+    .form-floating>label::after {
+        display: none !important;
+    }
+
+    .form-floating>.form-control {
+        padding-top: 1.8rem;
+        padding-bottom: 0.5rem;
+        height: calc(3.5rem + 4px);
+    }
+
+    .form-floating>.form-control:focus~label,
+    .form-floating>.form-control:not(:placeholder-shown)~label {
+        transform: scale(0.85) translateY(-0.6rem) translateX(0.15rem);
+    }
+</style>
+
+<script>
+    function togglePasswordVisibility(inputId, button) {
+        const input = document.getElementById(inputId);
+        const icon = button.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+{% endblock %}

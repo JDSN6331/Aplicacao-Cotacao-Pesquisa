@@ -22,6 +22,11 @@ def login():
             flash('Usuário ou senha inválidos.', 'error')
             return redirect(url_for('auth.login'))
         
+        # Verificar se a conta está ativa
+        if not user.is_active:
+            flash('Sua conta ainda não foi ativada. Verifique o e-mail de confirmação enviado para você ou solicite ao Administrador.', 'error')
+            return redirect(url_for('auth.login'))
+        
         # Limpar qualquer mensagem de erro/timeout pendente antes de ir para o painel
         session.pop('_flashes', None)
         
@@ -56,61 +61,61 @@ def logout():
 
 @auth_routes.route('/register', methods=['GET', 'POST'])
 def register():
-    # Permitir cadastro apenas se não estiver logado (ou se for admin, mas por enquanto qualquer um)
-    # Se quiser restringir, pode adicionar lógica aqui
-    
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip().lower()
-        password = request.form.get('password')
-        name = request.form.get('name', '').strip()
-        departamento = request.form.get('departamento', '').strip()
-        
-        # Validar campos obrigatórios
-        if not username or not password or not name or not departamento:
-            flash('Todos os campos são obrigatórios.', 'error')
-            return redirect(url_for('auth.register'))
-        
-        # Validar departamento
-        departamentos_validos = ['Comercial', 'Suprimentos', 'Loja']
-        if departamento not in departamentos_validos:
-            flash('Departamento inválido. Selecione uma opção válida.', 'error')
-            return redirect(url_for('auth.register'))
-        
-        # Validar domínio do e-mail (apenas @cooxupe.com.br)
-        if not username.endswith('@cooxupe.com.br'):
-            flash('Apenas e-mails com o domínio @cooxupe.com.br são permitidos.', 'error')
-            return redirect(url_for('auth.register'))
-        
-        # O nome de usuário é o próprio e-mail
-        email = username
-        
-        # Verificar se usuário já existe
-        user = User.query.filter_by(username=username).first()
-        if user:
-            flash('Nome de usuário já existe. Escolha outro.', 'warning')
-            return redirect(url_for('auth.register'))
-        
-        # Verificar se email já existe
-        email_exists = User.query.filter_by(email=email).first()
-        if email_exists:
-            flash('E-mail já cadastrado. Faça login com sua conta existente.', 'warning')
-            return redirect(url_for('auth.register'))
-            
-        # Verificar se é o primeiro usuário (será admin automaticamente)
-        is_first_user = User.query.count() == 0
-        
-        new_user = User(username=username, email=email, name=name, departamento=departamento, is_admin=is_first_user)
-        new_user.set_password(password)
-        
-        db.session.add(new_user)
-        db.session.commit()
-        
-        # Login automático após registro bem-sucedido
-        login_user(new_user)
-        flash('Cadastro realizado com sucesso! Bem-vindo!', 'success')
+    # O autocadastro público foi desativado por segurança. Novos usuários são cadastrados apenas por Administradores.
+    flash('O autocadastro público foi desativado por questões de segurança. Novos usuários são cadastrados apenas pelos Administradores.', 'warning')
+    return redirect(url_for('auth.login'))
+
+@auth_routes.route('/activate-account/<token>', methods=['GET', 'POST'])
+def activate_account(token):
+    if current_user.is_authenticated:
         return redirect(url_for('routes.index'))
-        
-    return render_template('register.html')
+
+    serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        # O token é válido por 48 horas (172800 segundos)
+        email = serializer.loads(token, salt='account-activation-salt', max_age=172800)
+    except SignatureExpired:
+        flash('O link de ativação expirou. Solicite ao Administrador o reenvio do convite.', 'error')
+        return redirect(url_for('auth.login'))
+    except BadSignature:
+        flash('Link de ativação de conta inválido.', 'error')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('Usuário não encontrado.', 'error')
+        return redirect(url_for('auth.login'))
+
+    if user.is_active:
+        flash('Sua conta já está ativa! Faça login com suas credenciais.', 'info')
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not password or not confirm_password:
+            flash('Preencha as duas senhas.', 'warning')
+            return render_template('activate_account.html', token=token, user=user)
+
+        if password != confirm_password:
+            flash('As senhas não coincidem.', 'warning')
+            return render_template('activate_account.html', token=token, user=user)
+
+        if len(password) < 6:
+            flash('A senha deve ter pelo menos 6 caracteres.', 'warning')
+            return render_template('activate_account.html', token=token, user=user)
+
+        # Definir a senha escolhida e ativar a conta
+        user.set_password(password)
+        user.is_active = True
+        db.session.commit()
+
+        login_user(user)
+        flash('Sua conta foi ativada com sucesso! Seja bem-vindo!', 'success')
+        return redirect(url_for('routes.index'))
+
+    return render_template('activate_account.html', token=token, user=user)
 
 @auth_routes.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):

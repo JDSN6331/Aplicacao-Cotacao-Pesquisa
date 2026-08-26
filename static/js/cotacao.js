@@ -507,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="row mt-3">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="fornecedor_${produtoIndex}" class="form-label">Fornecedor</label>
+                            <label for="fornecedor_${produtoIndex}" class="form-label">Fornecedor <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="fornecedor_${produtoIndex}" name="produtos[${produtoIndex}][fornecedor]">
                         </div>
                     </div>
@@ -1264,12 +1264,104 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Função de validação desabilitada - nenhum campo é obrigatório
+    // Função de validação por passo — Aplicada na criação e em edições / mudanças de status
     function validarPassoAtual() {
+        let camposFaltando = [];
+
+        // Helper para limpar marcações visuais anteriores
+        function limparValidacao(el) {
+            if (el) {
+                el.classList.remove('is-invalid');
+            }
+        }
+
+        // Helper para marcar campo como inválido
+        function marcarInvalido(el) {
+            if (el) {
+                el.classList.add('is-invalid');
+                el.classList.remove('is-valid');
+            }
+        }
+
+        // Helper para verificar valor válido
+        function campoValido(valor) {
+            if (!valor) return false;
+            const v = valor.toString().trim();
+            return v !== '' && v.toLowerCase() !== 'undefined' && v.toLowerCase() !== 'null';
+        }
+
+        if (currentStep === 1) {
+            const filialEl = document.getElementById('nome_filial');
+            const matriculaEl = document.getElementById('matricula_cooperado');
+            const nomeCoopEl = document.getElementById('nome_cooperado');
+            const culturaEl = document.getElementById('cultura');
+
+            // Limpar marcações anteriores
+            [filialEl, matriculaEl, nomeCoopEl, culturaEl].forEach(limparValidacao);
+
+            if (!campoValido(filialEl?.value)) {
+                camposFaltando.push('Filial');
+                marcarInvalido(filialEl);
+            }
+            if (!campoValido(matriculaEl?.value)) {
+                camposFaltando.push('Matrícula do Cooperado');
+                marcarInvalido(matriculaEl);
+            }
+            const nomeCoopVal = nomeCoopEl?.value?.trim() || '';
+            if (!nomeCoopVal || nomeCoopVal === 'Cooperado não encontrado' || nomeCoopVal === 'Erro na busca' || nomeCoopVal === 'Matrícula não encontrada') {
+                camposFaltando.push('Nome do Cooperado');
+                marcarInvalido(nomeCoopEl);
+            }
+            if (!campoValido(culturaEl?.value)) {
+                camposFaltando.push('Cultura');
+                marcarInvalido(culturaEl);
+            }
+        }
+
+        if (currentStep === 2) {
+            const produtoItems = document.querySelectorAll('.produto-item');
+            if (produtoItems.length === 0) {
+                camposFaltando.push('Ao menos um Produto deve ser adicionado');
+            } else {
+                produtoItems.forEach(function(produtoDiv, idx) {
+                    const prefixo = produtoItems.length > 1 ? `Produto ${idx + 1}` : 'Produto';
+                    const skuEl = produtoDiv.querySelector('[id^=sku_produto_]');
+                    const nomeEl = produtoDiv.querySelector('[id^=nome_produto_]');
+                    const volumeEl = produtoDiv.querySelector('[id^=volume_]');
+                    const fornecedorEl = produtoDiv.querySelector('[id^=fornecedor_]');
+
+                    [skuEl, nomeEl, volumeEl, fornecedorEl].forEach(limparValidacao);
+
+                    if (!campoValido(skuEl?.value)) {
+                        camposFaltando.push(`${prefixo} - Código do Produto`);
+                        marcarInvalido(skuEl);
+                    }
+                    if (!campoValido(nomeEl?.value)) {
+                        camposFaltando.push(`${prefixo} - Nome do Produto`);
+                        marcarInvalido(nomeEl);
+                    }
+                    const volumeVal = parseFloat(volumeEl?.value || 0);
+                    if (!volumeVal || volumeVal <= 0) {
+                        camposFaltando.push(`${prefixo} - Volume`);
+                        marcarInvalido(volumeEl);
+                    }
+                    if (!campoValido(fornecedorEl?.value)) {
+                        camposFaltando.push(`${prefixo} - Fornecedor`);
+                        marcarInvalido(fornecedorEl);
+                    }
+                });
+            }
+        }
+
+        if (camposFaltando.length > 0) {
+            alert('Por favor, preencha os campos obrigatórios:\n\n• ' + camposFaltando.join('\n• '));
+            return false;
+        }
+
         return true;
     }
 
-    // Função de validação desabilitada - nenhum campo é obrigatório
+    // Validação final antes do envio — observação obrigatória + avisos de volume
     function validarTodosCamposObrigatorios() {
         let hasWarnings = false;
         let warnings = [];
@@ -1300,7 +1392,26 @@ document.addEventListener('DOMContentLoaded', function () {
             alert('⚠️ Atenção - Volumes não seguem os múltiplos:\n\n' + warnings.join('\n') + '\n\nVocê pode continuar salvando, mas será exibido um alerta toda vez que abrir este registro.');
         }
 
-        // ALTERADO: Sempre retorna true (permite salvar mesmo com avisos)
+        // Validar observação obrigatória (em todas as fases e mudanças de status)
+        const obsInput = document.getElementById('nova_observacao_input');
+        const obsTexto = obsInput ? obsInput.value.trim() : '';
+        if (!obsTexto) {
+            alert('Por favor, preencha os campos obrigatórios:\n\n• Adicionar Nova Observação');
+            if (obsInput) {
+                obsInput.classList.add('is-invalid');
+                obsInput.focus();
+            }
+            // Reabilitar botão
+            isSubmittingCotacao = false;
+            const nextBtn = document.getElementById('nextButton');
+            if (nextBtn) {
+                nextBtn.disabled = false;
+                nextBtn.style.opacity = '1';
+                nextBtn.style.cursor = 'pointer';
+            }
+            return false;
+        }
+
         return true;
     }
 

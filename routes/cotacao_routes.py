@@ -278,46 +278,69 @@ def criar_cotacao():
         for key, value in data.items():
             print(f"  {key}: {value}")
         
-        # Nova verificação: Pelo menos um campo (além dos de controle) deve estar preenchido
-        campos_ignorados = ['status', 'id', '_method', 'csrf_token']
-        tem_campo_preenchido = False
+        # ===== VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS NA CRIAÇÃO =====
+        campos_faltando = []
         
-        for key, value in data.items():
-            if key not in campos_ignorados and not key.startswith('produtos['):
-                # Se for nome_cooperado, desconsiderar as msgs de erro
-                if key == 'nome_cooperado' and value in ['Cooperado não encontrado', 'Erro na busca', 'Matrícula não encontrada']:
-                    continue
-                if value and str(value).strip() and str(value).strip() not in ['undefined', 'null']:
-                    tem_campo_preenchido = True
-                    break
-                    
-        # Verificar produtos
-        if not tem_campo_preenchido:
-            produtos_json = data.get('produtos_json')
-            if produtos_json and produtos_json != '[]':
+        # Helper para verificar se um valor é válido (não vazio, não "undefined", não "null")
+        def campo_valido(valor):
+            if not valor:
+                return False
+            v = str(valor).strip()
+            return v != '' and v.lower() not in ['undefined', 'null']
+        
+        # Helper para verificar nome_cooperado (desconsiderar mensagens de erro do sistema)
+        def nome_cooperado_valido(valor):
+            if not campo_valido(valor):
+                return False
+            return valor not in ['Cooperado não encontrado', 'Erro na busca', 'Matrícula não encontrada']
+        
+        # 1. Campos do cabeçalho
+        if not campo_valido(data.get('nome_filial')):
+            campos_faltando.append('Filial')
+        if not campo_valido(data.get('matricula_cooperado')):
+            campos_faltando.append('Matrícula do Cooperado')
+        if not nome_cooperado_valido(data.get('nome_cooperado')):
+            campos_faltando.append('Nome do Cooperado')
+        if not campo_valido(data.get('cultura')):
+            campos_faltando.append('Cultura')
+        
+        # 2. Validar produtos (ao menos 1 produto, com campos obrigatórios)
+        produtos_json_str = data.get('produtos_json')
+        produtos_para_validar = []
+        if produtos_json_str:
+            try:
+                produtos_para_validar = json.loads(produtos_json_str)
+            except (json.JSONDecodeError, TypeError):
+                produtos_para_validar = []
+        
+        if not produtos_para_validar:
+            campos_faltando.append('Ao menos um Produto deve ser adicionado')
+        else:
+            for idx, prod in enumerate(produtos_para_validar, 1):
+                prefixo = f'Produto {idx}' if len(produtos_para_validar) > 1 else 'Produto'
+                if not campo_valido(prod.get('sku_produto')):
+                    campos_faltando.append(f'{prefixo} - Código do Produto')
+                if not campo_valido(prod.get('nome_produto')):
+                    campos_faltando.append(f'{prefixo} - Nome do Produto')
+                # Volume: verificar se é > 0
                 try:
-                    produtos_data = json.loads(produtos_json)
-                    for prod in produtos_data:
-                        for k, v in prod.items():
-                            if v and str(v).strip() and str(v).strip() not in ['undefined', 'null', '0', '0.0']:
-                                tem_campo_preenchido = True
-                                break
-                        if tem_campo_preenchido: break
-                except:
-                    pass
-
-        # Verificar anexos
-        if not tem_campo_preenchido:
-            arquivos = request.files.getlist('anexos[]') or request.files.getlist('anexo')
-            for arquivo in arquivos:
-                if arquivo and arquivo.filename:
-                    tem_campo_preenchido = True
-                    break
-
-        if not tem_campo_preenchido:
+                    volume_val = float(prod.get('volume', 0) or 0)
+                except (ValueError, TypeError):
+                    volume_val = 0
+                if volume_val <= 0:
+                    campos_faltando.append(f'{prefixo} - Volume')
+                if not campo_valido(prod.get('fornecedor')):
+                    campos_faltando.append(f'{prefixo} - Fornecedor')
+        
+        # 3. Observação obrigatória na criação
+        obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
+        if not obs_texto:
+            campos_faltando.append('Observação')
+        
+        if campos_faltando:
             return jsonify({
                 'success': False,
-                'error': 'Valide as informações preenchidas: há campos sem preenchimento!'
+                'error': 'Por favor, preencha os campos obrigatórios: ' + ', '.join(campos_faltando)
             }), 400
         
         numero_mesorregiao = data.get('numero_mesorregiao') or data.get('mesoregiao')
@@ -569,6 +592,87 @@ def atualizar_cotacao(id):
             return jsonify({'success': False, 'error': 'Não é possível editar uma cotação finalizada ou perdida.'}), 400
         
         data = request.form
+        
+        # ===== VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS NA EDIÇÃO / MUDANÇA DE STATUS =====
+        campos_faltando = []
+        
+        def campo_valido(valor):
+            if not valor:
+                return False
+            v = str(valor).strip()
+            return v != '' and v.lower() not in ['undefined', 'null']
+        
+        def nome_cooperado_valido(valor):
+            if not campo_valido(valor):
+                return False
+            return valor not in ['Cooperado não encontrado', 'Erro na busca', 'Matrícula não encontrada']
+        
+        # 1. Campos do cabeçalho
+        filial_val = data.get('nome_filial') or cotacao.nome_filial
+        matricula_val = data.get('matricula_cooperado') or cotacao.matricula_cooperado
+        nome_coop_val = data.get('nome_cooperado') or cotacao.nome_cooperado
+        cultura_val = data.get('cultura') or cotacao.cultura
+        
+        if not campo_valido(filial_val):
+            campos_faltando.append('Filial')
+        if not campo_valido(matricula_val):
+            campos_faltando.append('Matrícula do Cooperado')
+        if not nome_cooperado_valido(nome_coop_val):
+            campos_faltando.append('Nome do Cooperado')
+        if not campo_valido(cultura_val):
+            campos_faltando.append('Cultura')
+            
+        # 2. Produtos
+        produtos_json_str = data.get('produtos_json')
+        produtos_para_validar = []
+        if produtos_json_str:
+            try:
+                produtos_para_validar = json.loads(produtos_json_str)
+            except (json.JSONDecodeError, TypeError):
+                produtos_para_validar = []
+        elif cotacao.produtos:
+            produtos_para_validar = [{
+                'sku_produto': p.sku_produto,
+                'nome_produto': p.nome_produto,
+                'volume': p.volume,
+                'fornecedor': p.fornecedor
+            } for p in cotacao.produtos]
+            
+        if not produtos_para_validar:
+            campos_faltando.append('Ao menos um Produto deve ser adicionado')
+        else:
+            for idx, prod in enumerate(produtos_para_validar, 1):
+                prefixo = f'Produto {idx}' if len(produtos_para_validar) > 1 else 'Produto'
+                if not campo_valido(prod.get('sku_produto')):
+                    campos_faltando.append(f'{prefixo} - Código do Produto')
+                if not campo_valido(prod.get('nome_produto')):
+                    campos_faltando.append(f'{prefixo} - Nome do Produto')
+                try:
+                    volume_val = float(prod.get('volume', 0) or 0)
+                except (ValueError, TypeError):
+                    volume_val = 0
+                if volume_val <= 0:
+                    campos_faltando.append(f'{prefixo} - Volume')
+                if not campo_valido(prod.get('fornecedor')):
+                    campos_faltando.append(f'{prefixo} - Fornecedor')
+                    
+        # 3. Observação obrigatória em cada alteração/status change
+        obs_texto = (data.get('nova_observacao') or data.get('observacoes') or '').strip()
+        if not obs_texto:
+            campos_faltando.append('Adicionar Nova Observação')
+            
+        # 4. Motivo de perda se for Cotação Perdida
+        novo_status_verificar = data.get('status', cotacao.status)
+        if novo_status_verificar == 'Cotação Perdida':
+            motivo_perda = (data.get('motivo_venda_perdida') or cotacao.motivo_venda_perdida or '').strip()
+            if not motivo_perda:
+                campos_faltando.append('Motivo da Cotação Perdida')
+                
+        if campos_faltando:
+            return jsonify({
+                'success': False,
+                'error': 'Por favor, preencha os campos obrigatórios: ' + ', '.join(campos_faltando)
+            }), 400
         
         # Validar permissão para EDIÇÃO DE CAMPOS (não aplica a mudança de status)
         usuario_depto = getattr(current_user, 'departamento', 'N/A')

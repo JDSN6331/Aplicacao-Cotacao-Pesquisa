@@ -385,8 +385,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label for="mesoregiao" class="form-label">Mesoregião Geográfica <span
-                                        class="text-danger">*</span></label>
+                                <label for="mesoregiao" class="form-label">Mesoregião Geográfica</label>
                                 <input type="text" class="form-control campo-bloqueado" id="mesoregiao"
                                     name="mesoregiao"
                                     value="{{ cotacao.numero_mesorregiao if cotacao else (prefilled.numero_mesorregiao if prefilled else '') }}"
@@ -456,8 +455,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label for="nome_vendedor" class="form-label">Vendedor <span
-                                        class="text-danger">*</span></label>
+                                <label for="nome_vendedor" class="form-label">Vendedor</label>
                                 <input type="text" class="form-control" id="nome_vendedor" name="nome_vendedor"
                                     value="{{ cotacao.nome_vendedor if cotacao else (prefilled.nome_vendedor if prefilled else '') }}">
                             </div>
@@ -466,8 +464,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label for="analista_comercial" class="form-label">Analista Comercial <span
-                                        class="text-danger">*</span></label>
+                                <label for="analista_comercial" class="form-label">Analista Comercial</label>
                                 <input type="text" class="form-control campo-bloqueado" id="analista_comercial"
                                     name="analista_comercial"
                                     value="{{ cotacao.analista_comercial if cotacao else (prefilled.analista_comercial if prefilled else '') }}"
@@ -501,8 +498,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label for="forma_pagamento" class="form-label">Forma de Pagamento <span
-                                        class="text-danger">*</span></label>
+                                <label for="forma_pagamento" class="form-label">Forma de Pagamento</label>
                                 <input type="text" class="form-control" id="forma_pagamento" name="forma_pagamento"
                                     value="{{ cotacao.forma_pagamento if cotacao else (prefilled.forma_pagamento if prefilled else '') }}"
                                     placeholder="Ex: À Vista, 30 dias, etc.">
@@ -510,8 +506,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label for="prazo_entrega" class="form-label">Prazo de Entrega <span
-                                        class="text-danger">*</span></label>
+                                <label for="prazo_entrega" class="form-label">Prazo de Entrega</label>
                                 <input type="date" class="form-control" id="prazo_entrega" name="prazo_entrega"
                                     value="{{ cotacao.prazo_entrega.strftime('%Y-%m-%d') if cotacao and cotacao.prazo_entrega else (prefilled.prazo_entrega if prefilled else '') }}">
                             </div>
@@ -595,7 +590,7 @@
                                 <!-- Inserção de Nova Observação -->
                                 <div class="observacao-nova-container mt-3">
                                     <div class="observacao-nova-header">
-                                        <i class="fas fa-comment-medical text-success"></i> Adicionar Nova Observação
+                                        <i class="fas fa-comment-medical text-success"></i> Adicionar Nova Observação <span class="text-danger">*</span>
                                     </div>
                                     <textarea class="form-control" id="nova_observacao_input" name="nova_observacao" rows="2" placeholder="Digite uma nova observação sobre este registro..."></textarea>
                                 </div>

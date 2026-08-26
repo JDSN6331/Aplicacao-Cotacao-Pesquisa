@@ -140,12 +140,15 @@ body::before {
     font-family: inherit;
 }
 
-/* Ocultar asteriscos de campos obrigatórios */
+/* Exibir asteriscos de campos obrigatórios */
 .form-label .text-danger,
 label .text-danger,
 .form-label.text-danger:has(*),
 label.text-danger:has(*) {
-    display: none !important;
+    display: inline !important;
+    color: #dc3545 !important;
+    font-weight: bold;
+    margin-left: 2px;
 }
 
 /* ===== ALERTAS FLASH - MAIS VISÍVEIS ===== */

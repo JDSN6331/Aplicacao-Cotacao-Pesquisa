@@ -264,7 +264,7 @@
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="filial" class="form-label">Filial </label>
+                        <label for="filial" class="form-label">Filial <span class="text-danger">*</span></label>
                         <select class="form-select" id="filial" name="nome_filial"></select>
                         <div id="filial_status" class="form-text" style="display: none;">
                             <small class="text-muted"><i class="fas fa-spinner fa-spin"></i> <span
@@ -272,8 +272,7 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <label for="mesorregiao_geografica" class="form-label">Mesoregião Geográfica <span
-                                class="text-danger">*</span></label>
+                        <label for="mesorregiao_geografica" class="form-label">Mesoregião Geográfica</label>
                         <input type="text" class="form-control" id="mesorregiao_geografica" name="numero_mesorregiao"
                             readonly value="{{ pesquisa.numero_mesorregiao if pesquisa else '' }}">
                     </div>
@@ -309,7 +308,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <label for="cultura" class="form-label">Cultura </label>
+                        <label for="cultura" class="form-label">Cultura <span class="text-danger">*</span></label>
                         <select class="form-select" id="cultura" name="cultura">
                             <option value="">Selecione...</option>
                             <option value="Café" {{ 'selected' if pesquisa and pesquisa.cultura and
@@ -342,8 +341,7 @@
 
                 <div class="row mb-3 mt-3">
                     <div class="col-md-4">
-                        <label for="forma_pagamento" class="form-label">Forma de Pagamento <span
-                                class="text-danger">*</span></label>
+                        <label for="forma_pagamento" class="form-label">Forma de Pagamento</label>
                         <input type="text" class="form-control" id="forma_pagamento" name="forma_pagamento"
                             value="{{ pesquisa.forma_pagamento if pesquisa else '' }}">
                     </div>
@@ -356,8 +354,7 @@
 
                 <div class="row mb-3 mt-3">
                     <div class="col-md-4">
-                        <label for="analista_comercial" class="form-label">Analista Comercial <span
-                                class="text-danger">*</span></label>
+                        <label for="analista_comercial" class="form-label">Analista Comercial</label>
                         <input type="text" class="form-control campo-bloqueado" id="analista_comercial"
                             name="analista_comercial" readonly
                             value="{{ pesquisa.analista_comercial if pesquisa else '' }}">
@@ -422,7 +419,7 @@
                     <!-- Inserção de Nova Observação -->
                     <div class="observacao-nova-container mt-3">
                         <div class="observacao-nova-header">
-                            <i class="fas fa-comment-medical text-success"></i> Adicionar Nova Observação
+                            <i class="fas fa-comment-medical text-success"></i> Adicionar Nova Observação <span class="text-danger">*</span>
                         </div>
                         <textarea class="form-control" id="nova_observacao_input" name="nova_observacao" rows="2" placeholder="Digite uma nova observação sobre este registro..."></textarea>
                     </div>
@@ -1371,7 +1368,7 @@
             }
         });
 
-        // Função de validação desabilitada - nenhum campo é obrigatório
+        // Função de validação — Campos obrigatórios na CRIAÇÃO e Motivo da Pesquisa Perdida
         function validarFormulario() {
             let valido = true;
             let camposFaltando = [];
@@ -1379,13 +1376,133 @@
 
             const statusSelect = $('#status');
 
-            // Validar Motivo caso seja Pesquisa Perdida
+            // Helper para limpar validação
+            function limparValidacao(el) {
+                if (el) $(el).removeClass('is-invalid');
+            }
+
+            // Helper para marcar como inválido
+            function marcarInvalido(el) {
+                if (el) {
+                    $(el).addClass('is-invalid');
+                    $(el).removeClass('is-valid');
+                }
+            }
+
+            // Helper para verificar valor válido
+            function campoValido(valor) {
+                if (!valor) return false;
+                const v = valor.toString().trim();
+                return v !== '' && v.toLowerCase() !== 'undefined' && v.toLowerCase() !== 'null';
+            }
+
+            // 1. Validar Motivo caso seja Pesquisa Perdida (aplica-se a criação e edição)
             if (statusSelect.val() === 'Pesquisa Perdida' && !$('#motivo_venda_perdida').val().trim()) {
                 valido = false;
                 camposFaltando.push('Motivo da Pesquisa Perdida');
-                $('#motivo_venda_perdida').addClass('is-invalid');
+                marcarInvalido($('#motivo_venda_perdida'));
             } else {
-                $('#motivo_venda_perdida').removeClass('is-invalid');
+                limparValidacao($('#motivo_venda_perdida'));
+            }
+
+            // 2. Validações de campos obrigatórios (Criação, Edição e Mudança de Status)
+            const filialEl = $('#filial');
+            const matriculaEl = $('#matricula_cooperado');
+            const nomeCoopEl = $('#nome_cooperado');
+            const culturaEl = $('#cultura');
+            const obsEl = $('#nova_observacao_input');
+
+            [filialEl, matriculaEl, nomeCoopEl, culturaEl, obsEl].forEach(limparValidacao);
+
+            // Campos do cabeçalho
+            if (!campoValido(filialEl.val())) {
+                valido = false;
+                camposFaltando.push('Filial');
+                marcarInvalido(filialEl);
+            }
+
+            if (!campoValido(matriculaEl.val())) {
+                valido = false;
+                camposFaltando.push('Matrícula do Cooperado');
+                marcarInvalido(matriculaEl);
+            }
+
+            const nomeCoopVal = (nomeCoopEl.val() || '').trim();
+            if (!nomeCoopVal || nomeCoopVal === 'Cooperado não encontrado' || nomeCoopVal === 'Erro na busca' || nomeCoopVal === 'Matrícula não encontrada') {
+                valido = false;
+                camposFaltando.push('Nome do Cooperado');
+                marcarInvalido(nomeCoopEl);
+            }
+
+            if (!campoValido(culturaEl.val())) {
+                valido = false;
+                camposFaltando.push('Cultura');
+                marcarInvalido(culturaEl);
+            }
+
+            // Campos dos produtos
+            const produtosDivs = document.querySelectorAll('[id^="produto-pesquisa-"]');
+            if (produtosDivs.length === 0) {
+                valido = false;
+                camposFaltando.push('Ao menos um Produto deve ser adicionado');
+            } else {
+                produtosDivs.forEach((produtoDiv, idx) => {
+                    const prefixo = produtosDivs.length > 1 ? `Produto ${idx + 1}` : 'Produto';
+                    const codInput = produtoDiv.querySelector('.produto-codigo-input');
+                    const nomeInput = produtoDiv.querySelector('.produto-nome-input');
+                    const concInput = produtoDiv.querySelector('[name$="[nome_concorrente]"]');
+                    const qtdInput = produtoDiv.querySelector('.produto-quantidade-input');
+                    const valConcInput = produtoDiv.querySelector('[name$="[valor_concorrente]"]');
+                    const fornInput = produtoDiv.querySelector('.produto-fornecedor-input');
+
+                    [codInput, nomeInput, concInput, qtdInput, valConcInput, fornInput].forEach(limparValidacao);
+
+                    if (!campoValido(codInput?.value)) {
+                        valido = false;
+                        camposFaltando.push(`${prefixo} - Código do Produto`);
+                        marcarInvalido(codInput);
+                    }
+
+                    if (!campoValido(nomeInput?.value)) {
+                        valido = false;
+                        camposFaltando.push(`${prefixo} - Nome do Produto`);
+                        marcarInvalido(nomeInput);
+                    }
+
+                    if (!campoValido(concInput?.value)) {
+                        valido = false;
+                        camposFaltando.push(`${prefixo} - Nome do Concorrente`);
+                        marcarInvalido(concInput);
+                    }
+
+                    const qtdVal = parseFloat(qtdInput?.value || 0);
+                    if (!qtdVal || qtdVal <= 0) {
+                        valido = false;
+                        camposFaltando.push(`${prefixo} - Qtd. Cotada (tn)`);
+                        marcarInvalido(qtdInput);
+                    }
+
+                    const valConc = (valConcInput && valConcInput.value) ? window.parseMoeda(valConcInput.value) : 0;
+                    if (!valConc || valConc <= 0) {
+                        valido = false;
+                        camposFaltando.push(`${prefixo} - Valor Concorrente`);
+                        marcarInvalido(valConcInput);
+                    }
+
+                    if (!campoValido(fornInput?.value)) {
+                        valido = false;
+                        camposFaltando.push(`${prefixo} - Fornecedor`);
+                        marcarInvalido(fornInput);
+                    }
+                });
+            }
+
+            // Observação obrigatória em todas as ações
+            const obsTexto = obsEl.val() ? obsEl.val().trim() : '';
+            if (!obsTexto) {
+                valido = false;
+                camposFaltando.push('Adicionar Nova Observação');
+                marcarInvalido(obsEl);
             }
 
             // Validar múltiplos de quantidade para todos os produtos adicionados - APENAS AVISO, NÃO BLOQUEIA
@@ -1411,22 +1528,16 @@
                 }
             });
 
-            // Adicione outras validações aqui se necessário
-            // Exemplo:
-            // if (!$('#matricula_cooperado').val().trim()) {
-            //     valido = false;
-            //     camposFaltando.push('Matrícula do Cooperado');
-            //     $('#matricula_cooperado').addClass('is-invalid');
-            // } else {
-            //     $('#matricula_cooperado').removeClass('is-invalid');
-            // }
+            if (!valido || camposFaltando.length > 0) {
+                alert('Por favor, preencha os campos obrigatórios:\n\n• ' + camposFaltando.join('\n• '));
+                return false;
+            }
 
-            if (!valido) {
-                alert('Por favor, preencha os campos obrigatórios: ' + camposFaltando.join(', '));
-            } else if (avisos.length > 0) {
+            if (avisos.length > 0) {
                 alert('⚠️ Atenção - Volumes não seguem os múltiplos:\n\n' + avisos.join('\n') + '\n\nVocê pode continuar salvando, mas será exibido um alerta toda vez que abrir este registro.');
             }
-            return true;  // ALTERADO: Sempre retorna true (permite salvar mesmo com avisos)
+
+            return true;
         }
 
         let isSubmittingPesquisa = false;  // Flag para prevenir múltiplas submissões
@@ -2357,7 +2468,7 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Nome do Concorrente</label>
+                            <label class="form-label">Nome do Concorrente <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="produtos_pesquisa[${index}][nome_concorrente]" 
                                    value="${produtoData && produtoData.nome_concorrente ? produtoData.nome_concorrente : ''}"
                                    ${window.modoReadonly ? 'disabled' : ''}>
@@ -2375,7 +2486,7 @@
                             <div class="invalid-feedback" id="erro_quantidade_cotada_${index}" style="display: none;"></div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Valor Concorrente (R$)</label>
+                            <label class="form-label">Valor Concorrente (R$) <span class="text-danger">*</span></label>
                             <input type="text" class="form-control money-input" name="produtos_pesquisa[${index}][valor_concorrente]" 
                                    value="${produtoData && produtoData.valor_concorrente ? window.formatarMoeda(produtoData.valor_concorrente) : ''}"
                                    ${window.modoReadonly ? 'disabled' : ''} required>
@@ -2389,7 +2500,7 @@
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Fornecedor</label>
+                            <label class="form-label">Fornecedor <span class="text-danger">*</span></label>
                             <input type="text" class="form-control produto-fornecedor-input" 
                                    id="produto_fornecedor_${index}"
                                    name="produtos_pesquisa[${index}][fornecedor]" 

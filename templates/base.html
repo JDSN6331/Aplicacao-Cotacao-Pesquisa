@@ -33,7 +33,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <!-- Cabeçalho com Glassmorphism -->
     <header class="dashboard-header">
         <div class="header-content">
@@ -78,6 +78,10 @@
                 </a>
 
                 {% if current_user.is_admin %}
+                <a href="{{ url_for('access.monitoring') }}" class="btn btn-outline-success text-nowrap" title="Monitoramento de acessos">
+                    <i class="fas fa-user-clock"></i>
+                    <span class="d-none d-xl-inline">Acessos</span>
+                </a>
                 <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-outline-success text-nowrap"
                     style="font-size: 0.9rem;" title="Configurações">
                     <i class="fas fa-cog"></i>
@@ -239,6 +243,9 @@
     <script src="{{ url_for('static', filename='js/cadastro.js') }}"></script>
 
     {% block extra_js %}{% endblock %}
+    {% if current_user.is_authenticated %}
+    <script src="{{ url_for('static', filename='js/access-heartbeat.js') }}" data-heartbeat-url="{{ url_for('access.access_heartbeat') }}"></script>
+    {% endif %}
 </body>
 
 </html>

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Monitoramento de acessos - Cotações Cooxupé{% endblock %}
+{% block body_class %}access-page{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/access-monitoring.css') }}">
+{% endblock %}
+{% block content %}
+<section class="access-monitor" id="accessMonitor" data-overview-url="{{ url_for('access.overview') }}" data-sessions-url="{{ url_for('access.sessions', user_id=0) }}">
+    <div class="access-heading">
+        <div class="access-title"><i class="fas fa-user-clock" aria-hidden="true"></i><div><h1>Monitoramento de acessos</h1><p>Horários de Brasília · atualização automática a cada minuto</p></div></div>
+        <button class="btn btn-primary text-nowrap" id="refreshAccess"><i class="fas fa-sync-alt me-1" aria-hidden="true"></i>Atualizar</button>
+    </div>
+    <div class="access-note">
+        <p><span class="access-live-dot" aria-hidden="true"></span>A presença considera sinais dos últimos 90 segundos. O tempo de uso é estimado com a aba visível.</p>
+        <details><summary>Como os acessos são medidos</summary><p>Cada sessão registrada conta como um acesso, tanto por login quanto por retomada de autenticação existente. Os totais consideram o histórico preservado desde a implantação deste monitoramento.
+            O uso estimado soma intervalos de até um minuto com a aba visível e conectada; não mede atenção nem a validade do login.
+            Fechar o navegador não registra uma saída exata. Atualizações de página, sinais de presença e abas da mesma sessão não acrescentam acessos. O histórico identifica a origem de cada sessão como Login ou Retomada.</p></details>
+    </div>
+    <div id="accessError" class="alert alert-danger d-none" role="alert"></div>
+    <div class="access-metrics" aria-live="polite">
+        <div class="access-metric"><span class="access-metric-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span>Usuários cadastrados</span><strong id="registeredCount">—</strong></div>
+        <div class="access-metric"><span class="access-metric-icon"><i class="fas fa-sign-in-alt" aria-hidden="true"></i></span><span>Acessos registrados</span><strong id="accessCount">—</strong></div>
+        <div class="access-metric"><span class="access-metric-icon"><i class="fas fa-user-check" aria-hidden="true"></i></span><span>Online agora</span><strong id="onlineCount">—</strong></div>
+    </div>
+    <div class="access-toolbar">
+        <div class="access-search"><i class="fas fa-search" aria-hidden="true"></i><label for="accessSearch" class="visually-hidden">Buscar por nome ou e-mail</label><input id="accessSearch" type="search" placeholder="Buscar por nome ou e-mail…"></div>
+        <span id="accessResults" aria-live="polite"></span>
+    </div>
+    <div class="content-card active access-list">
+    <div class="content-header"><div class="content-title"><i class="fas fa-users" aria-hidden="true"></i><h3>Acessos por usuário</h3></div><p class="access-sort-hint">Online primeiro · Último acesso mais recente · Nome em caso de empate</p></div>
+    <div class="access-table-scroll" tabindex="0" role="region" aria-label="Acessos por usuário"><table class="access-table access-users-table" aria-label="Monitoramento dos usuários">
+        <colgroup><col class="access-col-user"><col class="access-col-presence"><col class="access-col-count"><col class="access-col-date"><col class="access-col-date"><col class="access-col-duration"><col class="access-col-history"></colgroup>
+        <thead><tr><th scope="col">Usuário</th><th scope="col">Presença</th><th scope="col">Acessos</th><th scope="col">Último acesso</th><th scope="col">Última atividade</th><th scope="col">Uso estimado</th><th scope="col">Histórico</th></tr></thead>
+        <tbody id="accessUsers"><tr><td colspan="7" class="text-center text-muted">Carregando acessos…</td></tr></tbody>
+    </table></div>
+    </div>
+    <p class="access-updated" id="accessUpdated" aria-live="polite"></p>
+</section>
+<div class="modal fade access-sessions-modal" id="accessSessionsModal" tabindex="-1" aria-labelledby="accessSessionsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="accessSessionsTitle">Histórico de sessões</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+        <div class="modal-body"><p id="sessionUser" class="text-muted"></p><div id="sessionsError" class="alert alert-danger d-none" role="alert"></div>
+            <div class="access-table-scroll" tabindex="0" role="region" aria-label="Histórico de sessões"><table class="access-table access-sessions-table"><thead><tr><th scope="col">Início (Brasília)</th><th scope="col">Último sinal</th><th scope="col">Saída registrada</th><th scope="col">Uso estimado</th><th scope="col">Situação</th><th scope="col">Origem</th></tr></thead><tbody id="accessSessions"></tbody></table></div>
+        </div>
+        <div class="modal-footer"><span id="sessionsPage" class="me-auto small"></span><button class="btn btn-outline-secondary" id="sessionsPrevious">Anterior</button><button class="btn btn-primary" id="sessionsNext">Próxima</button></div>
+    </div></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/access-monitoring.js') }}"></script>{% endblock %}

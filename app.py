@@ -47,6 +47,9 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, faça login para acessar esta página.'
 login_manager.login_message_category = 'info'
 
+from services.access_monitoring import init_access_monitoring
+init_access_monitoring(app)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -90,7 +93,7 @@ def session_timeout_handler():
             session_created = session.get('_session_created_at')
             if session_created:
                 created_time = datetime.fromisoformat(session_created)
-                session_lifetime = app.config.get('PERMANENT_SESSION_LIFETIME', 1800)
+                session_lifetime = app.permanent_session_lifetime.total_seconds()
                 expiry_time = created_time + timedelta(seconds=session_lifetime)
                 
                 # Se a sessão expirou, fazer logout IMEDIATO
@@ -114,6 +117,8 @@ app.register_blueprint(cotacao_routes)
 app.register_blueprint(pesquisa_routes)
 app.register_blueprint(auth_routes)
 app.register_blueprint(admin_routes)
+from routes.access_routes import access_routes
+app.register_blueprint(access_routes)
 
 # Importar e registrar session_routes após os outros blueprints
 from routes.session_routes import session_routes

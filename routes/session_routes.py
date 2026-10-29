@@ -20,7 +20,7 @@ def check_session():
     """
     try:
         # Obter configurações de timeout
-        session_lifetime = current_app.config.get('PERMANENT_SESSION_LIFETIME', 1800)  # 30 min padrão
+        session_lifetime = int(current_app.permanent_session_lifetime.total_seconds())
         warning_time = current_app.config.get('SESSION_WARNING_TIME', 300)  # 5 min padrão
         
         # Resposta segura
@@ -62,7 +62,7 @@ def extend_session():
         from datetime import datetime
         session['_session_created_at'] = datetime.now().isoformat()
         
-        session_lifetime = current_app.config.get('PERMANENT_SESSION_LIFETIME', 30 * 60)
+        session_lifetime = int(current_app.permanent_session_lifetime.total_seconds())
         
         print(f'[SESSION] Sessão estendida para usuário ID {current_user.id}. Nova expiração em {session_lifetime // 60} minutos')
         
@@ -124,7 +124,7 @@ def session_info():
     Útil para debug e monitoramento.
     """
     try:
-        session_lifetime = current_app.config.get('PERMANENT_SESSION_LIFETIME', 30 * 60)
+        session_lifetime = int(current_app.permanent_session_lifetime.total_seconds())
         warning_time = current_app.config.get('SESSION_WARNING_TIME', 300)
         
         # Extrair dados do usuário com segurança

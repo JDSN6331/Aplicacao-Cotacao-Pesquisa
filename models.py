@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     departamento = db.Column(db.String(50), nullable=False, default='Comercial')
     is_active = db.Column(db.Boolean, default=True, nullable=False, server_default='1')
+    access_sessions = db.relationship('AccessSession', cascade='all, delete-orphan', lazy=True)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -31,6 +32,20 @@ class User(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+class AccessSession(db.Model):
+    """Uma autenticação ou retomada de sessão. Datas armazenadas em UTC."""
+    __tablename__ = 'access_sessions'
+    __bind_key__ = 'users'
+
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    started_at = db.Column(db.DateTime, nullable=False)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    estimated_seconds = db.Column(db.Float, nullable=False, default=0)
+    is_login = db.Column(db.Boolean, nullable=False, default=True)
 
 
 class Anexo(db.Model):
